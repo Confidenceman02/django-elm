@@ -1,0 +1,12 @@
+{
+  "name": "{{ cookiecutter.app_name }}",
+  "version": "1.0.0",
+  "license": "MIT",
+  "devDependencies": {
+    "@parcel/core": "^2.9.3",
+    "@parcel/transformer-elm": "^2.9.3",
+    "elm": "^0.19.1-5",
+    "parcel": "^2.9.3",
+    "typescript": "^5.2.2"
+  }
+}
