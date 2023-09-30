@@ -13,7 +13,9 @@ def test_elm_init_directory(settings):
     # settings.ELM_PROJECT_APP_NAME = app_name
     assert os.path.isfile(os.path.join(get_app_path(app_name), "apps.py")), 'The "project" app has been generated'
 
-    # assert os.path.isfile(os.path.join("elm_project", "apps.py")), 'The Elm app has been generated'
     assert os.path.isdir(app_name), 'The Elm project directory has been generated'
+
+    assert os.path.isfile(
+        os.path.join(get_app_path(app_name), "static_src", "elm.json")), 'An elm.json file has been generated'
 
     cleanup_theme_app_dir(app_name)

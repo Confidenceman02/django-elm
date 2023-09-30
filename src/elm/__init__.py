@@ -1,7 +1,8 @@
 from django.conf import settings
 
 
-def get_config(setting_name):
+def get_config(setting_name) -> str:
     return {
-        "NPM_BIN_PATH": getattr(settings, "NPM_BIN_PATH", "npm"),
+        "NODE_PACKAGE_MANAGER": getattr(settings, "NODE_PACKAGE_MANAGER", "npm"),
+        "ELM_BIN_PATH": getattr(settings, "ELM_BIN_PATH", "elm"),
     }[setting_name]
