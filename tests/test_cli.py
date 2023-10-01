@@ -18,6 +18,18 @@ def test_elm_create_directory(settings):
             "static_src",
             "package.json")), 'The project package.json has been generated'
 
+    assert os.path.isfile(
+        os.path.join(
+            get_app_path(app_name),
+            app_name + ".django_elm"
+        )), 'The project package.json has been generated'
+
+    assert os.path.isfile(
+        os.path.join(
+            get_app_path(app_name),
+            "static_src",
+            ".gitignore")), 'The project .gitignore has been generated'
+
     assert os.path.isdir(app_name), 'The project directory has been generated'
 
     cleanup_theme_app_dir(app_name)

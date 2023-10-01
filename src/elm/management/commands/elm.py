@@ -8,11 +8,12 @@ from ...strategy import Strategy, InitStrategy, CreateStrategy
 class Command(LabelCommand):
     help = "Runs elm commands"
     missing_args_message = """
-Command argument is missing, please add one of the following:
-  create <project-name> - to create a django-elm project
-  init <project-name> - to initialize a current django-elm project
+Command arguments are missing, please add one of the following:
+  create <app-name> - to create a django-elm app
+  init <app-name> - to initialize a current django-elm app
 Usage example:
-  python manage.py elm create
+  python manage.py elm create <app-name>
+  python manage.py elm init <app-name>
     """
     validate = None
     elm: type(Elm) | None = None
@@ -27,7 +28,7 @@ Usage example:
 
     def handle_labels(self, *labels):
         self.strategy = Strategy().create(*labels)
-        self.handle_strategy()
+        self.run_strategy()
 
-    def handle_strategy(self):
+    def run_strategy(self):
         self.strategy.run(self.stdout, self.style)
