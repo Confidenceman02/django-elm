@@ -1,5 +1,3 @@
-import pytest
-
 from src.elm.validate import Validations
 from unittest import TestCase
 from src.elm.effect import ExitFailure, ExitSuccess

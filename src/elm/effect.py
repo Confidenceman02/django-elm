@@ -1,21 +1,24 @@
 from typing import Literal, TypeVar, Generic
+from dataclasses import dataclass
 
 T = TypeVar('T')
 E = TypeVar('E')
 
 
+@dataclass
 class ExitSuccess(Generic[T]):
-    _tag: Literal["Success"] = "Success"
     value: T = None
+    tag: Literal["Success"] = "Success"
 
     def __init__(self, v: T):
         self.value = v
 
 
+@dataclass
 class ExitFailure(Generic[T, E]):
-    _tag: Literal["Failure"] = "Failure"
     err: E
     meta: T
+    tag: Literal["Failure"] = "Failure"
 
     def __init__(self, meta: T, err: E):
         self.meta = meta

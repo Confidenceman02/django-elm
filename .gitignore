@@ -2,3 +2,4 @@
 root/
 *.py[cod]
 **/__pycache__/
+.idea
