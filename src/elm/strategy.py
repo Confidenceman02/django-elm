@@ -5,6 +5,10 @@ from .utils import install_pip_package
 from dataclasses import dataclass
 
 
+class StrategyError(Exception):
+    pass
+
+
 @dataclass
 class InitStrategy:
     app_name: str
@@ -59,3 +63,5 @@ class Strategy:
                 return InitStrategy(app_name)
             case ExitSuccess(value={'command': 'create', 'app_name': app_name}):
                 return CreateStrategy(app_name)
+            case _ as x:
+                raise StrategyError(f"Unable to handle {x}")
