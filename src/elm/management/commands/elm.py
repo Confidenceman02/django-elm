@@ -4,7 +4,6 @@ from django.core.management.base import CommandError, LabelCommand
 from ...validate import Validations
 from ...utils import install_pip_package, get_app_src_path
 from ...elm import Elm
-from elm import get_config
 
 
 class Command(LabelCommand):
@@ -21,13 +20,6 @@ Usage example:
     def __init__(self, *args, **kwargs):
         super(Command, self).__init__(*args, **kwargs)
         self.validate = Validations()
-
-    # def add_arguments(self, parser):
-    #     super(Command, self).add_arguments(parser)
-    #     parser.add_argument(
-    #         "--app-name",
-    #         help="Sets the default app name on the elm project"
-    #     )
 
     def handle(self, *labels, **options):
         return self.handle_labels(*labels, **options)

@@ -2,16 +2,15 @@ import subprocess
 from typing_extensions import TypedDict
 from typing import Literal
 
-Value = TypedDict(
-    "Value", {'command': Literal["init"] | Literal["create"], 'app_name': str})
-ExitSuccess = TypedDict(
-    'ExitSuccess',
-    {'_tag': Literal["Success"],
-     'value': Value})
+from .effect import ExitSuccess, ExitFailure
 
-ExitFailure = TypedDict("ExitFailure", {'_tag': Literal["Failure"]})
-
-Exit = ExitSuccess | ExitFailure
+Init = TypedDict(
+    "Init", {'command': Literal["init"], 'app_name': str})
+Create = TypedDict(
+    "Create", {'command': Literal["create"], 'app_name': str})
+InitValidation = TypedDict(
+    'InitValidation',
+    {'value': Init})
 
 
 class ValidationError(Exception):
@@ -19,13 +18,16 @@ class ValidationError(Exception):
 
 
 class Validations:
-    def acceptable_command(self, labels: list[str]) -> Exit:
+    def acceptable_command(self, labels: list[str]) -> (
+            ExitSuccess[Init | Create] |
+            ExitFailure[list[str], ValidationError]
+    ):
         try:
             self.__check_command_verb(labels[0])
             self.__check_command_combos(labels)
             return self.__command_exit(labels)
-        except Exception as err:
-            raise err
+        except ValidationError as err:
+            return ExitFailure(labels, err)
 
     def __check_command_combos(self, xs: list[str]) -> None:
         match xs:
@@ -39,14 +41,17 @@ class Validations:
                 raise ValidationError(self.__missing_project_log(command_verb[0]))
 
     @staticmethod
-    def has_elm_binary() -> None:
+    def has_elm_binary() -> ExitSuccess[None] | ExitFailure:
         try:
             subprocess.check_output(["which", "elm"])
+            return ExitSuccess(None)
         except subprocess.CalledProcessError as err:
-            raise ValidationError(
-                'I can"t find an "elm" binary.\n Go to https://guide.elm-lang.org/install/elm.html for instructions '
-                f'on how to install elm.\n {err}'
-            )
+            return ExitFailure[None, ValidationError](
+                None,
+                ValidationError(
+                    'I can"t find an "elm" binary.\n Go to https://guide.elm-lang.org/install/elm.html for instructions'
+                    f'on how to install elm.\n {err}'
+                ))
 
     @staticmethod
     def __missing_project_log(cmd_verb: str) -> str:
@@ -64,18 +69,17 @@ class Validations:
             raise ValidationError(f"The command '{s}' is not valid.")
 
     @staticmethod
-    def __command_exit(xs: list[str]) -> ExitSuccess:
+    def __command_exit(xs: list[str]) -> (
+            ExitSuccess[Init | Create] |
+            ExitFailure[list[str], ValidationError]
+    ):
         match xs:
             case ["init", v]:
-                return {
-                    '_tag': 'Success',
-                    'value': {'command': 'init', 'app_name': v}
-                }
+                arg: Init = {'command': 'init', 'app_name': v}
+                return ExitSuccess(arg)
             case ["create", v]:
-                return {
-                    '_tag': 'Success',
-                    'value': {'command': 'create', 'app_name': v}
-                }
+                return ExitSuccess({'command': 'create', 'app_name': v})
 
             case _ as cmds:
-                raise ValidationError(f"Im not able to handle these commands {cmds}")
+                return ExitFailure(cmds, ValidationError(
+                    f"\nI can't handle the command {str(cmds)}"))
