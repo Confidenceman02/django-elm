@@ -21,10 +21,9 @@ class StrategyError(Exception):
 @dataclass
 class InitStrategy:
     app_name: str
-    elm: Elm
+    elm: Elm = Elm()
 
     def run(self, logger, style):
-        self.elm = Elm()
         src_path = get_app_src_path(self.app_name)
         # TODO implement init
         pass
