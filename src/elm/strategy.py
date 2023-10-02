@@ -2,6 +2,7 @@ import os
 from .validate import Validations
 from .effect import ExitFailure, ExitSuccess
 from .utils import install_pip_package, get_app_path, walk_level
+from .elm import Elm
 from dataclasses import dataclass
 from django.conf import settings
 from itertools import filterfalse

@@ -1,7 +1,6 @@
-import os.path
-import subprocess
 from typing_extensions import TypedDict
 from typing import Literal
+from django.core.management import settings
 
 from .effect import ExitSuccess, ExitFailure
 
@@ -36,7 +35,7 @@ class Validations:
     def __check_existing_app(self, xs: list[str]) -> None:
         match xs:
             case ["create", app_name]:
-                if os.path.isdir(os.path.join(os.getcwd(), app_name)):
+                if app_name in settings.INSTALLED_APPS:
                     raise ValidationError(
                         f"It looks like you are trying to run the 'create' command on the {app_name} app.\n"
                         f"I can't 'create' an app that has already been created.\n"

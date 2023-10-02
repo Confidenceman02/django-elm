@@ -1,7 +1,6 @@
 from django.core.management.base import LabelCommand
 
 from ...validate import Validations
-from ...elm import Elm
 from ...strategy import Strategy, InitStrategy, CreateStrategy
 
 
@@ -16,7 +15,6 @@ Usage example:
   python manage.py elm init <app-name>
     """
     validate = None
-    elm: type(Elm) | None = None
     strategy: InitStrategy | CreateStrategy
 
     def __init__(self, *args, **kwargs):
