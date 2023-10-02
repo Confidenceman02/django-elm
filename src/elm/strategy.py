@@ -1,8 +1,10 @@
 import os
 from .validate import Validations
 from .effect import ExitFailure, ExitSuccess
-from .utils import install_pip_package
+from .utils import install_pip_package, get_app_path, walk_level
 from dataclasses import dataclass
+from django.conf import settings
+from itertools import filterfalse
 
 
 class StrategyError(Exception):
@@ -16,6 +18,48 @@ class InitStrategy:
     def run(self, logger, style):
         # TODO implement init
         pass
+
+
+class ListStrategy:
+    _apps: list[str] = []
+
+    def __init__(self):
+        self._apps = settings.INSTALLED_APPS
+
+    def run(self, logger, style) -> list[str]:
+        app_paths = filterfalse(
+            lambda x: x is None,
+            map(get_app_path, self._apps)
+        )
+
+        dir_data = map(
+            next,
+            map(
+                walk_level,
+                app_paths
+            ))
+
+        django_elm_apps = [os.path.basename(r) for r, _, f in dir_data if self.is_django_elm(f)]
+
+        logger.write(style.SUCCESS("Here are all your installed django-elm apps:"))
+        for app in django_elm_apps:
+            logger.write(
+                style.SUCCESS(f"{app}")
+            )
+        logger.write(
+            style.WARNING(
+                "If you don't see all your django-elm apps make sure they are installed in your 'settings.py'."))
+        return django_elm_apps
+
+    @staticmethod
+    def is_django_elm(files: list[str]) -> bool:
+        test = ".django_elm"
+        found = False
+        for f in files:
+            if test in f:
+                found = True
+                break
+        return found
 
 
 @dataclass
@@ -54,7 +98,7 @@ class CreateStrategy:
 
 
 class Strategy:
-    def create(self, *labels) -> InitStrategy | CreateStrategy:
+    def create(self, *labels) -> InitStrategy | CreateStrategy | ListStrategy:
         e = Validations().acceptable_command(list(labels))
         match e:
             case ExitFailure(err):
@@ -63,5 +107,7 @@ class Strategy:
                 return InitStrategy(app_name)
             case ExitSuccess(value={'command': 'create', 'app_name': app_name}):
                 return CreateStrategy(app_name)
+            case ExitSuccess(value={'command': 'list'}):
+                return ListStrategy()
             case _ as x:
                 raise StrategyError(f"Unable to handle {x}")

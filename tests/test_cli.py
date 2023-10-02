@@ -32,4 +32,5 @@ def test_elm_create_directory(settings):
 
     assert os.path.isdir(app_name), 'The project directory has been generated'
 
+    settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)

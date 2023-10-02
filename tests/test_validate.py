@@ -28,11 +28,3 @@ def test_validate_single_command_verb_succeeds():
         Validations().acceptable_command(["list"]),
         ExitSuccess
     )
-
-
-def test_has_elm_binary():
-    assert Validations.has_elm_binary()
-    TestCase().assertIsInstance(
-        Validations.has_elm_binary(),
-        ExitSuccess
-    )

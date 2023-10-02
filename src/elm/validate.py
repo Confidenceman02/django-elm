@@ -22,7 +22,7 @@ class ValidationError(Exception):
 
 class Validations:
     def acceptable_command(self, labels: list[str]) -> (
-            ExitSuccess[Init | Create] |
+            ExitSuccess[Init | Create | List] |
             ExitFailure[list[str], ValidationError]
     ):
         try:
@@ -56,19 +56,6 @@ class Validations:
                 raise ValidationError(self.__missing_app_log(command_verb[0]))
             case ["create"] as command_verb:
                 raise ValidationError(self.__missing_app_log(command_verb[0]))
-
-    @staticmethod
-    def has_elm_binary() -> ExitSuccess[None] | ExitFailure:
-        try:
-            subprocess.check_output(["which", "elm"])
-            return ExitSuccess(None)
-        except subprocess.CalledProcessError as err:
-            return ExitFailure[None, ValidationError](
-                None,
-                ValidationError(
-                    'I can"t find an "elm" binary.\n Go to https://guide.elm-lang.org/install/elm.html for instructions'
-                    f'on how to install elm.\n {err}'
-                ))
 
     @staticmethod
     def __missing_app_log(cmd_verb: str) -> str:
