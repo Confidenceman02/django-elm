@@ -1,8 +1,8 @@
 from typing_extensions import TypedDict
 from typing import Literal
 from django.core.management import settings
-
 from .effect import ExitSuccess, ExitFailure
+from .utils import walk_level, get_app_path, is_django_elm
 
 Init = TypedDict(
     "Init", {'command': Literal["init"], 'app_name': str})
@@ -35,11 +35,20 @@ class Validations:
     def __check_existing_app(self, xs: list[str]) -> None:
         match xs:
             case ["create", app_name]:
-                if app_name in settings.INSTALLED_APPS:
+                app_path: str | None = get_app_path(app_name)
+
+                if app_path and is_django_elm(next(walk_level(app_path))[2]):
                     raise ValidationError(
                         f"It looks like you are trying to run the 'create' command on the {app_name} app.\n"
                         f"I can't 'create' an app that has already been created.\n"
                         f"Perhaps you meant to run the 'init' command?")
+
+                if app_name in settings.INSTALLED_APPS:
+                    raise ValidationError(
+                        f"It looks like you are trying to run the 'create' command on an installed app that was not "
+                        f"created by django-elm\n"
+                        f"I can't run this command on external apps.\n"
+                        f"Make sure the <app-name> in 'create <app-name>' does not already exist.")
 
     def __check_command_combos(self, xs: list[str]) -> None:
         match xs:

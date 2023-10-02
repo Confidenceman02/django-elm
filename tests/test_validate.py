@@ -42,4 +42,10 @@ def test_validate_app_exists(settings):
         Validations().acceptable_command(["create", app_name]),
         ExitFailure
     )
+
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["create", "elm"]),
+        ExitFailure
+    )
+
     cleanup_theme_app_dir(app_name)

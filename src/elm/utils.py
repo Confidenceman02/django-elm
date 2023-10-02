@@ -20,7 +20,7 @@ def install_pip_package(pkg_name: str):
     main(["install", pkg_name])
 
 
-def walk_level(some_dir, level=1):
+def walk_level(some_dir: str, level=1):
     some_dir = some_dir.rstrip(os.path.sep)
     assert os.path.isdir(some_dir)
     num_sep = some_dir.count(os.path.sep)
@@ -29,3 +29,13 @@ def walk_level(some_dir, level=1):
         num_sep_this = root.count(os.path.sep)
         if num_sep + level <= num_sep_this:
             del dirs[:]
+
+
+def is_django_elm(files: list[str]) -> bool:
+    test = ".django_elm"
+    found = False
+    for f in files:
+        if test in f:
+            found = True
+            break
+    return found

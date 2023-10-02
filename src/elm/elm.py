@@ -1,6 +1,5 @@
 import subprocess
 import sys
-
 from elm import get_config
 from .effect import ExitSuccess, ExitFailure
 
@@ -21,15 +20,15 @@ class Elm:
         else:
             raise binary.err
 
-    def command(self, *args, target_dir: str):
+    def command(self, *args, target_dir: str) -> ExitSuccess[None] | ExitFailure[None, ElmError | SystemExit]:
         try:
             subprocess.check_output([self.elm_bin_path] + list(args), cwd=target_dir)
         except subprocess.CalledProcessError:
-            sys.exit(1)
+            return ExitFailure(None, sys.exit(1))
         except OSError as err:
-            raise ElmError(
+            return ExitFailure(None, ElmError(
                 _elm_binary_log(err)
-            )
+            ))
 
     @staticmethod
     def elm_binary() -> ExitSuccess[str] | ExitFailure:
