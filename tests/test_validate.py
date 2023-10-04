@@ -20,6 +20,7 @@ def test_validate_fails_with_too_many_args():
 
 
 def test_validate_command_verb_combo_succeeds():
+    # TODO init should fail if app doesn't exist
     TestCase().assertIsInstance(
         Validations().acceptable_command(["init", "my_app"]),
         ExitSuccess

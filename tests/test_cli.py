@@ -34,3 +34,18 @@ def test_elm_create_directory(settings):
 
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
+
+def test_elm_init(settings):
+    app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
+    call_command("elm", "create", app_name)
+    settings.INSTALLED_APPS += [app_name]
+
+    call_command("elm", "init", app_name)
+    assert os.path.isfile(
+        os.path.join(
+            get_app_path(app_name),
+            "static_src",
+            "elm.json")), 'The app elm.json has been generated'
+
+    settings.INSTALLED_APPS.remove(app_name)
+    cleanup_theme_app_dir(app_name)

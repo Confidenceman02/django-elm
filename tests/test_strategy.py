@@ -25,5 +25,5 @@ def test_strategy_list(settings):
     call_command("elm", "create", app_name)
     settings.INSTALLED_APPS += [app_name]
 
-    TestCase().assertListEqual(ListStrategy().run(LabelCommand().stdout, LabelCommand().style), [app_name])
+    TestCase().assertListEqual(ListStrategy().run(LabelCommand().stdout, LabelCommand().style).value, [app_name])
     cleanup_theme_app_dir(app_name)

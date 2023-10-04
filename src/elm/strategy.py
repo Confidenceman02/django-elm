@@ -25,8 +25,8 @@ class InitStrategy:
 
     def run(self, logger, style):
         src_path = get_app_src_path(self.app_name)
-        # TODO implement init
-        pass
+        init = self.elm.command("init", target_dir= src_path)
+        return init
 
 
 class ListStrategy:
@@ -35,7 +35,7 @@ class ListStrategy:
     def __init__(self):
         self._apps = settings.INSTALLED_APPS
 
-    def run(self, logger, style) -> list[str]:
+    def run(self, logger, style) -> ExitSuccess[list[str]] | ExitFailure[None, StrategyError]:
         app_paths = filterfalse(
             lambda x: x is None,
             map(get_app_path, self._apps)
@@ -58,7 +58,7 @@ class ListStrategy:
         logger.write(
             style.WARNING(
                 "If you don't see all your django-elm apps make sure they are installed in your 'settings.py'."))
-        return django_elm_apps
+        return ExitSuccess(django_elm_apps)
 
 
 @dataclass
