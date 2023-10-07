@@ -18,14 +18,14 @@ class StrategyError(Exception):
     pass
 
 
-@dataclass
+@dataclass(slots=True)
 class InitStrategy:
     app_name: str
     elm: Elm = Elm()
 
     def run(self, logger, style):
         src_path = get_app_src_path(self.app_name)
-        init = self.elm.command("init", target_dir= src_path)
+        init = self.elm.command("init", target_dir=src_path)
         return init
 
 
@@ -61,7 +61,7 @@ class ListStrategy:
         return ExitSuccess(django_elm_apps)
 
 
-@dataclass
+@dataclass(slots=True)
 class CreateStrategy:
     app_name: str
 

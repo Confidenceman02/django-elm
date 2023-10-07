@@ -45,10 +45,22 @@ class Validations:
 
                 if app_name in settings.INSTALLED_APPS:
                     raise ValidationError(
-                        f"It looks like you are trying to run the 'create' command on an installed app that was not "
-                        f"created by django-elm\n"
-                        f"I can't run this command on external apps.\n"
-                        f"Make sure the <app-name> in 'create <app-name>' does not already exist.")
+                        f"{self.__not_a_django_app_log('create')}\n"
+                        f"Make sure the <app-name> does not already exist.")
+            case ["init", app_name]:
+                app_path: str | None = get_app_path(app_name)
+                if not app_path:
+                    raise ValidationError(
+                        f'It looks like you are trying to run the \'init\' command on an app that is not installed in '
+                        f'your settings.py.\n'
+                        f'Make sure that {app_name} exists in your INSTALLED_APPS in settings.py or try run \'pyton '
+                        f'manage.py'
+                        f'create {app_name}\' to create the app.\n')
+                if not is_django_elm(next(walk_level(app_path))[2]):
+                    raise ValidationError(
+                        f'{self.__not_a_django_app_log("init")}\n'
+                        f'make sure the '
+                    )
 
     def __check_command_combos(self, xs: list[str]) -> None:
         match xs:
@@ -73,6 +85,14 @@ class Validations:
         The '{cmd_verb}' command is expecting an <app-name>"
         
         "The <app-name>  lets me know what app you want me to '{cmd_verb}'."
+        """
+
+    @staticmethod
+    def __not_a_django_app_log(cmd_verb: str) -> str:
+        return f"""
+        f"It looks like you are trying to run the '{cmd_verb}' command on an installed app that was not "
+        f"created by django-elm.\n"
+        f"I can't run {cmd_verb} on external apps that already exist.\n"
         """
 
     @staticmethod

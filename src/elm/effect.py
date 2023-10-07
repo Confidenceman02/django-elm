@@ -5,7 +5,7 @@ T = TypeVar('T')
 E = TypeVar('E')
 
 
-@dataclass
+@dataclass(slots=True)
 class ExitSuccess(Generic[T]):
     value: T = None
     tag: Literal["Success"] = "Success"
@@ -14,7 +14,7 @@ class ExitSuccess(Generic[T]):
         self.value = v
 
 
-@dataclass
+@dataclass(slots=True)
 class ExitFailure(Generic[T, E]):
     err: E
     meta: T

@@ -19,11 +19,32 @@ def test_validate_fails_with_too_many_args():
     TestCase().assertIsInstance(Validations().acceptable_command(["list", "nonsense"]), ExitFailure)
 
 
-def test_validate_command_verb_combo_succeeds():
-    # TODO init should fail if app doesn't exist
+def test_validate_init_fails_when_no_app_exists():
     TestCase().assertIsInstance(
         Validations().acceptable_command(["init", "my_app"]),
+        ExitFailure
+    )
+
+
+def test_validate_init_succeeds_when_app_exists(settings):
+    app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
+    call_command("elm", "create", app_name)
+
+    settings.INSTALLED_APPS += [app_name]
+
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["init", app_name]),
         ExitSuccess
+    )
+
+    settings.INSTALLED_APPS.remove(app_name)
+    cleanup_theme_app_dir(app_name)
+
+
+def test_validate_init_fails_when_app_external():
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["init", "elm"]),
+        ExitFailure
     )
 
 

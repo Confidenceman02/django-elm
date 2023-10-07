@@ -13,11 +13,18 @@ def test_strategy_create_create():
     )
 
 
-def test_strategy_create_init():
+def test_strategy_create_init(settings):
+    app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
+    call_command("elm", "create", app_name)
+    settings.INSTALLED_APPS += [app_name]
+
     TestCase().assertIsInstance(
-        Strategy().create("init", "my_app"),
+        Strategy().create("init", app_name),
         InitStrategy
     )
+
+    settings.INSTALLED_APPS.remove(app_name)
+    cleanup_theme_app_dir(app_name)
 
 
 def test_strategy_list(settings):
@@ -25,5 +32,11 @@ def test_strategy_list(settings):
     call_command("elm", "create", app_name)
     settings.INSTALLED_APPS += [app_name]
 
-    TestCase().assertListEqual(ListStrategy().run(LabelCommand().stdout, LabelCommand().style).value, [app_name])
+    TestCase().assertListEqual(
+        ListStrategy().run(
+            LabelCommand().stdout,
+            LabelCommand().style).value, [app_name]
+    )
+
+    settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
