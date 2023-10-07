@@ -47,5 +47,14 @@ def test_elm_init(settings):
         os.path.join(get_app_path(app_name), "static_src", "src")
     ), "The elm starter src has been created"
 
+    assert os.path.isfile(
+        os.path.join(
+            get_app_path(app_name),
+            "static_src",
+            "src",
+            app_name[0].upper() + app_name[1:] + ".elm",
+        )
+    ), "The elm starter module has been created"
+
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
