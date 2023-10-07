@@ -6,9 +6,10 @@ from .utils import (
     get_app_path,
     walk_level,
     get_app_src_path,
-    is_django_elm
+    is_django_elm,
 )
 from .elm import Elm
+from typing import IO
 from dataclasses import dataclass
 from django.conf import settings
 from itertools import filterfalse
@@ -26,38 +27,44 @@ class InitStrategy:
     def run(self, logger, style):
         src_path = get_app_src_path(self.app_name)
         init = self.elm.command("init", target_dir=src_path)
-        return init
+
+        if init.tag == "Success":
+            try:
+                f: IO[str] = open(
+                    os.path.join(src_path, "src", self.__entry_file()), "wt"
+                )
+                return init
+            except OSError as err:
+                return StrategyError(err)
+        else:
+            return init
+
+    def __entry_file(self):
+        return self.app_name[0].upper() + self.app_name[1:] + ".elm"
 
 
 class ListStrategy:
-    _apps: list[str] = []
+    _apps: list[str] = settings.INSTALLED_APPS
 
-    def __init__(self):
-        self._apps = settings.INSTALLED_APPS
+    def run(
+        self, logger, style
+    ) -> ExitSuccess[list[str]] | ExitFailure[None, StrategyError]:
+        app_paths = filterfalse(lambda x: x is None, map(get_app_path, self._apps))
 
-    def run(self, logger, style) -> ExitSuccess[list[str]] | ExitFailure[None, StrategyError]:
-        app_paths = filterfalse(
-            lambda x: x is None,
-            map(get_app_path, self._apps)
-        )
+        dir_data = map(next, map(walk_level, app_paths))
 
-        dir_data = map(
-            next,
-            map(
-                walk_level,
-                app_paths
-            ))
-
-        django_elm_apps = [os.path.basename(r) for r, _, f in dir_data if is_django_elm(f)]
+        django_elm_apps = [
+            os.path.basename(r) for r, _, f in dir_data if is_django_elm(f)
+        ]
 
         logger.write(style.SUCCESS("Here are all your installed django-elm apps:"))
         for app in django_elm_apps:
-            logger.write(
-                style.SUCCESS(f"{app}")
-            )
+            logger.write(style.SUCCESS(f"{app}"))
         logger.write(
             style.WARNING(
-                "If you don't see all your django-elm apps make sure they are installed in your 'settings.py'."))
+                "If you don't see all your django-elm apps make sure they are installed in your 'settings.py'."
+            )
+        )
         return ExitSuccess(django_elm_apps)
 
 
@@ -96,17 +103,18 @@ class CreateStrategy:
             raise err
 
 
+@dataclass(slots=True)
 class Strategy:
     def create(self, *labels) -> InitStrategy | CreateStrategy | ListStrategy:
         e = Validations().acceptable_command(list(labels))
         match e:
             case ExitFailure(err):
                 raise err
-            case ExitSuccess(value={'command': 'init', 'app_name': app_name}):
+            case ExitSuccess(value={"command": "init", "app_name": app_name}):
                 return InitStrategy(app_name)
-            case ExitSuccess(value={'command': 'create', 'app_name': app_name}):
+            case ExitSuccess(value={"command": "create", "app_name": app_name}):
                 return CreateStrategy(app_name)
-            case ExitSuccess(value={'command': 'list'}):
+            case ExitSuccess(value={"command": "list"}):
                 return ListStrategy()
             case _ as x:
                 raise StrategyError(f"Unable to handle {x}")
