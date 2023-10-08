@@ -1,22 +1,29 @@
 import os
+
 from django.apps import apps
 
+from elm.effect import ExitFailure, ExitSuccess
 
-def get_app_path(app_name) -> str:
-    app_label = app_name.split(".")[-1]
+
+def get_app_path(app_name) -> ExitSuccess[str] | ExitFailure[None, Exception]:
+    app_label = app_name.split(".")[0]
     try:
         path = apps.get_app_config(app_label).path
-        return path
-    except LookupError:
-        pass
+        return ExitSuccess(path)
+    except LookupError as err:
+        return ExitFailure(meta=None, err=err)
 
 
-def get_app_src_path(app_name: str):
-    return os.path.join(get_app_path(app_name), "static_src")
+def get_app_src_path(app_name: str) -> ExitSuccess[str] | ExitFailure[None, Exception]:
+    path_exit = get_app_path(app_name)
+    if path_exit.tag == "Success":
+        return ExitSuccess(os.path.join(path_exit.value, "static_src"))
+    return path_exit
 
 
 def install_pip_package(pkg_name: str):
     from pip._internal import main
+
     main(["install", pkg_name])
 
 

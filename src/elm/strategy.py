@@ -1,18 +1,20 @@
 import os
-from .validate import Validations
-from .effect import ExitFailure, ExitSuccess
-from .utils import (
-    install_pip_package,
-    get_app_path,
-    walk_level,
-    get_app_src_path,
-    is_django_elm,
-)
-from .elm import Elm
-from typing import IO
 from dataclasses import dataclass
-from django.conf import settings
 from itertools import filterfalse
+from typing import IO, Iterable, cast
+
+from django.conf import settings
+
+from .effect import ExitFailure, ExitSuccess
+from .elm import Elm
+from .utils import (
+    get_app_path,
+    get_app_src_path,
+    install_pip_package,
+    is_django_elm,
+    walk_level,
+)
+from .validate import Validations
 
 
 class StrategyError(Exception):
@@ -24,20 +26,24 @@ class InitStrategy:
     app_name: str
     elm: Elm = Elm()
 
-    def run(self, logger, style):
+    def run(
+        self, logger, style
+    ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
         src_path = get_app_src_path(self.app_name)
-        init = self.elm.command("init", target_dir=src_path)
+        if src_path.tag == "Success":
+            init_exit = self.elm.command("init", target_dir=src_path.value)
 
-        if init.tag == "Success":
-            try:
-                f: IO[str] = open(
-                    os.path.join(src_path, "src", self.__entry_file()), "wt"
-                )
-                return init
-            except OSError as err:
-                return StrategyError(err)
-        else:
-            return init
+            if init_exit.tag == "Success":
+                try:
+                    f: IO[str] = open(
+                        os.path.join(src_path.value, "src", self.__entry_file()), "wt"
+                    )
+                    return ExitSuccess(None)
+                except OSError as err:
+                    return ExitFailure(None, err=StrategyError(err))
+            else:
+                return ExitFailure(None, err=StrategyError(init_exit.err))
+        return ExitFailure(None, err=StrategyError())
 
     def __entry_file(self):
         return self.app_name[0].upper() + self.app_name[1:] + ".elm"
@@ -49,9 +55,13 @@ class ListStrategy:
     def run(
         self, logger, style
     ) -> ExitSuccess[list[str]] | ExitFailure[None, StrategyError]:
-        app_paths = filterfalse(lambda x: x is None, map(get_app_path, self._apps))
+        app_path_exits = filterfalse(
+            lambda x: x.tag == "Failure", map(get_app_path, self._apps)
+        )
 
-        dir_data = map(next, map(walk_level, app_paths))
+        dir_data: Iterable[tuple[str, list[str], list[str]]] = map(
+            next, map(lambda p: walk_level(p.value), app_path_exits)
+        )
 
         django_elm_apps = [
             os.path.basename(r) for r, _, f in dir_data if is_django_elm(f)
@@ -108,12 +118,12 @@ class Strategy:
     def create(self, *labels) -> InitStrategy | CreateStrategy | ListStrategy:
         e = Validations().acceptable_command(list(labels))
         match e:
-            case ExitFailure(err):
+            case ExitFailure(err=err):
                 raise err
             case ExitSuccess(value={"command": "init", "app_name": app_name}):
-                return InitStrategy(app_name)
+                return InitStrategy(cast(str, app_name))
             case ExitSuccess(value={"command": "create", "app_name": app_name}):
-                return CreateStrategy(app_name)
+                return CreateStrategy(cast(str, app_name))
             case ExitSuccess(value={"command": "list"}):
                 return ListStrategy()
             case _ as x:

@@ -11,19 +11,19 @@ def test_elm_create_directory(settings):
 
     settings.INSTALLED_APPS += [app_name]
     assert os.path.isfile(
-        os.path.join(get_app_path(app_name), "apps.py")
+        os.path.join(get_app_path(app_name).value, "apps.py")
     ), 'The "project" app has been generated'
 
     assert os.path.isfile(
-        os.path.join(get_app_path(app_name), "static_src", "package.json")
+        os.path.join(get_app_path(app_name).value, "static_src", "package.json")
     ), "The project package.json has been generated"
 
     assert os.path.isfile(
-        os.path.join(get_app_path(app_name), app_name + ".django_elm")
+        os.path.join(get_app_path(app_name).value, app_name + ".django_elm")
     ), "The project package.json has been generated"
 
     assert os.path.isfile(
-        os.path.join(get_app_path(app_name), "static_src", ".gitignore")
+        os.path.join(get_app_path(app_name).value, "static_src", ".gitignore")
     ), "The project .gitignore has been generated"
 
     assert os.path.isdir(app_name), "The project directory has been generated"
@@ -40,16 +40,16 @@ def test_elm_init(settings):
     call_command("elm", "init", app_name)
 
     assert os.path.isfile(
-        os.path.join(get_app_path(app_name), "static_src", "elm.json")
+        os.path.join(get_app_path(app_name).value, "static_src", "elm.json")
     ), "The app elm.json has been generated"
 
     assert os.path.isdir(
-        os.path.join(get_app_path(app_name), "static_src", "src")
+        os.path.join(get_app_path(app_name).value, "static_src", "src")
     ), "The elm starter src has been created"
 
     assert os.path.isfile(
         os.path.join(
-            get_app_path(app_name),
+            get_app_path(app_name).value,
             "static_src",
             "src",
             app_name[0].upper() + app_name[1:] + ".elm",
