@@ -38,7 +38,7 @@ def walk_level(some_dir: str, level=1):
             del dirs[:]
 
 
-def is_django_elm(files: list[str]) -> bool:
+def is_djelm(files: list[str]) -> bool:
     test = ".djelm"
     found = False
     for f in files:

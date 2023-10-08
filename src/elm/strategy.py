@@ -11,7 +11,7 @@ from .utils import (
     get_app_path,
     get_app_src_path,
     install_pip_package,
-    is_django_elm,
+    is_djelm,
     walk_level,
 )
 from .validate import Validations
@@ -101,9 +101,7 @@ class ListStrategy:
             next, map(lambda p: walk_level(p.value), app_path_exits)  # type:ignore
         )
 
-        django_elm_apps = [
-            os.path.basename(r) for r, _, f in dir_data if is_django_elm(f)
-        ]
+        django_elm_apps = [os.path.basename(r) for r, _, f in dir_data if is_djelm(f)]
 
         logger.write(style.SUCCESS("Here are all your installed django-elm apps:"))
         for app in django_elm_apps:

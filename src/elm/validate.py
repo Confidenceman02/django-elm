@@ -4,7 +4,7 @@ from django.core.management import settings
 from typing_extensions import TypedDict
 
 from .effect import ExitFailure, ExitSuccess
-from .utils import get_app_path, is_django_elm, walk_level
+from .utils import get_app_path, is_djelm, walk_level
 
 Init = TypedDict("Init", {"command": Literal["init"], "app_name": str})
 Create = TypedDict("Create", {"command": Literal["create"], "app_name": str})
@@ -33,7 +33,7 @@ class Validations:
             case ["create", app_name]:
                 app_path_exit = get_app_path(app_name)
 
-                if app_path_exit.tag == "Success" and is_django_elm(
+                if app_path_exit.tag == "Success" and is_djelm(
                     next(walk_level(app_path_exit.value))[2]
                 ):
                     raise ValidationError(
@@ -51,14 +51,19 @@ class Validations:
                 app_path_exit = get_app_path(app_name)
 
                 if not app_path_exit.tag == "Success":
+                    raise ValidationError(self.__not_in_settings("init", app_name))
+                if not is_djelm(next(walk_level(app_path_exit.value))[2]):
                     raise ValidationError(
-                        f"It looks like you are trying to run the 'init' command on an app that is not installed in "
-                        f"your settings.py.\n"
-                        f"Make sure that {app_name} exists in your INSTALLED_APPS in settings.py or try run 'pyton "
-                        f"manage.py"
-                        f"create {app_name}' to create the app.\n"
+                        f'{self.__not_a_django_app_log("init")}\n' f"make sure the "
                     )
-                if not is_django_elm(next(walk_level(app_path_exit.value))[2]):
+            case ["addprogram", app_name]:
+                app_path_exit = get_app_path(app_name)
+
+                if not app_path_exit.tag == "Success":
+                    raise ValidationError(
+                        self.__not_in_settings("addprogram", app_name)
+                    )
+                if not is_djelm(next(walk_level(app_path_exit.value))[2]):
                     raise ValidationError(
                         f'{self.__not_a_django_app_log("init")}\n' f"make sure the "
                     )
@@ -68,6 +73,8 @@ class Validations:
             case ["init", _]:
                 return
             case ["create", _]:
+                return
+            case ["addprogram", _]:
                 return
             case ["list", _]:
                 raise ValidationError(
@@ -91,6 +98,16 @@ class Validations:
         """
 
     @staticmethod
+    def __not_in_settings(cmd_verb: str, app_name: str) -> str:
+        return f"""
+        f"It looks like you are trying to run the '{cmd_verb}' command on an app that is not installed in "
+        f"your settings.py.\n"
+        f"Make sure that {app_name} exists in your INSTALLED_APPS in settings.py or try run 'python "
+        f"manage.py"
+        f"create {app_name}' to create the app.\n"
+        """
+
+    @staticmethod
     def __not_a_django_app_log(cmd_verb: str) -> str:
         return f"""
         f"It looks like you are trying to run the '{cmd_verb}' command on an installed app that was not "
@@ -100,7 +117,7 @@ class Validations:
 
     @staticmethod
     def __check_command_verb(s: str) -> None:
-        if s not in ["init", "create", "list"]:
+        if s not in ["init", "create", "list", "addprogram"]:
             raise ValidationError(f"The command '{s}' is not valid.")
 
     @staticmethod
