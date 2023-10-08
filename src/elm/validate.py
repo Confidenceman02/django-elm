@@ -24,9 +24,14 @@ class Validations:
             self.__check_command_verb(labels[0])
             self.__check_command_combos(labels)
             self.__check_existing_app(labels)
+            # self.__check_initialized_app(labels)
             return self.__command_exit(labels)
         except ValidationError as err:
             return ExitFailure(labels, err)
+
+    def __check_initialized_app(self, xs: list[str]) -> None:
+        # TODO check app has been initalized
+        pass
 
     def __check_existing_app(self, xs: list[str]) -> None:
         match xs:
