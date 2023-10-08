@@ -38,6 +38,8 @@ class InitStrategy:
                     f: IO[str] = open(
                         os.path.join(src_path.value, "src", self.__entry_file()), "wt"
                     )
+                    # TODO work out if we should create a starter file
+                    # f.write(self.__elm_module() + self.__starter_code())
                     return ExitSuccess(None)
                 except OSError as err:
                     return ExitFailure(None, err=StrategyError(err))
@@ -46,7 +48,43 @@ class InitStrategy:
         return ExitFailure(None, err=StrategyError())
 
     def __entry_file(self):
-        return self.app_name[0].upper() + self.app_name[1:] + ".elm"
+        return self.__module_name() + ".elm"
+
+    def __starter_code(self):
+        return """
+import Browser
+import Html exposing (Html, button, div, text)
+import Html.Events exposing (onClick)
+
+type Msg = Increment | Decrement
+
+main : Program () Int Msg
+main =
+    Browser.sandbox { init = 0, update = update, view = view }
+
+update : Msg -> Int -> Int
+update msg model =
+    case msg of
+        Increment ->
+            model + 1
+
+        Decrement ->
+            model - 1
+
+view : Int -> Html Msg
+view model =
+    div []
+        [ button [ onClick Decrement ] [ text "-" ]
+        , div [] [ text (String.fromInt model) ]
+        , button [ onClick Increment ] [ text "+" ]
+        ]
+    """
+
+    def __module_name(self):
+        return self.app_name[0].upper() + self.app_name[1:]
+
+    def __elm_module(self):
+        return f"module {self.__module_name()} exposing(..)\n"
 
 
 class ListStrategy:
@@ -60,7 +98,7 @@ class ListStrategy:
         )
 
         dir_data: Iterable[tuple[str, list[str], list[str]]] = map(
-            next, map(lambda p: walk_level(p.value), app_path_exits)
+            next, map(lambda p: walk_level(p.value), app_path_exits)  # type:ignore
         )
 
         django_elm_apps = [

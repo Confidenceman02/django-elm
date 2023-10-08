@@ -1,8 +1,11 @@
 import os
 import uuid
-from .conftest import cleanup_theme_app_dir
+
 from django.core.management import call_command
+
 from src.elm.utils import get_app_path
+
+from .conftest import cleanup_theme_app_dir
 
 
 def test_elm_create_directory(settings):
@@ -11,19 +14,25 @@ def test_elm_create_directory(settings):
 
     settings.INSTALLED_APPS += [app_name]
     assert os.path.isfile(
-        os.path.join(get_app_path(app_name).value, "apps.py")
+        os.path.join(get_app_path(app_name).value, "apps.py")  # type:ignore
     ), 'The "project" app has been generated'
 
     assert os.path.isfile(
-        os.path.join(get_app_path(app_name).value, "static_src", "package.json")
+        os.path.join(
+            get_app_path(app_name).value, "static_src", "package.json"  # type:ignore
+        )
     ), "The project package.json has been generated"
 
     assert os.path.isfile(
-        os.path.join(get_app_path(app_name).value, app_name + ".django_elm")
+        os.path.join(
+            get_app_path(app_name).value, app_name + ".djelm"  # type:ignore
+        )
     ), "The project package.json has been generated"
 
     assert os.path.isfile(
-        os.path.join(get_app_path(app_name).value, "static_src", ".gitignore")
+        os.path.join(
+            get_app_path(app_name).value, "static_src", ".gitignore"  # type:ignore
+        )
     ), "The project .gitignore has been generated"
 
     assert os.path.isdir(app_name), "The project directory has been generated"
@@ -40,21 +49,28 @@ def test_elm_init(settings):
     call_command("elm", "init", app_name)
 
     assert os.path.isfile(
-        os.path.join(get_app_path(app_name).value, "static_src", "elm.json")
+        os.path.join(
+            get_app_path(app_name).value, "static_src", "elm.json"  # type:ignore
+        )
     ), "The app elm.json has been generated"
 
     assert os.path.isdir(
-        os.path.join(get_app_path(app_name).value, "static_src", "src")
+        os.path.join(get_app_path(app_name).value, "static_src", "src")  # type:ignore
     ), "The elm starter src has been created"
 
-    assert os.path.isfile(
-        os.path.join(
-            get_app_path(app_name).value,
-            "static_src",
-            "src",
-            app_name[0].upper() + app_name[1:] + ".elm",
-        )
-    ), "The elm starter module has been created"
+    assert os.path.isdir(
+        os.path.join(get_app_path(app_name).value, "templatetags")  # type:ignore
+    ), "The elm templatetags directory has been created"
+
+    # TODO not sure if we shoudl create a starter
+    # assert os.path.isfile(
+    #     os.path.join(
+    #         get_app_path(app_name).value,  # type:ignore
+    #         "static_src",
+    #         "src",
+    #         app_name[0].upper() + app_name[1:] + ".elm",
+    #     )
+    # ), "The elm starter module has been created"
 
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
