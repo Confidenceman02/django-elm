@@ -12,6 +12,8 @@ from .utils import (
     get_app_src_path,
     install_pip_package,
     is_djelm,
+    module_name,
+    program_file,
     walk_level,
 )
 from .validate import Validations
@@ -22,33 +24,29 @@ class StrategyError(Exception):
 
 
 @dataclass(slots=True)
-class InitStrategy:
+class AddProgramStrategy:
     app_name: str
-    elm: Elm = Elm()
+    prog_name: str
 
     def run(
         self, logger, style
     ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
         src_path = get_app_src_path(self.app_name)
         if src_path.tag == "Success":
-            init_exit = self.elm.command("init", target_dir=src_path.value)
+            try:
+                f: IO[str] = open(
+                    os.path.join(src_path.value, "src", program_file(self.app_name)),
+                    "w",
+                )
+                f.write(self.__elm_module() + self.__starter_code())
+                return ExitSuccess(None)
+            except OSError as err:
+                return ExitFailure(None, err=StrategyError(err))
+        else:
+            return ExitFailure(None, err=StrategyError(src_path.err))
 
-            if init_exit.tag == "Success":
-                try:
-                    f: IO[str] = open(
-                        os.path.join(src_path.value, "src", self.__entry_file()), "wt"
-                    )
-                    # TODO work out if we should create a starter file
-                    # f.write(self.__elm_module() + self.__starter_code())
-                    return ExitSuccess(None)
-                except OSError as err:
-                    return ExitFailure(None, err=StrategyError(err))
-            else:
-                return ExitFailure(None, err=StrategyError(init_exit.err))
-        return ExitFailure(None, err=StrategyError())
-
-    def __entry_file(self):
-        return self.__module_name() + ".elm"
+    def __elm_module(self):
+        return f"module {module_name(self.app_name)} exposing(..)\n"
 
     def __starter_code(self):
         return """
@@ -80,11 +78,32 @@ view model =
         ]
     """
 
-    def __module_name(self):
-        return self.app_name[0].upper() + self.app_name[1:]
 
-    def __elm_module(self):
-        return f"module {self.__module_name()} exposing(..)\n"
+@dataclass(slots=True)
+class InitStrategy:
+    app_name: str
+    elm: Elm = Elm()
+
+    def run(
+        self, logger, style
+    ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+        src_path = get_app_src_path(self.app_name)
+        if src_path.tag == "Success":
+            init_exit = self.elm.command("init", target_dir=src_path.value)
+
+            if init_exit.tag == "Success":
+                try:
+                    f: IO[str] = open(
+                        os.path.join(src_path.value, "src", module_name(self.app_name)),
+                        "wt",
+                    )
+                    f.close()
+                    return ExitSuccess(None)
+                except OSError as err:
+                    return ExitFailure(None, err=StrategyError(err))
+            else:
+                return ExitFailure(None, err=StrategyError(init_exit.err))
+        return ExitFailure(None, err=StrategyError())
 
 
 class ListStrategy:
@@ -151,7 +170,9 @@ class CreateStrategy:
 
 @dataclass(slots=True)
 class Strategy:
-    def create(self, *labels) -> InitStrategy | CreateStrategy | ListStrategy:
+    def create(
+        self, *labels
+    ) -> InitStrategy | CreateStrategy | ListStrategy | AddProgramStrategy:
         e = Validations().acceptable_command(list(labels))
         match e:
             case ExitFailure(err=err):
@@ -160,6 +181,14 @@ class Strategy:
                 return InitStrategy(cast(str, app_name))
             case ExitSuccess(value={"command": "create", "app_name": app_name}):
                 return CreateStrategy(cast(str, app_name))
+            case ExitSuccess(
+                value={
+                    "command": "addprogram",
+                    "app_name": app_name,
+                    "program_name": pn,
+                }
+            ):
+                return AddProgramStrategy(cast(str, app_name), cast(str, pn))
             case ExitSuccess(value={"command": "list"}):
                 return ListStrategy()
             case _ as x:

@@ -23,7 +23,10 @@ class ValidationError(Exception):
 class Validations:
     def acceptable_command(
         self, labels: list[str]
-    ) -> ExitSuccess[Init | Create | List] | ExitFailure[list[str], ValidationError]:
+    ) -> (
+        ExitSuccess[Init | Create | List | AddProgram]
+        | ExitFailure[list[str], ValidationError]
+    ):
         try:
             self.__check_command_verb(labels[0])
             self.__check_command_combos(labels)

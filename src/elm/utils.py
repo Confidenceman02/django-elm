@@ -67,3 +67,11 @@ def is_init(app_name: str) -> bool:
         )
         return f and src
     return False
+
+
+def module_name(app_name: str):
+    return app_name[0].upper() + app_name[1:]
+
+
+def program_file(app_name: str):
+    return module_name(app_name) + ".elm"
