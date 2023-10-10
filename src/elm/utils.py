@@ -46,3 +46,24 @@ def is_djelm(files: list[str]) -> bool:
             found = True
             break
     return found
+
+
+def is_init(app_name: str) -> bool:
+    path_exit = get_app_path(app_name)
+    if path_exit.tag == "Success":
+        f = os.path.isfile(
+            os.path.join(
+                path_exit.value,
+                "static_src",
+                "elm.json",
+            )
+        )
+        src = os.path.isdir(
+            os.path.join(
+                path_exit.value,
+                "static_src",
+                "src",
+            )
+        )
+        return f and src
+    return False

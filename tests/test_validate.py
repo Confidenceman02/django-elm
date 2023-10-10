@@ -40,8 +40,22 @@ def test_validate_init_fails_when_no_app_exists():
 
 def test_validate_addprogram_fails_when_no_app_exists():
     TestCase().assertIsInstance(
-        Validations().acceptable_command(["addprogram", "my_app"]), ExitFailure
+        Validations().acceptable_command(["addprogram", "my_app", "Main"]), ExitFailure
     )
+
+
+def test_validate_addprogram_fails_when_no_program_name(settings):
+    app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
+    call_command("elm", "create", app_name)
+
+    settings.INSTALLED_APPS += [app_name]
+
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["addprogram", app_name]), ExitFailure
+    )
+
+    settings.INSTALLED_APPS.remove(app_name)
+    cleanup_theme_app_dir(app_name)
 
 
 def test_validate_init_succeeds_when_app_exists(settings):
@@ -58,7 +72,6 @@ def test_validate_init_succeeds_when_app_exists(settings):
     cleanup_theme_app_dir(app_name)
 
 
-@pytest.mark.skip(reason="Yet to implement")
 def test_validate_addprogram_fails_when_init_not_run(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
     call_command("elm", "create", app_name)
@@ -66,7 +79,23 @@ def test_validate_addprogram_fails_when_init_not_run(settings):
     settings.INSTALLED_APPS += [app_name]
 
     TestCase().assertIsInstance(
-        Validations().acceptable_command(["addprogram", app_name]), ExitFailure
+        Validations().acceptable_command(["addprogram", app_name, "Main"]), ExitFailure
+    )
+
+    settings.INSTALLED_APPS.remove(app_name)
+    cleanup_theme_app_dir(app_name)
+
+
+def test_validate_addprogram_success(settings):
+    app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
+    call_command("elm", "create", app_name)
+
+    settings.INSTALLED_APPS += [app_name]
+
+    call_command("elm", "init", app_name)
+
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["addprogram", app_name, "Main"]), ExitSuccess
     )
 
     settings.INSTALLED_APPS.remove(app_name)
