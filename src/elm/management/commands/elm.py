@@ -1,7 +1,13 @@
 from django.core.management.base import LabelCommand
 
+from ...strategy import (
+    AddProgramStrategy,
+    CreateStrategy,
+    InitStrategy,
+    ListStrategy,
+    Strategy,
+)
 from ...validate import Validations
-from ...strategy import Strategy, InitStrategy, CreateStrategy
 
 
 class Command(LabelCommand):
@@ -15,7 +21,7 @@ Usage example:
   python manage.py elm init <app-name>
     """
     validate = None
-    strategy: InitStrategy | CreateStrategy
+    strategy: InitStrategy | CreateStrategy | AddProgramStrategy | ListStrategy
 
     def __init__(self, *args, **kwargs):
         super(Command, self).__init__(*args, **kwargs)

@@ -35,7 +35,7 @@ class AddProgramStrategy:
         if src_path.tag == "Success":
             try:
                 f: IO[str] = open(
-                    os.path.join(src_path.value, "src", program_file(self.app_name)),
+                    os.path.join(src_path.value, "src", program_file(self.prog_name)),
                     "w",
                 )
                 f.write(self.__elm_module() + self.__starter_code())
@@ -51,7 +51,7 @@ class AddProgramStrategy:
             return ExitFailure(None, err=StrategyError(src_path.err))
 
     def __elm_module(self):
-        return f"module {module_name(self.app_name)} exposing(..)\n"
+        return f"module {module_name(self.prog_name)} exposing(..)\n"
 
     def __starter_code(self):
         return """

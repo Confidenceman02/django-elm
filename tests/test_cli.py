@@ -62,15 +62,26 @@ def test_elm_init(settings):
         os.path.join(get_app_path(app_name).value, "templatetags")  # type:ignore
     ), "The elm templatetags directory has been created"
 
-    # TODO not sure if we shoudl create a starter
-    # assert os.path.isfile(
-    #     os.path.join(
-    #         get_app_path(app_name).value,  # type:ignore
-    #         "static_src",
-    #         "src",
-    #         app_name[0].upper() + app_name[1:] + ".elm",
-    #     )
-    # ), "The elm starter module has been created"
+    settings.INSTALLED_APPS.remove(app_name)
+    cleanup_theme_app_dir(app_name)
+
+
+def test_elm_addprogram(settings):
+    app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
+    call_command("elm", "create", app_name)
+    settings.INSTALLED_APPS += [app_name]
+
+    call_command("elm", "init", app_name)
+    call_command("elm", "addprogram", app_name, "Main")
+
+    assert os.path.isfile(
+        os.path.join(
+            get_app_path(app_name).value,  # type:ignore
+            "static_src",
+            "src",
+            "Main.elm",
+        )
+    ), "The elm program has been created"
 
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
