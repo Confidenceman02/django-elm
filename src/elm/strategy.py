@@ -39,6 +39,11 @@ class AddProgramStrategy:
                     "w",
                 )
                 f.write(self.__elm_module() + self.__starter_code())
+                logger.write(
+                    style.SUCCESS(
+                        f"I created an elm program at {os.path.join(src_path.value, 'src', program_file(self.app_name))}"
+                    )
+                )
                 return ExitSuccess(None)
             except OSError as err:
                 return ExitFailure(None, err=StrategyError(err))
@@ -92,15 +97,7 @@ class InitStrategy:
             init_exit = self.elm.command("init", target_dir=src_path.value)
 
             if init_exit.tag == "Success":
-                try:
-                    f: IO[str] = open(
-                        os.path.join(src_path.value, "src", module_name(self.app_name)),
-                        "wt",
-                    )
-                    f.close()
-                    return ExitSuccess(None)
-                except OSError as err:
-                    return ExitFailure(None, err=StrategyError(err))
+                return ExitSuccess(None)
             else:
                 return ExitFailure(None, err=StrategyError(init_exit.err))
         return ExitFailure(None, err=StrategyError())
