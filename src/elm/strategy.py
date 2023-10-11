@@ -1,7 +1,9 @@
 import os
+import shutil
+import uuid
 from dataclasses import dataclass
 from itertools import filterfalse
-from typing import IO, Iterable, cast
+from typing import Iterable, cast
 
 from django.conf import settings
 from typing_extensions import TypedDict
@@ -21,6 +23,9 @@ from .utils import (
 from .validate import Validations
 
 CreateCookieExtra = TypedDict("CreateCookieExtra", {"app_name": str})
+AddProgramCookieExtra = TypedDict(
+    "AddProgramCookieExtra", {"program_name": str, "tmp_dir": str}
+)
 
 
 class StrategyError(Exception):
@@ -34,58 +39,52 @@ class AddProgramStrategy:
 
     def run(
         self, logger, style
-    ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+    ) -> (
+        ExitSuccess[None]
+        | ExitFailure[None | str, StrategyError | FileNotFoundError | Exception]
+    ):
         src_path = get_app_src_path(self.app_name)
         if src_path.tag == "Success":
             try:
-                f: IO[str] = open(
-                    os.path.join(src_path.value, "src", program_file(self.prog_name)),
-                    "w",
+                os.mkdir(os.path.join(src_path.value, "elm-stuff"))
+            except FileExistsError as err:
+                pass
+            except FileNotFoundError as err:
+                return ExitFailure(meta="Path to 'elm-stuff invalid'", err=err)
+            try:
+                temp_dir_name = (
+                    f'temp_program_djelm_{str(uuid.uuid1()).replace("-", "_")}'
                 )
-                f.write(self.__elm_module() + self.__starter_code())
-                logger.write(
-                    style.SUCCESS(
-                        f"I created an elm program at {os.path.join(src_path.value, 'src', program_file(self.app_name))}"
+                ck = CookieCutter[AddProgramCookieExtra](
+                    file_dir=os.path.dirname(__file__),
+                    output_dir=os.path.join(src_path.value, "elm-stuff"),
+                    cookie_dir_name="program_template",
+                    extra={
+                        "program_name": module_name(self.prog_name),
+                        "tmp_dir": temp_dir_name,
+                    },
+                )
+                temp_dir_path = ck.cut(logger)
+
+                if temp_dir_path.tag == "Success":
+                    shutil.move(
+                        os.path.join(
+                            temp_dir_path.value, module_name(self.prog_name) + ".elm"
+                        ),
+                        os.path.join(src_path.value, "src"),
                     )
-                )
-                return ExitSuccess(None)
+                    # TODO remove tmp_dir
+                    logger.write(
+                        style.SUCCESS(
+                            f"I created an elm program at {os.path.join(src_path.value, 'src', program_file(self.app_name))}"
+                        )
+                    )
+                    return ExitSuccess(None)
+                return ExitFailure(None, err=temp_dir_path.err)
             except OSError as err:
                 return ExitFailure(None, err=StrategyError(err))
         else:
             return ExitFailure(None, err=StrategyError(src_path.err))
-
-    def __elm_module(self):
-        return f"module {module_name(self.prog_name)} exposing(..)\n"
-
-    def __starter_code(self):
-        return """
-import Browser
-import Html exposing (Html, button, div, text)
-import Html.Events exposing (onClick)
-
-type Msg = Increment | Decrement
-
-main : Program () Int Msg
-main =
-    Browser.sandbox { init = 0, update = update, view = view }
-
-update : Msg -> Int -> Int
-update msg model =
-    case msg of
-        Increment ->
-            model + 1
-
-        Decrement ->
-            model - 1
-
-view : Int -> Html Msg
-view model =
-    div []
-        [ button [ onClick Decrement ] [ text "-" ]
-        , div [] [ text (String.fromInt model) ]
-        , button [ onClick Increment ] [ text "+" ]
-        ]
-    """
 
 
 @dataclass(slots=True)
