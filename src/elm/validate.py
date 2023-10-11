@@ -4,7 +4,7 @@ from django.core.management import settings
 from typing_extensions import TypedDict
 
 from .effect import ExitFailure, ExitSuccess
-from .utils import get_app_path, is_djelm, is_init, walk_level
+from .utils import get_app_path, is_create, is_djelm, is_init, walk_level
 
 Init = TypedDict("Init", {"command": Literal["init"], "app_name": str})
 Create = TypedDict("Create", {"command": Literal["create"], "app_name": str})
@@ -72,7 +72,7 @@ class Validations:
                     """
                 )
 
-            case ["addprogram", app_name, prog_name]:
+            case ["addprogram", app_name, _]:
                 app_path_exit = get_app_path(app_name)
 
                 if not app_path_exit.tag == "Success":
@@ -81,12 +81,15 @@ class Validations:
                     )
                 if not is_djelm(next(walk_level(app_path_exit.value))[2]):
                     raise ValidationError(
-                        f'{self.__not_a_django_app_log("init")}\n' f"make sure the "
+                        f'{self.__not_a_django_app_log("addprogram")}\n'
+                        f"make sure the "
                     )
-                if not is_init(app_name):
+                if not is_init(app_name) or not is_create(app_name):
                     raise ValidationError(
-                        f"I can't find an 'elm.json' file or 'src' directory.\n"
-                        f"Make sure you run 'python manage.py elm init {app_name} before adding a program'"
+                        f"It looks like you are missing some files/directories.\n"
+                        f"In order form me to add a program I need to see the following files/directories:\n"
+                        f"{app_name}/elm.json, {app_name}/src/, {app_name}/templates/, {app_name}/templatetags/\n"
+                        f"Make sure you have run both 'python manage.py elm create {app_name}' and 'python manage.py elm init {app_name}' before adding a program"
                     )
 
     def __check_command_combos(self, xs: list[str]) -> None:

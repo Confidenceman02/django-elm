@@ -48,6 +48,25 @@ def is_djelm(files: list[str]) -> bool:
     return found
 
 
+def is_create(app_name: str) -> bool:
+    path_exit = get_app_path(app_name)
+    if path_exit.tag == "Success":
+        tags = os.path.isdir(
+            os.path.join(
+                path_exit.value,
+                "templatetags",
+            )
+        )
+        templates = os.path.isdir(
+            os.path.join(
+                path_exit.value,
+                "templates",
+            )
+        )
+        return templates and tags
+    return False
+
+
 def is_init(app_name: str) -> bool:
     path_exit = get_app_path(app_name)
     if path_exit.tag == "Success":
