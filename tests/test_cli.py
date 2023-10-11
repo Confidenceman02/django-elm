@@ -37,6 +37,14 @@ def test_elm_create_directory(settings):
 
     assert os.path.isdir(app_name), "The project directory has been generated"
 
+    assert os.path.isdir(
+        os.path.join(get_app_path(app_name).value, "templatetags")  # type:ignore
+    ), "The elm templatetags directory has been created"
+
+    assert os.path.isdir(
+        os.path.join(get_app_path(app_name).value, "templates")  # type:ignore
+    ), "The elm templates directory has been created"
+
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
 
@@ -57,10 +65,6 @@ def test_elm_init(settings):
     assert os.path.isdir(
         os.path.join(get_app_path(app_name).value, "static_src", "src")  # type:ignore
     ), "The elm starter src has been created"
-
-    assert os.path.isdir(
-        os.path.join(get_app_path(app_name).value, "templatetags")  # type:ignore
-    ), "The elm templatetags directory has been created"
 
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)

@@ -4,19 +4,23 @@ from itertools import filterfalse
 from typing import IO, Iterable, cast
 
 from django.conf import settings
+from typing_extensions import TypedDict
+
+from elm.cookiecutter import CookieCutter
 
 from .effect import ExitFailure, ExitSuccess
 from .elm import Elm
 from .utils import (
     get_app_path,
     get_app_src_path,
-    install_pip_package,
     is_djelm,
     module_name,
     program_file,
     walk_level,
 )
 from .validate import Validations
+
+CreateCookieExtra = TypedDict("CreateCookieExtra", {"app_name": str})
 
 
 class StrategyError(Exception):
@@ -135,23 +139,17 @@ class CreateStrategy:
     app_name: str
 
     def run(self, logger, style):
-        try:
-            from cookiecutter.main import cookiecutter
-        except ImportError:
-            logger.stdout.write("Couldn't find cookie cutter, installing...")
-            install_pip_package("cookiecutter")
-            from cookiecutter.main import cookiecutter
-        try:
-            app_path = cookiecutter(
-                os.path.dirname(__file__),
-                output_dir=os.getcwd(),
-                directory="project_template",
-                no_input=True,
-                overwrite_if_exists=False,
-                extra_context={"app_name": self.app_name.strip()},
-            )
+        ck = CookieCutter[CreateCookieExtra](
+            file_dir=os.path.dirname(__file__),
+            output_dir=os.getcwd(),
+            cookie_dir_name="project_template",
+            extra={"app_name": self.app_name.strip()},
+        )
 
-            app_name = os.path.basename(app_path)
+        cut_cookie = ck.cut(logger)
+
+        if cut_cookie.tag == "Success":
+            app_name = os.path.basename(cut_cookie.value)
             logger.write(
                 style.SUCCESS(
                     f"Elm project '{app_name}' "
@@ -161,8 +159,6 @@ class CreateStrategy:
                     f"dependencies: `python manage.py elm init`"
                 )
             )
-        except Exception as err:
-            raise err
 
 
 @dataclass(slots=True)
