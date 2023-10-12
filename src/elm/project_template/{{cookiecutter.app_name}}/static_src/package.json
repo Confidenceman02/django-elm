@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "license": "MIT",
   "devDependencies": {
+    "@parcel/config-default": "^2.10.0",
     "@parcel/core": "^2.9.3",
     "@parcel/transformer-elm": "^2.9.3",
     "elm": "^0.19.1-5",
