@@ -45,6 +45,10 @@ def test_elm_create_directory(settings):
         os.path.join(get_app_path(app_name).value, "templates")  # type:ignore
     ), "The elm templates directory has been created"
 
+    assert os.path.isdir(
+        os.path.join(get_app_path(app_name).value, "static")  # type:ignore
+    ), "The elm templates static directory has been created"
+
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
 
@@ -87,5 +91,21 @@ def test_elm_addprogram(settings):
         )
     ), "The elm program has been created"
 
+    assert os.path.isfile(
+        os.path.join(
+            get_app_path(app_name).value,  # type:ignore
+            "templates",
+            "main.html",
+        )
+    ), "The elm program template has been created"
+
+    assert os.path.isfile(
+        os.path.join(
+            get_app_path(app_name).value,  # type:ignore
+            "templatetags",
+            "main_tag.py",
+        )
+    ), "The elm program custom template tag has been created"
+
     settings.INSTALLED_APPS.remove(app_name)
-    cleanup_theme_app_dir(app_name)
+    # cleanup_theme_app_dir(app_name)

@@ -18,13 +18,15 @@ from .utils import (
     is_djelm,
     module_name,
     program_file,
+    tag_file_name,
     walk_level,
 )
 from .validate import Validations
 
 CreateCookieExtra = TypedDict("CreateCookieExtra", {"app_name": str})
 AddProgramCookieExtra = TypedDict(
-    "AddProgramCookieExtra", {"program_name": str, "tmp_dir": str}
+    "AddProgramCookieExtra",
+    {"program_name": str, "tmp_dir": str, "tag_file": str},
 )
 
 
@@ -44,7 +46,8 @@ class AddProgramStrategy:
         | ExitFailure[None | str, StrategyError | FileNotFoundError | Exception]
     ):
         src_path = get_app_src_path(self.app_name)
-        if src_path.tag == "Success":
+        app_path = get_app_path(self.app_name)
+        if src_path.tag == "Success" and app_path.tag == "Success":
             try:
                 os.mkdir(os.path.join(src_path.value, "elm-stuff"))
             except FileExistsError as err:
@@ -62,21 +65,40 @@ class AddProgramStrategy:
                     extra={
                         "program_name": module_name(self.prog_name),
                         "tmp_dir": temp_dir_name,
+                        "tag_file": tag_file_name(self.prog_name),
                     },
                 )
                 temp_dir_path = ck.cut(logger)
 
                 if temp_dir_path.tag == "Success":
-                    shutil.move(
+                    # Move elm program
+                    shutil.copy(
                         os.path.join(
                             temp_dir_path.value, module_name(self.prog_name) + ".elm"
                         ),
                         os.path.join(src_path.value, "src"),
                     )
-                    # TODO remove tmp_dir
+                    # Move template tag
+                    shutil.copy(
+                        os.path.join(
+                            temp_dir_path.value,
+                            tag_file_name(self.prog_name) + "_tag.py",
+                        ),
+                        os.path.join(app_path.value, "templatetags"),
+                    )
+                    # Move template html
+                    shutil.copy(
+                        os.path.join(
+                            temp_dir_path.value, tag_file_name(self.prog_name) + ".html"
+                        ),
+                        os.path.join(app_path.value, "templates"),
+                    )
+
                     logger.write(
                         style.SUCCESS(
-                            f"I created an elm program at {os.path.join(src_path.value, 'src', program_file(self.app_name))}"
+                            f"I created an elm program at {os.path.join(src_path.value, 'src', program_file(self.app_name))}\n"
+                            f"I created a template at {os.path.join(app_path.value, 'templates', tag_file_name(self.prog_name) + '.html')}\n"
+                            f"I created a template tag at {os.path.join(app_path.value, 'templatetags', tag_file_name(self.prog_name) + '_tag.py')}"
                         )
                     )
                     return ExitSuccess(None)
@@ -84,7 +106,12 @@ class AddProgramStrategy:
             except OSError as err:
                 return ExitFailure(None, err=StrategyError(err))
         else:
-            return ExitFailure(None, err=StrategyError(src_path.err))
+            return ExitFailure(
+                None,
+                Exception(
+                    f"Something went wrong: Make sure the app exists and you have run 'python manage.py elm init {self.app_name}'"
+                ),
+            )
 
 
 @dataclass(slots=True)
