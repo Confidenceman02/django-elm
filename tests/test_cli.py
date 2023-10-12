@@ -108,4 +108,4 @@ def test_elm_addprogram(settings):
     ), "The elm program custom template tag has been created"
 
     settings.INSTALLED_APPS.remove(app_name)
-    # cleanup_theme_app_dir(app_name)
+    cleanup_theme_app_dir(app_name)
