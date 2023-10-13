@@ -1,8 +1,9 @@
 import os
 
 REMOVE_PATHS = [
-    "static/.gitkeep",
+    "static/dist/.gitkeep",
     "templates/.gitkeep",
+    "static_src/djelm_src/.gitkeep",
 ]
 
 for path in REMOVE_PATHS:
