@@ -16,9 +16,13 @@ class Command(LabelCommand):
 Command arguments are missing, please add one of the following:
   create <app-name> - to create a django-elm app
   init <app-name> - to initialize a current django-elm app
+  list - to list all your djelm projects
+  addprogram <app-name> <program-name> - creates a boilerplate for a djelm program
 Usage example:
   python manage.py elm create <app-name>
   python manage.py elm init <app-name>
+  python manage.py elm list
+  python manage.py elm addprogram <app-name> <program-name>
     """
     validate = None
     strategy: InitStrategy | CreateStrategy | AddProgramStrategy | ListStrategy

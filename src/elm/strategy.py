@@ -26,7 +26,7 @@ from .validate import Validations
 CreateCookieExtra = TypedDict("CreateCookieExtra", {"app_name": str})
 AddProgramCookieExtra = TypedDict(
     "AddProgramCookieExtra",
-    {"program_name": str, "tmp_dir": str, "tag_file": str},
+    {"program_name": str, "tmp_dir": str, "tag_file": str, "scope": str},
 )
 
 
@@ -58,6 +58,9 @@ class AddProgramStrategy:
                 temp_dir_name = (
                     f'temp_program_djelm_{str(uuid.uuid1()).replace("-", "_")}'
                 )
+                scope_name = (
+                    self.app_name.lower() + self.prog_name.lower().replace("_", "")
+                ).replace("_", "")
                 ck = CookieCutter[AddProgramCookieExtra](
                     file_dir=os.path.dirname(__file__),
                     output_dir=os.path.join(src_path.value, "elm-stuff"),
@@ -66,6 +69,7 @@ class AddProgramStrategy:
                         "program_name": module_name(self.prog_name),
                         "tmp_dir": temp_dir_name,
                         "tag_file": tag_file_name(self.prog_name),
+                        "scope": scope_name,
                     },
                 )
                 temp_dir_path = ck.cut(logger)
@@ -94,11 +98,20 @@ class AddProgramStrategy:
                         os.path.join(app_path.value, "templates"),
                     )
 
+                    # Move template html
+                    shutil.copy(
+                        os.path.join(
+                            temp_dir_path.value, module_name(self.prog_name) + ".ts"
+                        ),
+                        os.path.join(src_path.value, "djelm_src"),
+                    )
+
                     logger.write(
                         style.SUCCESS(
                             f"I created an elm program at {os.path.join(src_path.value, 'src', program_file(self.app_name))}\n"
                             f"I created a template at {os.path.join(app_path.value, 'templates', tag_file_name(self.prog_name) + '.html')}\n"
                             f"I created a template tag at {os.path.join(app_path.value, 'templatetags', tag_file_name(self.prog_name) + '_tag.py')}"
+                            f"I created a typescript starter at {os.path.join(src_path.value, 'djelm_src', module_name(self.prog_name) + '.ts')}"
                         )
                     )
                     return ExitSuccess(None)
@@ -164,7 +177,9 @@ class ListStrategy:
 class CreateStrategy:
     app_name: str
 
-    def run(self, logger, style):
+    def run(
+        self, logger, style
+    ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
         ck = CookieCutter[CreateCookieExtra](
             file_dir=os.path.dirname(__file__),
             output_dir=os.getcwd(),
@@ -185,6 +200,10 @@ class CreateStrategy:
                     f"dependencies: `python manage.py elm init`"
                 )
             )
+            return ExitSuccess(None)
+        return ExitFailure(
+            None, StrategyError(" Could not create project from template:")
+        )
 
 
 @dataclass(slots=True)
