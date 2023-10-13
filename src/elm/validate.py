@@ -14,6 +14,10 @@ AddProgram = TypedDict(
     {"command": Literal["addprogram"], "app_name": str, "program_name": str},
 )
 InitValidation = TypedDict("InitValidation", {"value": Init})
+Npm = TypedDict(
+    "Npm",
+    {"command": Literal["npm"], "app_name": str, "args": list[str]},
+)
 
 
 class ValidationError(Exception):
@@ -22,7 +26,7 @@ class ValidationError(Exception):
 
 class Validations:
     def acceptable_command(
-        self, labels: list[str]
+        self, labels: list[str], *args
     ) -> (
         ExitSuccess[Init | Create | List | AddProgram]
         | ExitFailure[list[str], ValidationError]
@@ -31,7 +35,7 @@ class Validations:
             self.__check_command_verb(labels[0])
             self.__check_command_combos(labels)
             self.__check_existing_app(labels)
-            return self.__command_exit(labels)
+            return self.__command_exit(labels, args)
         except ValidationError as err:
             return ExitFailure(labels, err)
 
@@ -55,6 +59,15 @@ class Validations:
                         f"Make sure the <app-name> does not already exist."
                     )
             case ["init", app_name]:
+                app_path_exit = get_app_path(app_name)
+
+                if not app_path_exit.tag == "Success":
+                    raise ValidationError(self.__not_in_settings("init", app_name))
+                if not is_djelm(next(walk_level(app_path_exit.value))[2]):
+                    raise ValidationError(
+                        f'{self.__not_a_django_app_log("init")}\n' f"make sure the "
+                    )
+            case ["npm", app_name]:
                 app_path_exit = get_app_path(app_name)
 
                 if not app_path_exit.tag == "Success":
@@ -100,6 +113,8 @@ class Validations:
                 return
             case ["addprogram", _, _]:
                 return
+            case ["npm", _]:
+                return
             case ["list", _]:
                 raise ValidationError(
                     "The 'list' command doesn't take any arguments\nTry - python manage.py elm list"
@@ -141,14 +156,14 @@ class Validations:
 
     @staticmethod
     def __check_command_verb(s: str) -> None:
-        if s not in ["init", "create", "list", "addprogram"]:
+        if s not in ["init", "create", "npm", "list", "addprogram"]:
             raise ValidationError(f"The command '{s}' is not valid.")
 
     @staticmethod
     def __command_exit(
-        xs: list[str],
+        xs: list[str], *args
     ) -> (
-        ExitSuccess[Init | Create | List | AddProgram]
+        ExitSuccess[Init | Create | List | AddProgram | Npm]
         | ExitFailure[list[str], ValidationError]
     ):
         match xs:
@@ -160,6 +175,10 @@ class Validations:
             case ["addprogram", v, p]:
                 return ExitSuccess(
                     {"command": "addprogram", "app_name": v, "program_name": p}
+                )
+            case ["npm", v]:
+                return ExitSuccess(
+                    {"command": "npm", "app_name": v, "args": list(args)}
                 )
             case ["list"]:
                 return ExitSuccess({"command": "list"})
