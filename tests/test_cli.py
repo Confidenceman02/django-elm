@@ -91,8 +91,8 @@ def test_elm_init(settings):
 
 
 def test_elm_addprogram(settings):
-    # app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
-    app_name = "test_project"
+    app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
+    # app_name = "test_project"
     call_command("elm", "create", app_name)
     settings.INSTALLED_APPS += [app_name]
 
@@ -140,4 +140,4 @@ def test_elm_addprogram(settings):
     ), "The elm program typescript glue code has been generated"
 
     settings.INSTALLED_APPS.remove(app_name)
-    # cleanup_theme_app_dir(app_name)
+    cleanup_theme_app_dir(app_name)
