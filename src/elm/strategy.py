@@ -12,6 +12,7 @@ from elm.cookiecutter import CookieCutter
 
 from .effect import ExitFailure, ExitSuccess
 from .elm import Elm
+from .npm import NPM
 from .utils import (
     get_app_path,
     get_app_src_path,
@@ -32,6 +33,27 @@ AddProgramCookieExtra = TypedDict(
 
 class StrategyError(Exception):
     pass
+
+
+@dataclass(slots=True)
+class NpmStrategy:
+    app_name: str
+    args: list[str]
+
+    def run(
+        self, logger, style
+    ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+        npm = NPM()
+        src_path = get_app_src_path(self.app_name)
+
+        if src_path.tag == "Success":
+            npm_exit = npm.command(src_path.value, self.args)
+
+            if npm_exit.tag == "Success":
+                logger.write(style.SUCCESS("Npm strategy completed successfully."))
+                return ExitSuccess(None)
+            return ExitFailure(None, StrategyError(npm_exit.err))
+        return ExitFailure(None, err=StrategyError(src_path.err))
 
 
 @dataclass(slots=True)
@@ -210,7 +232,9 @@ class CreateStrategy:
 class Strategy:
     def create(
         self, *labels
-    ) -> InitStrategy | CreateStrategy | ListStrategy | AddProgramStrategy:
+    ) -> (
+        InitStrategy | CreateStrategy | ListStrategy | AddProgramStrategy | NpmStrategy
+    ):
         e = Validations().acceptable_command(list(labels))
         match e:
             case ExitFailure(err=err):
@@ -229,5 +253,9 @@ class Strategy:
                 return AddProgramStrategy(cast(str, app_name), cast(str, pn))
             case ExitSuccess(value={"command": "list"}):
                 return ListStrategy()
+            case ExitSuccess(
+                value={"command": "npm", "app_name": app_name, "args": args}
+            ):
+                return NpmStrategy(cast(str, app_name), cast(list[str], args))
             case _ as x:
                 raise StrategyError(f"Unable to handle {x}")

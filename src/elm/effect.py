@@ -1,5 +1,5 @@
-from typing import Literal, TypeVar, Generic
 from dataclasses import dataclass
+from typing import Generic, Literal, TypeVar
 
 T = TypeVar("T")
 E = TypeVar("E")
@@ -7,7 +7,7 @@ E = TypeVar("E")
 
 @dataclass(slots=True)
 class ExitSuccess(Generic[T]):
-    value: T = None
+    value: T
     tag: Literal["Success"] = "Success"
 
 

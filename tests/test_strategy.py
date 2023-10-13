@@ -10,6 +10,7 @@ from src.elm.strategy import (
     CreateStrategy,
     InitStrategy,
     ListStrategy,
+    NpmStrategy,
     Strategy,
 )
 
@@ -63,3 +64,11 @@ def test_strategy_addprogram(settings):
 
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
+
+
+def test_strategy_npm(settings):
+    app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
+    call_command("elm", "create", app_name)
+    settings.INSTALLED_APPS += [app_name]
+
+    TestCase().assertIsInstance(Strategy().create("npm", app_name), NpmStrategy)

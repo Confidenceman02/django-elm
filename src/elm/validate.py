@@ -28,7 +28,7 @@ class Validations:
     def acceptable_command(
         self, labels: list[str], *args
     ) -> (
-        ExitSuccess[Init | Create | List | AddProgram]
+        ExitSuccess[Init | Create | List | AddProgram | Npm]
         | ExitFailure[list[str], ValidationError]
     ):
         try:
@@ -71,10 +71,10 @@ class Validations:
                 app_path_exit = get_app_path(app_name)
 
                 if not app_path_exit.tag == "Success":
-                    raise ValidationError(self.__not_in_settings("init", app_name))
+                    raise ValidationError(self.__not_in_settings("npm", app_name))
                 if not is_djelm(next(walk_level(app_path_exit.value))[2]):
                     raise ValidationError(
-                        f'{self.__not_a_django_app_log("init")}\n' f"make sure the "
+                        f'{self.__not_a_django_app_log("npm")}\n' f"make sure the "
                     )
             case ["addprogram", app_name]:
                 raise ValidationError(
