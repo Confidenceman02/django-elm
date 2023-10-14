@@ -75,20 +75,6 @@ def test_validate_succeess_when_create_sequence(settings):
     cleanup_theme_app_dir(app_name)
 
 
-def test_validate_failure_when_init_sequence(settings):
-    app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
-    call_command("elm", "create", app_name)
-
-    settings.INSTALLED_APPS += [app_name]
-
-    TestCase().assertIsInstance(
-        Validations().acceptable_command(["addprogram", app_name, "Main"]), ExitFailure
-    )
-
-    settings.INSTALLED_APPS.remove(app_name)
-    cleanup_theme_app_dir(app_name)
-
-
 def test_validate_success_when_init_sequence(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
     call_command("elm", "create", app_name)
@@ -121,6 +107,22 @@ def test_validate_single_command_verb_succeeds():
     TestCase().assertIsInstance(Validations().acceptable_command(["list"]), ExitSuccess)
 
 
+def test_validate_failure_when_init_sequence(settings):
+    app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
+    call_command("elm", "create", app_name)
+
+    settings.INSTALLED_APPS += [app_name]
+
+    call_command("elm", "init", app_name)
+
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["init", "elm"]), ExitFailure
+    )
+
+    settings.INSTALLED_APPS.remove(app_name)
+    cleanup_theme_app_dir(app_name)
+
+
 def test_validate_failure_when_create_sequence(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
     call_command("elm", "create", app_name)
@@ -134,4 +136,9 @@ def test_validate_failure_when_create_sequence(settings):
         Validations().acceptable_command(["create", "elm"]), ExitFailure
     )
 
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["addprogram", app_name, "Main"]), ExitFailure
+    )
+
+    settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)

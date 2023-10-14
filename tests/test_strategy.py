@@ -72,3 +72,6 @@ def test_strategy_npm(settings):
     settings.INSTALLED_APPS += [app_name]
 
     TestCase().assertIsInstance(Strategy().create("npm", app_name), NpmStrategy)
+
+    settings.INSTALLED_APPS.remove(app_name)
+    cleanup_theme_app_dir(app_name)

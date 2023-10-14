@@ -162,6 +162,7 @@ class InitStrategy:
             init_exit = self.elm.command("init", target_dir=src_path.value)
 
             if init_exit.tag == "Success":
+                logger.write(init_exit.value)
                 return ExitSuccess(None)
             else:
                 return ExitFailure(None, err=StrategyError(init_exit.err))
@@ -214,13 +215,14 @@ class CreateStrategy:
         if cut_cookie.tag == "Success":
             app_name = os.path.basename(cut_cookie.value)
             logger.write(
-                style.SUCCESS(
-                    f"Elm project '{app_name}' "
-                    f"has been successfully created. "
-                    f"Please add '{app_name}' to INSTALLED_APPS in settings.py, "
-                    f"then run the following command to install all packages "
-                    f"dependencies: `python manage.py elm init`"
-                )
+                f"""
+✨ I created the {style.SUCCESS(f"{app_name}")} djelm app for you.
+
+Make sure you add {style.SUCCESS(f"{app_name}")} to INSTALLED_APPS in settings.py then run the following command to initalise an Elm project:
+
+python manage.py elm init {app_name}
+
+"""
             )
             return ExitSuccess(None)
         return ExitFailure(

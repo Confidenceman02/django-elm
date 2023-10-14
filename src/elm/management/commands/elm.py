@@ -5,6 +5,7 @@ from ...strategy import (
     CreateStrategy,
     InitStrategy,
     ListStrategy,
+    NpmStrategy,
     Strategy,
 )
 from ...validate import Validations
@@ -14,18 +15,20 @@ class Command(LabelCommand):
     help = "Runs elm commands"
     missing_args_message = """
 Command arguments are missing, please add one of the following:
-  create <app-name> - to create a django-elm app
-  init <app-name> - to initialize a current django-elm app
-  list - to list all your djelm projects
-  addprogram <app-name> <program-name> - creates a boilerplate for a djelm program
+  create <app-name> - to create a djelm app
+  init <app-name> - to initialize an Elm project in the <app-name> app
+  addprogram <app-name> <program-name> - create an Elm program called <program-name> in the <app-name> app
+  npm <app-name> [args].. - call your designated NODE_PACKAGE_MANAGER with [args]
+  list - to list all your djelm apps
 Usage example:
-  python manage.py elm create <app-name>
-  python manage.py elm init <app-name>
+  python manage.py elm create djelm_app
+  python manage.py elm init djelm_app
+  python manage.py elm addprogram djelm_app MyElmProgram
+  python manage.py elm npm djelm_app install
   python manage.py elm list
-  python manage.py elm addprogram <app-name> <program-name>
-    """
+"""
     validate = None
-    strategy: InitStrategy | CreateStrategy | AddProgramStrategy | ListStrategy
+    strategy: InitStrategy | CreateStrategy | AddProgramStrategy | ListStrategy | NpmStrategy
 
     def __init__(self, *args, **kwargs):
         super(Command, self).__init__(*args, **kwargs)

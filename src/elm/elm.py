@@ -1,7 +1,9 @@
 import subprocess
 import sys
+
 from elm import get_config
-from .effect import ExitSuccess, ExitFailure
+
+from .effect import ExitFailure, ExitSuccess
 
 
 class ElmError(Exception):
@@ -22,18 +24,26 @@ class Elm:
 
     def command(
         self, *args, target_dir: str
-    ) -> ExitSuccess[None] | ExitFailure[None, ElmError | SystemExit]:
+    ) -> ExitSuccess[str] | ExitFailure[None, ElmError | SystemExit]:
         try:
-            subprocess.check_output(
-                [self.elm_bin_path] + list(args), cwd=target_dir, input=b"y"
+            output = subprocess.check_output(
+                [self.elm_bin_path] + list(args),
+                cwd=target_dir,
+                input=b"y",
             )
-            return ExitSuccess(None)
+            return ExitSuccess(output.decode("utf-8"))
         except subprocess.CalledProcessError:
             return ExitFailure(None, sys.exit(1))
         except SystemExit as err:
             return ExitFailure(None, ElmError(_elm_binary_log(err)))
         except OSError as err:
             return ExitFailure(None, ElmError(_elm_binary_log(err)))
+
+    def stream_process(self, process):
+        go = process.poll() is None
+        for line in process.stdout:
+            print(line)
+        return go
 
     @staticmethod
     def elm_binary() -> ExitSuccess[str] | ExitFailure:

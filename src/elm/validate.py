@@ -48,9 +48,17 @@ class Validations:
                     next(walk_level(app_path_exit.value))[2]
                 ):
                     raise ValidationError(
-                        f"It looks like you are trying to run the 'create' command on the {app_name} app.\n"
-                        f"I can't 'create' an app that has already been created.\n"
-                        f"Perhaps you meant to run the 'init' command?"
+                        f"""
+It looks like you are trying to run the 'create' command on the {app_name} app.
+
+I can't 'create' an app that has already been created.
+
+Perhaps you meant to run the 'init' command?
+
+To see all the available commans run:
+python manage.py elm
+
+"""
                     )
 
                 if app_name in settings.INSTALLED_APPS:
@@ -66,6 +74,10 @@ class Validations:
                 if not is_djelm(next(walk_level(app_path_exit.value))[2]):
                     raise ValidationError(
                         f'{self.__not_a_django_app_log("init")}\n' f"make sure the "
+                    )
+                if is_init(app_name):
+                    raise ValidationError(
+                        f"\nI can't run 'init' on the {app_name} app because it looks like you already have am elm.json file."
                     )
             case ["npm", app_name]:
                 app_path_exit = get_app_path(app_name)
@@ -139,12 +151,12 @@ class Validations:
     @staticmethod
     def __not_in_settings(cmd_verb: str, app_name: str) -> str:
         return f"""
-        f"It looks like you are trying to run the '{cmd_verb}' command on an app that is not installed in "
-        f"your settings.py.\n"
-        f"Make sure that {app_name} exists in your INSTALLED_APPS in settings.py or try run 'python "
-        f"manage.py"
-        f"create {app_name}' to create the app.\n"
-        """
+
+It looks like you are trying to run the '{cmd_verb}' command on a djelm app that is not listed in your settings.py.
+
+Make sure that '{app_name}' exists in your INSTALLED_APPS in settings.py or try run 'python manage.py elm create {app_name}' to create the app if you haven't already.
+
+"""
 
     @staticmethod
     def __not_a_django_app_log(cmd_verb: str) -> str:
