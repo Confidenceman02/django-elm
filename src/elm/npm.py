@@ -1,3 +1,5 @@
+import os
+import signal
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -17,7 +19,14 @@ class NPM:
     ) -> ExitSuccess[None] | ExitFailure[None, NPMError]:
         npm_bin_path = get_config("NODE_PACKAGE_MANAGER")
         try:
-            subprocess.check_output([npm_bin_path] + args, cwd=cwd)
+            process = subprocess.Popen(
+                [npm_bin_path] + args, cwd=cwd, stdout=subprocess.PIPE
+            )
+            for c in iter(lambda: process.stdout.read(1), ""):
+                sys.stdout.write(c.decode("utf-8", "ignore"))
+                if not process.poll() == None:
+                    break
+            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
             return ExitSuccess(None)
         except subprocess.CalledProcessError:
             sys.exit(1)

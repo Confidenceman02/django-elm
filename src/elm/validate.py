@@ -35,7 +35,7 @@ class Validations:
             self.__check_command_verb(labels[0])
             self.__check_command_combos(labels)
             self.__check_existing_app(labels)
-            return self.__command_exit(labels, args)
+            return self.__command_exit(labels)
         except ValidationError as err:
             return ExitFailure(labels, err)
 
@@ -88,7 +88,7 @@ python manage.py elm
                     raise ValidationError(
                         f'{self.__not_a_django_app_log("npm")}\n' f"make sure the "
                     )
-            case ["addprogram", app_name]:
+            case ["addprogram", _]:
                 raise ValidationError(
                     """
                     Missing a program name:\n
@@ -184,7 +184,7 @@ Make sure that '{app_name}' exists in your INSTALLED_APPS in settings.py or try 
 
     @staticmethod
     def __command_exit(
-        xs: list[str], *args
+        xs: list[str],
     ) -> (
         ExitSuccess[Init | Create | List | AddProgram | Npm]
         | ExitFailure[list[str], ValidationError]

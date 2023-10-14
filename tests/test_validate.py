@@ -94,9 +94,6 @@ def test_validate_success_when_init_sequence(settings):
     TestCase().assertIsInstance(
         Validations().acceptable_command(["addprogram", app_name, "Main"]), ExitSuccess
     )
-    # TestCase().assertIsInstance(
-    #     Validations().acceptable_command(["npm", app_name]), ExitSuccess
-    # )
 
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
