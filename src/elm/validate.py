@@ -125,13 +125,24 @@ python manage.py elm
                 return
             case ["addprogram", _, _]:
                 return
-            case ["npm", _]:
-                return
             case ["list", _]:
                 raise ValidationError(
                     "The 'list' command doesn't take any arguments\nTry - python manage.py elm list"
                 )
             case ["list"]:
+                return
+            case [
+                "npm",
+                _,
+            ]:
+                raise ValidationError(
+                    "I was expecting some arguments for the 'npm' command. run 'python manage.py elm to see examples.'\n"
+                )
+            case [
+                "npm",
+            ]:
+                raise ValidationError(self.__missing_app_log("npm"))
+            case ["npm", _, *rest]:
                 return
             case ["init"] as command_verb:
                 raise ValidationError(self.__missing_app_log(command_verb[0]))
@@ -188,10 +199,8 @@ Make sure that '{app_name}' exists in your INSTALLED_APPS in settings.py or try 
                 return ExitSuccess(
                     {"command": "addprogram", "app_name": v, "program_name": p}
                 )
-            case ["npm", v]:
-                return ExitSuccess(
-                    {"command": "npm", "app_name": v, "args": list(args)}
-                )
+            case ["npm", v, *rest]:
+                return ExitSuccess({"command": "npm", "app_name": v, "args": rest})
             case ["list"]:
                 return ExitSuccess({"command": "list"})
             case _ as cmds:
