@@ -150,3 +150,14 @@ def test_validate_failure_when_create_sequence(settings):
 
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
+
+
+def test_validate_failure_when_create_sequence_app_not_in_settings():
+    app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
+    call_command("elm", "create", app_name)
+
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["npm", app_name, "install"]), ExitFailure
+    )
+
+    cleanup_theme_app_dir(app_name)

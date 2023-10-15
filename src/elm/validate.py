@@ -79,15 +79,13 @@ python manage.py elm
                     raise ValidationError(
                         f"\nI can't run 'init' on the {app_name} app because it looks like you already have am elm.json file."
                     )
-            case ["npm", app_name]:
+            case ["npm", app_name, *rest]:
                 app_path_exit = get_app_path(app_name)
 
                 if not app_path_exit.tag == "Success":
                     raise ValidationError(self.__not_in_settings("npm", app_name))
                 if not is_djelm(next(walk_level(app_path_exit.value))[2]):
-                    raise ValidationError(
-                        f'{self.__not_a_django_app_log("npm")}\n' f"make sure the "
-                    )
+                    raise ValidationError(self.__not_a_django_app_log("npm"))
             case ["addprogram", _]:
                 raise ValidationError(
                     """
