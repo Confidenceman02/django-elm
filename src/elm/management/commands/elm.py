@@ -39,7 +39,9 @@ Usage example:
 
     def handle_labels(self, *labels):
         self.strategy = Strategy().create(*labels)
-        self.run_strategy()
+        strat = self.run_strategy()
 
     def run_strategy(self):
-        self.strategy.run(self.stdout, self.style)
+        strat = self.strategy.run(self.stdout, self.style)
+        if strat.tag == "Failure":
+            raise strat.err

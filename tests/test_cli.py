@@ -55,7 +55,7 @@ def test_elm_create_directory(settings):
 
     assert os.path.isfile(
         os.path.join(
-            get_app_src_path(app_name).value, ".djelm", "parcel.js"  # type:ignore
+            get_app_src_path(app_name).value, ".djelm", "compile.js"  # type:ignore
         )
     ), "The project .gitignore has been generated"
 
@@ -119,8 +119,16 @@ def test_elm_addprogram(settings):
     assert os.path.isfile(
         os.path.join(
             get_app_path(app_name).value,  # type:ignore
+            "templates",
+            "include.html",
+        )
+    ), "The elm program template has been created"
+
+    assert os.path.isfile(
+        os.path.join(
+            get_app_path(app_name).value,  # type:ignore
             "templatetags",
-            "main_tag.py",
+            "main_tags.py",
         )
     ), "The elm program custom template tag has been created"
 

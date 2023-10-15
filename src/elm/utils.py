@@ -92,9 +92,13 @@ def module_name(app_name: str):
     return app_name[0].upper() + app_name[1:]
 
 
-def tag_file_name(app_name: str):
-    return app_name[0].lower() + app_name[1:]
+def tag_file_name(prog_name: str):
+    return prog_name[0].lower() + prog_name[1:]
 
 
 def program_file(app_name: str):
     return module_name(app_name) + ".elm"
+
+
+def scope_name(app_name: str, prog_name: str) -> str:
+    return (app_name.lower() + prog_name.lower().replace("_", "")).replace("_", "")

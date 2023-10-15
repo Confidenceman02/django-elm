@@ -19,6 +19,7 @@ from .utils import (
     is_djelm,
     module_name,
     program_file,
+    scope_name,
     tag_file_name,
     walk_level,
 )
@@ -80,9 +81,6 @@ class AddProgramStrategy:
                 temp_dir_name = (
                     f'temp_program_djelm_{str(uuid.uuid1()).replace("-", "_")}'
                 )
-                scope_name = (
-                    self.app_name.lower() + self.prog_name.lower().replace("_", "")
-                ).replace("_", "")
                 ck = CookieCutter[AddProgramCookieExtra](
                     file_dir=os.path.dirname(__file__),
                     output_dir=os.path.join(src_path.value, "elm-stuff"),
@@ -91,7 +89,7 @@ class AddProgramStrategy:
                         "program_name": module_name(self.prog_name),
                         "tmp_dir": temp_dir_name,
                         "tag_file": tag_file_name(self.prog_name),
-                        "scope": scope_name,
+                        "scope": scope_name(self.app_name, self.prog_name),
                     },
                 )
                 temp_dir_path = ck.cut(logger)
@@ -108,7 +106,7 @@ class AddProgramStrategy:
                     shutil.copy(
                         os.path.join(
                             temp_dir_path.value,
-                            tag_file_name(self.prog_name) + "_tag.py",
+                            tag_file_name(self.prog_name) + "_tags.py",
                         ),
                         os.path.join(app_path.value, "templatetags"),
                     )
@@ -119,8 +117,16 @@ class AddProgramStrategy:
                         ),
                         os.path.join(app_path.value, "templates"),
                     )
+                    # Move template include html
+                    shutil.copy(
+                        os.path.join(
+                            temp_dir_path.value,
+                            "include.html",
+                        ),
+                        os.path.join(app_path.value, "templates"),
+                    )
 
-                    # Move template html
+                    # Move typescript
                     shutil.copy(
                         os.path.join(
                             temp_dir_path.value, module_name(self.prog_name) + ".ts"
