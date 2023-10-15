@@ -152,7 +152,7 @@ def test_validate_failure_when_create_sequence(settings):
     cleanup_theme_app_dir(app_name)
 
 
-def test_validate_failure_when_create_sequence_app_not_in_settings():
+def test_validate_failure_when_create_sequence_app_not_in_settings(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
     call_command("elm", "create", app_name)
 
@@ -160,4 +160,6 @@ def test_validate_failure_when_create_sequence_app_not_in_settings():
         Validations().acceptable_command(["npm", app_name, "install"]), ExitFailure
     )
 
+    # Hack to remove generated directory
+    settings.INSTALLED_APPS += [app_name]
     cleanup_theme_app_dir(app_name)

@@ -92,7 +92,6 @@ def test_elm_init(settings):
 
 def test_elm_addprogram(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
-    # app_name = "test_project"
     call_command("elm", "create", app_name)
     settings.INSTALLED_APPS += [app_name]
 
