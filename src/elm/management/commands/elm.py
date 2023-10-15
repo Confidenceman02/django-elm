@@ -42,6 +42,6 @@ Usage example:
         strat = self.run_strategy()
 
     def run_strategy(self):
-        strat = self.strategy.run(self.stdout, self.style)
-        if strat.tag == "Failure":
-            raise strat.err
+        self.strategy.run(self.stdout, self.style)
+        # if strat.tag == "Failure":
+        #     raise strat.err

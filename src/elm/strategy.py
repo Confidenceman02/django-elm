@@ -138,7 +138,8 @@ class AddProgramStrategy:
                         style.SUCCESS(
                             f"I created an Elm program at {os.path.join(src_path.value, 'src', program_file(self.prog_name))}\n"
                             f"I created a template at {os.path.join(app_path.value, 'templates', tag_file_name(self.prog_name) + '.html')}\n"
-                            f"I created a template tag at {os.path.join(app_path.value, 'templatetags', tag_file_name(self.prog_name) + '_tag.py')}\n"
+                            f"I created a script helper template at {os.path.join(app_path.value, 'templates', 'include.html')}\n"
+                            f"I created a template tag at {os.path.join(app_path.value, 'templatetags', tag_file_name(self.prog_name) + '_tags.py')}\n"
                             f"I created a typescript starter at {os.path.join(src_path.value, 'djelm_src', module_name(self.prog_name) + '.ts')}\n"
                         )
                     )
