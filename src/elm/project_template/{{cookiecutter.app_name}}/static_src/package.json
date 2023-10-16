@@ -2,6 +2,9 @@
   "name": "{{ cookiecutter.app_name }}",
   "version": "1.0.0",
   "license": "MIT",
+  "scripts": {
+    "compile": "node .djelm/compile.js"
+  },
   "devDependencies": {
     "@parcel/config-default": "^2.10.0",
     "@parcel/core": "^2.10.0",
