@@ -3,14 +3,14 @@ import uuid
 
 from django.core.management import call_command
 
-from src.elm.utils import get_app_path, get_app_src_path
+from src.djelm.utils import get_app_path, get_app_src_path
 
 from .conftest import cleanup_theme_app_dir
 
 
 def test_elm_create_directory(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
-    call_command("elm", "create", app_name)
+    call_command("djelm", "create", app_name)
 
     settings.INSTALLED_APPS += [app_name]
     assert os.path.isfile(
@@ -79,10 +79,10 @@ def test_elm_create_directory(settings):
 
 def test_elm_init(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
-    call_command("elm", "create", app_name)
+    call_command("djelm", "create", app_name)
     settings.INSTALLED_APPS += [app_name]
 
-    call_command("elm", "init", app_name)
+    call_command("djelm", "init", app_name)
 
     assert os.path.isfile(
         os.path.join(
@@ -100,11 +100,11 @@ def test_elm_init(settings):
 
 def test_elm_addprogram(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
-    call_command("elm", "create", app_name)
+    call_command("djelm", "create", app_name)
     settings.INSTALLED_APPS += [app_name]
 
-    call_command("elm", "init", app_name)
-    call_command("elm", "addprogram", app_name, "Main")
+    call_command("djelm", "init", app_name)
+    call_command("djelm", "addprogram", app_name, "Main")
 
     assert os.path.isfile(
         os.path.join(

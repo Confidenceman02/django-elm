@@ -1,7 +1,7 @@
 import subprocess
 import sys
 
-from elm import get_config
+from djelm import get_config
 
 from .effect import ExitFailure, ExitSuccess
 

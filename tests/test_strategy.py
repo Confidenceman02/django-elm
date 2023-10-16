@@ -4,8 +4,8 @@ from unittest import TestCase
 from django.core.management import call_command
 from django.core.management.base import LabelCommand
 
-from src.elm.effect import ExitSuccess
-from src.elm.strategy import (
+from src.djelm.effect import ExitSuccess
+from src.djelm.strategy import (
     AddProgramStrategy,
     CreateStrategy,
     InitStrategy,
@@ -23,7 +23,7 @@ def test_strategy_create_create():
 
 def test_strategy_init(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
-    call_command("elm", "create", app_name)
+    call_command("djelm", "create", app_name)
     settings.INSTALLED_APPS += [app_name]
 
     TestCase().assertIsInstance(Strategy().create("init", app_name), InitStrategy)
@@ -34,7 +34,7 @@ def test_strategy_init(settings):
 
 def test_strategy_list(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
-    call_command("elm", "create", app_name)
+    call_command("djelm", "create", app_name)
     settings.INSTALLED_APPS += [app_name]
 
     TestCase().assertIsInstance(
@@ -50,10 +50,10 @@ def test_strategy_list(settings):
 
 def test_strategy_addprogram(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
-    call_command("elm", "create", app_name)
+    call_command("djelm", "create", app_name)
     settings.INSTALLED_APPS += [app_name]
 
-    call_command("elm", "init", app_name)
+    call_command("djelm", "init", app_name)
 
     TestCase().assertIsInstance(
         AddProgramStrategy(app_name, "Main").run(
@@ -68,7 +68,7 @@ def test_strategy_addprogram(settings):
 
 def test_strategy_npm(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
-    call_command("elm", "create", app_name)
+    call_command("djelm", "create", app_name)
     settings.INSTALLED_APPS += [app_name]
 
     TestCase().assertIsInstance(

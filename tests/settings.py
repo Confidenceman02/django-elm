@@ -8,7 +8,7 @@ DEBUG = False
 
 ALLOWED_HOSTS = ["*"]
 
-INSTALLED_APPS = ["django.contrib.staticfiles", "elm"]
+INSTALLED_APPS = ["django.contrib.staticfiles", "djelm"]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

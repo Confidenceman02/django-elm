@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Generic, TypeVar
 
-from elm.effect import ExitFailure, ExitSuccess
+from djelm.effect import ExitFailure, ExitSuccess
 
 from .utils import install_pip_package
 

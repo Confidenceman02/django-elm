@@ -4,8 +4,8 @@ import subprocess
 import sys
 from dataclasses import dataclass
 
-from elm import get_config
-from elm.effect import ExitFailure, ExitSuccess
+from djelm import get_config
+from djelm.effect import ExitFailure, ExitSuccess
 
 
 class NPMError(Exception):

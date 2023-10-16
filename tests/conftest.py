@@ -1,7 +1,7 @@
 import os
 import shutil
 
-from src.elm.utils import get_app_path
+from src.djelm.utils import get_app_path
 
 
 def cleanup_theme_app_dir(app_name):

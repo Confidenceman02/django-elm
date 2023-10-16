@@ -2,7 +2,7 @@ import os
 
 from django.apps import apps
 
-from elm.effect import ExitFailure, ExitSuccess
+from djelm.effect import ExitFailure, ExitSuccess
 
 
 def get_app_path(app_name) -> ExitSuccess[str] | ExitFailure[None, Exception]:

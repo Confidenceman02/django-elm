@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "django-elm"
+name = "djelm"
 version = "0.1.0"
 description = "A framework for using Elm programs in Django"
 authors = ["Confidencemna02 <johh.terreu@gmail.com>"]
@@ -18,7 +18,7 @@ classifiers = [
 ]
 
 packages = [
-    { include = "elm", from = "src" }
+    { include = "djelm", from = "src" }
 ]
 
 [tool.poetry.dependencies]

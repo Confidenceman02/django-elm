@@ -8,7 +8,7 @@ from typing import Iterable, cast
 from django.conf import settings
 from typing_extensions import TypedDict
 
-from elm.cookiecutter import CookieCutter
+from djelm.cookiecutter import CookieCutter
 
 from .effect import ExitFailure, ExitSuccess
 from .elm import Elm

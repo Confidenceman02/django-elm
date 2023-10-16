@@ -3,8 +3,8 @@ from unittest import TestCase
 
 from django.core.management import call_command
 
-from src.elm.effect import ExitFailure, ExitSuccess
-from src.elm.validate import Validations
+from src.djelm.effect import ExitFailure, ExitSuccess
+from src.djelm.validate import Validations
 
 from .conftest import cleanup_theme_app_dir
 
@@ -46,7 +46,7 @@ def test_validate_failure_when_no_create_sequence():
 
 def test_validate_failure_when_not_enough_args_with_create_sequence(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
-    call_command("elm", "create", app_name)
+    call_command("djelm", "create", app_name)
 
     settings.INSTALLED_APPS += [app_name]
 
@@ -64,7 +64,7 @@ def test_validate_failure_when_not_enough_args_with_create_sequence(settings):
 
 def test_validate_success_when_create_sequence(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
-    call_command("elm", "create", app_name)
+    call_command("djelm", "create", app_name)
 
     settings.INSTALLED_APPS += [app_name]
 
@@ -85,11 +85,11 @@ def test_validate_success_when_create_sequence(settings):
 
 def test_validate_success_when_init_sequence(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
-    call_command("elm", "create", app_name)
+    call_command("djelm", "create", app_name)
 
     settings.INSTALLED_APPS += [app_name]
 
-    call_command("elm", "init", app_name)
+    call_command("djelm", "init", app_name)
 
     TestCase().assertIsInstance(
         Validations().acceptable_command(["addprogram", app_name, "Main"]), ExitSuccess
@@ -101,10 +101,10 @@ def test_validate_success_when_init_sequence(settings):
 
 def test_validate_failure_when_app_external():
     TestCase().assertIsInstance(
-        Validations().acceptable_command(["init", "elm"]), ExitFailure
+        Validations().acceptable_command(["init", "djelm"]), ExitFailure
     )
     TestCase().assertIsInstance(
-        Validations().acceptable_command(["npm", "elm"]), ExitFailure
+        Validations().acceptable_command(["npm", "djelm"]), ExitFailure
     )
 
 
@@ -114,14 +114,14 @@ def test_validate_single_command_verb_succeeds():
 
 def test_validate_failure_when_init_sequence(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
-    call_command("elm", "create", app_name)
+    call_command("djelm", "create", app_name)
 
     settings.INSTALLED_APPS += [app_name]
 
-    call_command("elm", "init", app_name)
+    call_command("djelm", "init", app_name)
 
     TestCase().assertIsInstance(
-        Validations().acceptable_command(["init", "elm"]), ExitFailure
+        Validations().acceptable_command(["init", "djelm"]), ExitFailure
     )
 
     settings.INSTALLED_APPS.remove(app_name)
@@ -130,7 +130,7 @@ def test_validate_failure_when_init_sequence(settings):
 
 def test_validate_failure_when_create_sequence(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
-    call_command("elm", "create", app_name)
+    call_command("djelm", "create", app_name)
     settings.INSTALLED_APPS += [app_name]
 
     TestCase().assertIsInstance(
@@ -138,7 +138,7 @@ def test_validate_failure_when_create_sequence(settings):
     )
 
     TestCase().assertIsInstance(
-        Validations().acceptable_command(["create", "elm"]), ExitFailure
+        Validations().acceptable_command(["create", "djelm"]), ExitFailure
     )
 
     TestCase().assertIsInstance(
@@ -154,7 +154,7 @@ def test_validate_failure_when_create_sequence(settings):
 
 def test_validate_failure_when_create_sequence_app_not_in_settings(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
-    call_command("elm", "create", app_name)
+    call_command("djelm", "create", app_name)
 
     TestCase().assertIsInstance(
         Validations().acceptable_command(["npm", app_name, "install"]), ExitFailure
