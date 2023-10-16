@@ -18,6 +18,10 @@ Npm = TypedDict(
     "Npm",
     {"command": Literal["npm"], "app_name": str, "args": list[str]},
 )
+Watch = TypedDict(
+    "Watch",
+    {"command": Literal["watch"], "app_name": str},
+)
 
 
 class ValidationError(Exception):
@@ -56,7 +60,7 @@ I can't 'create' an app that has already been created.
 Perhaps you meant to run the 'init' command?
 
 To see all the available commans run:
-python manage.py elm
+manage.py djelm
 
 """
                     )
@@ -72,9 +76,7 @@ python manage.py elm
                 if not app_path_exit.tag == "Success":
                     raise ValidationError(self.__not_in_settings("init", app_name))
                 if not is_djelm(next(walk_level(app_path_exit.value))[2]):
-                    raise ValidationError(
-                        f'{self.__not_a_django_app_log("init")}\n' f"make sure the "
-                    )
+                    raise ValidationError(f'{self.__not_a_django_app_log("init")}\n')
                 if is_init(app_name):
                     raise ValidationError(
                         f"\nI can't run 'init' on the {app_name} app because it looks like you already have am elm.json file."
@@ -86,12 +88,19 @@ python manage.py elm
                     raise ValidationError(self.__not_in_settings("npm", app_name))
                 if not is_djelm(next(walk_level(app_path_exit.value))[2]):
                     raise ValidationError(self.__not_a_django_app_log("npm"))
+            case ["watch", app_name]:
+                app_path_exit = get_app_path(app_name)
+
+                if not app_path_exit.tag == "Success":
+                    raise ValidationError(self.__not_in_settings("watch", app_name))
+                if not is_djelm(next(walk_level(app_path_exit.value))[2]):
+                    raise ValidationError(f'{self.__not_a_django_app_log("watch")}\n')
             case ["addprogram", _]:
                 raise ValidationError(
                     """
                     Missing a program name:\n
                     To set up an elm program I need a name.\n
-                    Try running something like: 'python manage.py elm addprogram <program>'
+                    Try running something like: 'manage.py djelm addprogram <program>'
                     """
                 )
 
@@ -112,7 +121,7 @@ python manage.py elm
                         f"It looks like you are missing some files/directories.\n"
                         f"In order form me to add a program I need to see the following files/directories:\n"
                         f"{app_name}/elm.json, {app_name}/src/, {app_name}/templates/, {app_name}/templatetags/\n"
-                        f"Make sure you have run both 'python manage.py elm create {app_name}' and 'python manage.py elm init {app_name}' before adding a program"
+                        f"Make sure you have run both 'manage.py djelm create {app_name}' and 'manage.py djelm init {app_name}' before adding a program"
                     )
 
     def __check_command_combos(self, xs: list[str]) -> None:
@@ -121,11 +130,13 @@ python manage.py elm
                 return
             case ["create", _]:
                 return
+            case ["watch", _]:
+                return
             case ["addprogram", _, _]:
                 return
             case ["list", _]:
                 raise ValidationError(
-                    "The 'list' command doesn't take any arguments\nTry - python manage.py elm list"
+                    "The 'list' command doesn't take any arguments\nTry - manage.py djelm list"
                 )
             case ["list"]:
                 return
@@ -134,21 +145,25 @@ python manage.py elm
                 _,
             ]:
                 raise ValidationError(
-                    "I was expecting some arguments for the 'npm' command. run 'python manage.py elm to see examples.'\n"
+                    "I was expecting some arguments for the 'npm' command. run 'manage.py djelm to see examples.'\n"
                 )
             case [
                 "npm",
             ]:
-                raise ValidationError(self.__missing_app_log("npm"))
+                raise ValidationError(self.__missing_app_name_log("npm"))
             case ["npm", _, *rest]:
                 return
+
+            case ["watch"] as command_verb:
+                raise ValidationError(self.__missing_app_name_log(command_verb[0]))
+
             case ["init"] as command_verb:
-                raise ValidationError(self.__missing_app_log(command_verb[0]))
+                raise ValidationError(self.__missing_app_name_log(command_verb[0]))
             case ["create"] as command_verb:
-                raise ValidationError(self.__missing_app_log(command_verb[0]))
+                raise ValidationError(self.__missing_app_name_log(command_verb[0]))
 
     @staticmethod
-    def __missing_app_log(cmd_verb: str) -> str:
+    def __missing_app_name_log(cmd_verb: str) -> str:
         return f"""
         Missing argument:
         
@@ -163,7 +178,7 @@ python manage.py elm
 
 It looks like you are trying to run the '{cmd_verb}' command on a djelm app that is not listed in your settings.py.
 
-Make sure that '{app_name}' exists in your INSTALLED_APPS in settings.py or try run 'python manage.py elm create {app_name}' to create the app if you haven't already.
+Make sure that '{app_name}' exists in your INSTALLED_APPS in settings.py or try run 'manage.py djelm create {app_name}' to create the app if you haven't already.
 
 """
 
@@ -171,20 +186,20 @@ Make sure that '{app_name}' exists in your INSTALLED_APPS in settings.py or try 
     def __not_a_django_app_log(cmd_verb: str) -> str:
         return f"""
         f"It looks like you are trying to run the '{cmd_verb}' command on an installed app that was not "
-        f"created by django-elm.\n"
+        f"created by djelm.\n"
         f"I can't run {cmd_verb} on external apps that already exist.\n"
         """
 
     @staticmethod
     def __check_command_verb(s: str) -> None:
-        if s not in ["init", "create", "npm", "list", "addprogram"]:
+        if s not in ["init", "create", "npm", "list", "addprogram", "watch"]:
             raise ValidationError(f"The command '{s}' is not valid.")
 
     @staticmethod
     def __command_exit(
         xs: list[str],
     ) -> (
-        ExitSuccess[Init | Create | List | AddProgram | Npm]
+        ExitSuccess[Init | Create | List | AddProgram | Npm | Watch]
         | ExitFailure[list[str], ValidationError]
     ):
         match xs:
@@ -193,6 +208,8 @@ Make sure that '{app_name}' exists in your INSTALLED_APPS in settings.py or try 
                 return ExitSuccess(arg)
             case ["create", v]:
                 return ExitSuccess({"command": "create", "app_name": v})
+            case ["watch", v]:
+                return ExitSuccess({"command": "watch", "app_name": v})
             case ["addprogram", v, p]:
                 return ExitSuccess(
                     {"command": "addprogram", "app_name": v, "program_name": p}

@@ -24,6 +24,9 @@ def test_validate_failure_when_single_command():
         Validations().acceptable_command(["addprogram"]), ExitFailure
     )
     TestCase().assertIsInstance(Validations().acceptable_command(["npm"]), ExitFailure)
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["watch"]), ExitFailure
+    )
 
 
 def test_validate_failure_when_combo_command():
@@ -41,6 +44,9 @@ def test_validate_failure_when_no_create_sequence():
     )
     TestCase().assertIsInstance(
         Validations().acceptable_command(["npm", "my_app"]), ExitFailure
+    )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["watch", "my_app"]), ExitFailure
     )
 
 
@@ -78,6 +84,9 @@ def test_validate_success_when_create_sequence(settings):
         Validations().acceptable_command(["npm", app_name, "install", "-D", "elm"]),
         ExitSuccess,
     )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["watch", app_name]), ExitSuccess
+    )
 
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
@@ -94,6 +103,9 @@ def test_validate_success_when_init_sequence(settings):
     TestCase().assertIsInstance(
         Validations().acceptable_command(["addprogram", app_name, "Main"]), ExitSuccess
     )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["watch", app_name]), ExitSuccess
+    )
 
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
@@ -105,6 +117,9 @@ def test_validate_failure_when_app_external():
     )
     TestCase().assertIsInstance(
         Validations().acceptable_command(["npm", "djelm"]), ExitFailure
+    )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["watch", "djelm"]), ExitFailure
     )
 
 
@@ -158,6 +173,9 @@ def test_validate_failure_when_create_sequence_app_not_in_settings(settings):
 
     TestCase().assertIsInstance(
         Validations().acceptable_command(["npm", app_name, "install"]), ExitFailure
+    )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["watch", app_name]), ExitFailure
     )
 
     # Hack to remove generated directory
