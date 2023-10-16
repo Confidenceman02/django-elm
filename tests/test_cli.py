@@ -65,6 +65,14 @@ def test_elm_create_directory(settings):
         )
     ), "The djelm source file directory has been generated"
 
+    assert os.path.isfile(
+        os.path.join(
+            get_app_path(app_name).value,  # type:ignore
+            "templates",
+            "include.html",
+        )
+    ), "The elm program template has been created"
+
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
 
@@ -112,14 +120,6 @@ def test_elm_addprogram(settings):
             get_app_path(app_name).value,  # type:ignore
             "templates",
             "main.html",
-        )
-    ), "The elm program template has been created"
-
-    assert os.path.isfile(
-        os.path.join(
-            get_app_path(app_name).value,  # type:ignore
-            "templates",
-            "include.html",
         )
     ), "The elm program template has been created"
 

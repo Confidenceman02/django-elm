@@ -2,6 +2,5 @@
   "program_name": "",
   "tag_file": "",
   "tmp_dir": "",
-  "scope": "",
-  "_copy_without_render": ["include.html"]
+  "scope": ""
 }
