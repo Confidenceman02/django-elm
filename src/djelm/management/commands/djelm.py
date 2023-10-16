@@ -7,6 +7,7 @@ from ...strategy import (
     ListStrategy,
     NpmStrategy,
     Strategy,
+    WatchStrategy,
 )
 from ...validate import Validations
 
@@ -18,17 +19,19 @@ Command arguments are missing, please add one of the following:
   create <app-name> - to create a djelm app
   init <app-name> - to initialize an Elm project in the <app-name> app
   addprogram <app-name> <program-name> - create an Elm program called <program-name> in the <app-name> app
+  watch <app-name> - will watch the app's src file for Elm code changes and compile
   npm <app-name> [args].. - call your designated NODE_PACKAGE_MANAGER with [args]
   list - to list all your djelm apps
 Usage example:
   python manage.py elm create djelm_app
   python manage.py elm init djelm_app
   python manage.py elm addprogram djelm_app MyElmProgram
+  python manage.py elm watch djelm_app
   python manage.py elm npm djelm_app install
   python manage.py elm list
 """
     validate = None
-    strategy: InitStrategy | CreateStrategy | AddProgramStrategy | ListStrategy | NpmStrategy
+    strategy: InitStrategy | CreateStrategy | AddProgramStrategy | ListStrategy | NpmStrategy | WatchStrategy
 
     def __init__(self, *args, **kwargs):
         super(Command, self).__init__(*args, **kwargs)

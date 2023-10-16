@@ -1,3 +1,4 @@
+import asyncio
 import os
 import shutil
 import uuid
@@ -7,6 +8,7 @@ from typing import Iterable, cast
 
 from django.conf import settings
 from typing_extensions import TypedDict
+from watchfiles import awatch
 
 from djelm.cookiecutter import CookieCutter
 
@@ -34,6 +36,43 @@ AddProgramCookieExtra = TypedDict(
 
 class StrategyError(Exception):
     pass
+
+
+@dataclass(slots=True)
+class WatchStrategy:
+    app_name: str
+
+    def run(
+        self, logger, style
+    ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+        npm = NPM()
+        src_path = get_app_src_path(self.app_name)
+        if src_path.tag == "Success":
+            try:
+                # first pass compile on start of watch
+                npm.command(os.path.join(src_path.value), ["run", "compile"])
+                return asyncio.run(
+                    self.watch(
+                        npm,
+                        src_path.value,
+                        ["run", "compile"],
+                        os.path.join(src_path.value, "src"),
+                        logger,
+                    )
+                )
+            except KeyboardInterrupt:
+                return ExitSuccess(None)
+        return ExitFailure(None, StrategyError("Error"))
+
+    async def watch(self, npm: NPM, path: str, commands: list[str], dir: str, logger):
+        async for changes in awatch(dir):
+            for change, f in changes:
+                if change == 1:
+                    logger.write(f"FILE CHANGE: {f}")
+                    # recompile
+                    npm.command(path, commands)
+
+        return ExitSuccess(None)
 
 
 @dataclass(slots=True)
@@ -233,7 +272,12 @@ class Strategy:
     def create(
         self, *labels
     ) -> (
-        InitStrategy | CreateStrategy | ListStrategy | AddProgramStrategy | NpmStrategy
+        InitStrategy
+        | CreateStrategy
+        | ListStrategy
+        | AddProgramStrategy
+        | NpmStrategy
+        | WatchStrategy
     ):
         e = Validations().acceptable_command(list(labels))
         match e:
@@ -243,6 +287,8 @@ class Strategy:
                 return InitStrategy(cast(str, app_name))
             case ExitSuccess(value={"command": "create", "app_name": app_name}):
                 return CreateStrategy(cast(str, app_name))
+            case ExitSuccess(value={"command": "watch", "app_name": app_name}):
+                return WatchStrategy(cast(str, app_name))
             case ExitSuccess(
                 value={
                     "command": "addprogram",
