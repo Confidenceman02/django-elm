@@ -73,9 +73,9 @@ def test_elm_create_directory(settings):
 
     assert os.path.isdir(
         os.path.join(
-            get_app_src_path(app_name).value, "src", "Flags"  # type:ignore
+            get_app_src_path(app_name).value, "src", "Models"  # type:ignore
         )
-    ), "The elm program Flags directory has been generated"
+    ), "The elm program Models directory has been generated"
 
     assert os.path.isfile(
         os.path.join(
@@ -126,6 +126,16 @@ def test_elm_addprogram(settings):
             "Main.elm",
         )
     ), "The elm program has been created"
+
+    assert os.path.isfile(
+        os.path.join(
+            get_app_path(app_name).value,  # type:ignore
+            "static_src",
+            "src",
+            "Models",
+            "Main.elm",
+        )
+    ), "The elm program flags have been generated"
 
     assert os.path.isfile(
         os.path.join(

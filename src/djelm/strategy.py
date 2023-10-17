@@ -141,6 +141,18 @@ class AddProgramStrategy:
                         ),
                         os.path.join(src_path.value, "src"),
                     )
+                    # Move elm program flags
+                    shutil.copy(
+                        os.path.join(
+                            temp_dir_path.value, module_name(self.prog_name) + ".elmf"
+                        ),
+                        os.path.join(
+                            src_path.value,
+                            "src",
+                            "Models",
+                            module_name(self.prog_name) + ".elm",
+                        ),
+                    )
                     # Move template tag
                     shutil.copy(
                         os.path.join(

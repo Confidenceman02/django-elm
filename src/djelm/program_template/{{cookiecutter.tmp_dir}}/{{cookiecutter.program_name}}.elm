@@ -3,16 +3,9 @@ module {{cookiecutter.program_name}} exposing (..)
 import Browser
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick)
-
-
-main : Program () Int Msg
-main =
-    Browser.element
-        { init = always ( 0, Cmd.none )
-        , update = update
-        , view = view
-        , subscriptions = subscriptions
-        }
+import Json.Decode exposing (decodeValue)
+import Json.Encode exposing (Value)
+import Models.Main exposing (ToModel, toModel)
 
 
 type Msg
@@ -20,25 +13,60 @@ type Msg
     | Decrement
 
 
-subscriptions : Int -> Sub Msg
+type Model
+    = Ready ToModel
+    | Error
+
+
+init : Value -> ( Model, Cmd Msg )
+init f =
+    case decodeValue toModel f of
+        Ok m ->
+            ( Ready m, Cmd.none )
+
+        Err _ ->
+            ( Error, Cmd.none )
+
+
+main : Program Value Model Msg
+main =
+    Browser.element
+        { init = init
+        , update = update
+        , view = view
+        , subscriptions = subscriptions
+        }
+
+
+subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.none
 
 
-update : Msg -> Int -> ( Int, Cmd Msg )
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case msg of
-        Increment ->
-            ( model + 1, Cmd.none )
+    case model of
+        Ready m ->
+            case msg of
+                Increment ->
+                    ( Ready (m + 1), Cmd.none )
 
-        Decrement ->
-            ( model - 1, Cmd.none )
+                Decrement ->
+                    ( Ready (m - 1), Cmd.none )
+
+        _ ->
+            ( model, Cmd.none )
 
 
-view : Int -> Html Msg
+view : Model -> Html Msg
 view model =
-    div []
-        [ button [ onClick Decrement ] [ text "-" ]
-        , div [] [ text (String.fromInt model) ]
-        , button [ onClick Increment ] [ text "+" ]
-        ]
+    case model of
+        Ready m ->
+            div []
+                [ button [ onClick Decrement ] [ text "-" ]
+                , div [] [ text (String.fromInt m) ]
+                , button [ onClick Increment ] [ text "+" ]
+                ]
+
+        _ ->
+            text ""
