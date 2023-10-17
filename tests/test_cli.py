@@ -63,7 +63,19 @@ def test_elm_create_directory(settings):
         os.path.join(
             get_app_src_path(app_name).value, "djelm_src"  # type:ignore
         )
-    ), "The djelm source file directory has been generated"
+    ), "The djelm source directory has been generated"
+
+    assert os.path.isdir(
+        os.path.join(
+            get_app_src_path(app_name).value, "src"  # type:ignore
+        )
+    ), "The elm program src directory has been generated"
+
+    assert os.path.isdir(
+        os.path.join(
+            get_app_src_path(app_name).value, "src", "Flags"  # type:ignore
+        )
+    ), "The elm program Flags directory has been generated"
 
     assert os.path.isfile(
         os.path.join(
