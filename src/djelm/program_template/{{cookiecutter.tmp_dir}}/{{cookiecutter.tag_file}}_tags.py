@@ -1,11 +1,11 @@
 from django import template
+from ..flags.main import flags
 
 register = template.Library()
 
 @register.inclusion_tag("{{ cookiecutter.tag_file }}.html", takes_context=True)
 def render_{{ cookiecutter.tag_file }}(context):
-    # Write your code here in order to render the {{ cookiecutter.program_name }}.elm program
-    pass
+    return {"flags": flags }
 
 @register.inclusion_tag("include.html")
 def include_{{ cookiecutter.tag_file }}():

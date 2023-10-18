@@ -161,6 +161,18 @@ class AddProgramStrategy:
                         ),
                         os.path.join(app_path.value, "templatetags"),
                     )
+                    # Move flag file
+                    shutil.copy(
+                        os.path.join(
+                            temp_dir_path.value,
+                            tag_file_name(self.prog_name) + ".pyf",
+                        ),
+                        os.path.join(
+                            app_path.value,
+                            "flags",
+                            tag_file_name(self.prog_name) + ".py",
+                        ),
+                    )
                     # Move template html
                     shutil.copy(
                         os.path.join(

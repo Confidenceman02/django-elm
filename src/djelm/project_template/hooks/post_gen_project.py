@@ -5,6 +5,7 @@ REMOVE_PATHS = [
     "templates/.gitkeep",
     "static_src/djelm_src/.gitkeep",
     "static_src/src/Models/.gitkeep",
+    "flags/.gitkeep",
 ]
 
 for path in REMOVE_PATHS:

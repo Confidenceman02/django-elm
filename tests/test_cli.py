@@ -77,6 +77,12 @@ def test_elm_create_directory(settings):
         )
     ), "The elm program Models directory has been generated"
 
+    assert os.path.isdir(
+        os.path.join(
+            get_app_path(app_name).value, "flags"  # type:ignore
+        )
+    ), "The elm program flags directory has been generated"
+
     assert os.path.isfile(
         os.path.join(
             get_app_path(app_name).value,  # type:ignore
@@ -160,6 +166,14 @@ def test_elm_addprogram(settings):
             "Main.ts",
         )
     ), "The elm program custom template tag has been created"
+
+    assert os.path.isfile(
+        os.path.join(
+            get_app_path(app_name).value,  # type:ignore
+            "flags",
+            "main.py",
+        )
+    ), "The elm program flag file has been created"
 
     assert any(
         f == "Main.ts"
