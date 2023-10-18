@@ -27,7 +27,7 @@ class Elm:
     ) -> ExitSuccess[str] | ExitFailure[None, ElmError | SystemExit]:
         try:
             output = subprocess.check_output(
-                [self.elm_bin_path] + list(args),
+                [self.elm_bin_path, *list(args)],
                 cwd=target_dir,
                 input=b"y",
             )

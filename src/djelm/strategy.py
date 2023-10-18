@@ -112,7 +112,7 @@ class AddProgramStrategy:
         if src_path.tag == "Success" and app_path.tag == "Success":
             try:
                 os.mkdir(os.path.join(src_path.value, "elm-stuff"))
-            except FileExistsError as err:
+            except FileExistsError:
                 pass
             except FileNotFoundError as err:
                 return ExitFailure(meta="Path to 'elm-stuff invalid'", err=err)
@@ -201,14 +201,14 @@ class AddProgramStrategy:
 @dataclass(slots=True)
 class InitStrategy:
     app_name: str
-    elm: Elm = Elm()
 
     def run(
         self, logger, style
     ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+        elm: Elm = Elm()
         src_path = get_app_src_path(self.app_name)
         if src_path.tag == "Success":
-            init_exit = self.elm.command("init", target_dir=src_path.value)
+            init_exit = elm.command("init", target_dir=src_path.value)
 
             if init_exit.tag == "Success":
                 logger.write(init_exit.value)

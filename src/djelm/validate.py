@@ -1,6 +1,6 @@
 from typing import Literal
 
-from django.core.management import settings
+from django.core.management import settings  # type:ignore
 from typing_extensions import TypedDict
 
 from .effect import ExitFailure, ExitSuccess
@@ -32,7 +32,7 @@ class Validations:
     def acceptable_command(
         self, labels: list[str], *args
     ) -> (
-        ExitSuccess[Init | Create | List | AddProgram | Npm]
+        ExitSuccess[Init | Create | List | AddProgram | Npm | Watch]
         | ExitFailure[list[str], ValidationError]
     ):
         try:
@@ -151,7 +151,7 @@ manage.py djelm
                 "npm",
             ]:
                 raise ValidationError(self.__missing_app_name_log("npm"))
-            case ["npm", _, *rest]:
+            case ["npm", _, *_]:
                 return
 
             case ["watch"] as command_verb:
@@ -221,7 +221,5 @@ Make sure that '{app_name}' exists in your INSTALLED_APPS in settings.py or try 
             case _ as cmds:
                 return ExitFailure(
                     cmds,
-                    ValidationError(
-                        f"\nI can't handle the command arguments {str(cmds)}"
-                    ),
+                    ValidationError(f"\nI can't handle the command arguments {cmds!s}"),
                 )

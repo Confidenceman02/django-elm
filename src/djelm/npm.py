@@ -22,9 +22,11 @@ class NPM:
             process = subprocess.Popen(
                 [npm_bin_path] + args, cwd=cwd, stdout=subprocess.PIPE
             )
-            for c in iter(lambda: process.stdout.read(1), ""):
+            if process.stdout is None:
+                raise Exception("stdout not available")
+            for c in iter(lambda: process.stdout.read(1), ""):  # type:ignore
                 sys.stdout.write(c.decode("utf-8", "ignore"))
-                if not process.poll() == None:
+                if process.poll() is not None:
                     break
             os.killpg(os.getpgid(process.pid), signal.SIGTERM)
             return ExitSuccess(None)
