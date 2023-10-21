@@ -21,7 +21,7 @@ class TestStringFlags:
 
     def test_single_flag_passes(self):
         SUT = Flags(StringFlag)
-        assert SUT.parse("hello world") == b'"hello world"'
+        assert SUT.parse("hello world") == '"hello world"'
 
     def test_single_flag_fails(self):
         SUT = Flags(StringFlag)

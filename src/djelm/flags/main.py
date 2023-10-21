@@ -49,7 +49,7 @@ class BaseFlag(metaclass=FlagMetaClass):
                 @staticmethod
                 def parse(input) -> str:
                     d.validate_python(input)
-                    return d.dump_json(input)
+                    return d.dump_json(input).decode("utf-8")
 
             return VS
 
