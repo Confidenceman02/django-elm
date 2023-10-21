@@ -1,7 +1,7 @@
 import typing
 
 from pydantic import BaseModel, Strict, TypeAdapter
-from typing_extensions import Annotated, Type
+from typing_extensions import Annotated
 
 _annotated_string = Annotated[str, Strict()]
 _annotated_int = Annotated[int, Strict()]
