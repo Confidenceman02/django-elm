@@ -1,12 +1,12 @@
 module Models.{{cookiecutter.program_name}} exposing (..)
 
-import Json.Decode exposing (Decoder, succeed)
+import Json.Decode as Decode
 
 
 type alias ToModel =
     Int
 
 
-toModel : Decoder ToModel
+toModel : Decode.Decoder ToModel
 toModel =
-    succeed 0
+    Decode.int
