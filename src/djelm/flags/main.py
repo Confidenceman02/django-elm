@@ -1,5 +1,7 @@
+import typing
+
 from pydantic import BaseModel, Strict, TypeAdapter
-from typing_extensions import Annotated
+from typing_extensions import Annotated, Type
 
 _annotated_string = Annotated[str, Strict()]
 _annotated_int = Annotated[int, Strict()]
@@ -31,14 +33,37 @@ class BaseFlag(metaclass=FlagMetaClass):
 
             K = type("K", (BaseModel,), {"__annotations__": anno})
 
-            class T:
+            class VD:
+                """validtes a dict flag input"""
+
                 @staticmethod
                 def parse(input) -> str:
                     return K.model_validate(input).model_dump_json()
 
-            return T
+            return VD
+        if isinstance(d, TypeAdapter):
 
-        raise Exception("Arg needs to be a dict")
+            class VS:
+                """Validates a single flag input"""
+
+                @staticmethod
+                def parse(input) -> str:
+                    d.validate_python(input)
+                    return d.dump_json(input)
+
+            return VS
+
+        raise Exception(
+            """
+Input needs to be a dict of field names to Flag types or a single flag type
+
+e.g.
+
+Flags({"hello": StringFlag}) # dict of field names to flag types
+
+Flags(StringFlag) # single flag type
+"""
+        )
 
 
 class Flags(BaseFlag):
@@ -53,5 +78,8 @@ class Flags(BaseFlag):
     f2 = Flags(StringFlag)
     f2.parse("hello world") -> '"hello world"'
     """
+
+    if typing.TYPE_CHECKING:
+        parse: typing.Callable[[dict[str, str | int] | str | int], str]
 
     pass
