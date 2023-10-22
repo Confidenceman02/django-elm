@@ -2,5 +2,7 @@
   "program_name": "",
   "tag_file": "",
   "tmp_dir": "",
-  "scope": ""
+  "scope": "",
+  "alias_type": "",
+  "decoder_body": ""
 }

@@ -30,7 +30,14 @@ from .validate import Validations
 CreateCookieExtra = TypedDict("CreateCookieExtra", {"app_name": str})
 AddProgramCookieExtra = TypedDict(
     "AddProgramCookieExtra",
-    {"program_name": str, "tmp_dir": str, "tag_file": str, "scope": str},
+    {
+        "program_name": str,
+        "tmp_dir": str,
+        "tag_file": str,
+        "scope": str,
+        "alias_type": str,
+        "decoder_body": str,
+    },
 )
 
 
@@ -150,6 +157,8 @@ class AddProgramStrategy:
                         "tmp_dir": temp_dir_name,
                         "tag_file": tag_file_name(self.prog_name),
                         "scope": scope_name(self.app_name, self.prog_name),
+                        "alias_type": "Int",
+                        "decoder_body": "Decode.int",
                     },
                 )
                 temp_dir_path = ck.cut(logger)
@@ -269,7 +278,9 @@ class CreateStrategy:
             file_dir=os.path.dirname(__file__),
             output_dir=os.getcwd(),
             cookie_dir_name="project_template",
-            extra={"app_name": self.app_name.strip()},
+            extra={
+                "app_name": self.app_name.strip(),
+            },
         )
 
         cut_cookie = ck.cut(logger)

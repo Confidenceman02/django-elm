@@ -51,6 +51,24 @@ class BaseFlag(metaclass=FlagMetaClass):
                     d.validate_python(input)
                     return d.dump_json(input).decode("utf-8")
 
+                @staticmethod
+                def to_elm_parser_data() -> dict[str, str]:
+                    match d.core_schema["type"]:
+                        case "str":
+                            return {
+                                "alias_type": "String",
+                                "decoder_body": "Decode.string",
+                            }
+                        case "int":
+                            return {
+                                "alias_type": "Int",
+                                "decoder_body": "Decode.int",
+                            }
+                        case _:
+                            raise Exception(
+                                f"Can't resolve core_schema type: {d.core_schema['type']}"
+                            )
+
             return VS
 
         raise Exception(
@@ -81,5 +99,6 @@ class Flags(BaseFlag):
 
     if typing.TYPE_CHECKING:
         parse: typing.Callable[[dict[str, str | int] | str | int], str]
+        to_elm_parser_data: typing.Callable[[], dict[str, str]]
 
     pass

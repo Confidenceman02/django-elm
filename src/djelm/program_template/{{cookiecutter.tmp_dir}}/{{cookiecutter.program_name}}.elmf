@@ -4,9 +4,9 @@ import Json.Decode as Decode
 
 
 type alias ToModel =
-    Int
+    {{cookiecutter.alias_type}}
 
 
 toModel : Decode.Decoder ToModel
 toModel =
-    Decode.int
+    {{cookiecutter.decoder_body}}
