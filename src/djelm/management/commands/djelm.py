@@ -21,6 +21,7 @@ Command arguments are missing, please add one of the following:
   watch <app-name> - will watch the app's src file for Elm code changes and compile
   npm <app-name> [args].. - call your designated NODE_PACKAGE_MANAGER with [args]
   elm <app-name> [args].. - call your designated ELM_BIN_PATH with [args]
+  generatemodel <app-name> [args].. - generate a model for the existing program <program-name> in the <app-name> app
   list - to list all your djelm apps
 Usage example:
   python manage.py djelm create djelm_app
@@ -28,6 +29,7 @@ Usage example:
   python manage.py djelm watch djelm_app
   python manage.py djelm npm djelm_app install
   python manage.py djelm elm djelm_app install <elm-package>
+  python manage.py djelm generatemodel djelm_app MyElmProgram
   python manage.py djelm list
 """
     validate = None

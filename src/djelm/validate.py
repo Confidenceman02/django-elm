@@ -4,7 +4,7 @@ from django.core.management import settings
 from typing_extensions import TypedDict
 
 from .effect import ExitFailure, ExitSuccess
-from .utils import get_app_path, is_create, is_djelm, is_init, walk_level
+from .utils import get_app_path, is_create, is_djelm, is_init, is_program, walk_level
 
 Create = TypedDict("Create", {"command": Literal["create"], "app_name": str})
 List = TypedDict("List", {"command": Literal["list"]})
@@ -24,6 +24,10 @@ Watch = TypedDict(
     "Watch",
     {"command": Literal["watch"], "app_name": str},
 )
+GenerateModel = TypedDict(
+    "GenerateModel",
+    {"command": Literal["generatemodel"], "app_name": str, "program_name": str},
+)
 
 
 class ValidationError(Exception):
@@ -34,18 +38,18 @@ class Validations:
     def acceptable_command(
         self, labels: list[str], *args
     ) -> (
-        ExitSuccess[Create | List | AddProgram | Npm | Elm | Watch]
+        ExitSuccess[Create | List | AddProgram | Npm | Elm | Watch | GenerateModel]
         | ExitFailure[list[str], ValidationError]
     ):
         try:
             self.__check_command_verb(labels[0])
             self.__check_command_combos(labels)
-            self.__check_existing_app(labels)
+            self.__check_existing(labels)
             return self.__command_exit(labels)
         except ValidationError as err:
             return ExitFailure(labels, err)
 
-    def __check_existing_app(self, xs: list[str]) -> None:
+    def __check_existing(self, xs: list[str]) -> None:
         match xs:
             case ["create", app_name]:
                 app_path_exit = get_app_path(app_name)
@@ -100,6 +104,15 @@ manage.py djelm
                     """
                 )
 
+            case ["generatemodel", _]:
+                raise ValidationError(
+                    """
+                    Missing a program name:\n
+                    I need to know what program to generate a model for.\n
+                    Try running something like: 'manage.py djelm generatemodel <program>'
+                    """
+                )
+
             case ["addprogram", app_name, _]:
                 app_path_exit = get_app_path(app_name)
 
@@ -120,6 +133,30 @@ manage.py djelm
                         f"Make sure you have run 'manage.py djelm create {app_name}' before adding a program"
                     )
 
+            case ["generatemodel", app_name, p]:
+                app_path_exit = get_app_path(app_name)
+
+                if not app_path_exit.tag == "Success":
+                    raise ValidationError(
+                        self.__not_in_settings("generatemodel", app_name)
+                    )
+                if not is_djelm(next(walk_level(app_path_exit.value))[2]):
+                    raise ValidationError(
+                        f'{self.__not_a_django_app_log("generatemodel")}\n'
+                        f"make sure the "
+                    )
+                if (
+                    not is_init(app_name)
+                    or not is_create(app_name)
+                    or not is_program(app_name, p)
+                ):
+                    raise ValidationError(
+                        f"It looks like you are missing some files/directories that I was expecting to be present.\n"
+                        f"In order for me to generate a model I need to see the following files/directories:\n"
+                        f"{app_name}/static_src/elm.json, {app_name}/templates/, {app_name}/templatetags/ {app_name}/static_src/src/{p}.elm\n"
+                        f"Make sure you have run 'manage.py djelm create {app_name}' and 'manage.py djelm addprogram {p}' as those commands will generate everything I need to generating a model."
+                    )
+
     def __check_command_combos(self, xs: list[str]) -> None:
         match xs:
             case ["create", _]:
@@ -127,6 +164,8 @@ manage.py djelm
             case ["watch", _]:
                 return
             case ["addprogram", _, _]:
+                return
+            case ["generatemodel", _, _]:
                 return
             case ["list", _]:
                 raise ValidationError(
@@ -196,14 +235,22 @@ Make sure that '{app_name}' exists in your INSTALLED_APPS in settings.py or try 
 
     @staticmethod
     def __check_command_verb(s: str) -> None:
-        if s not in ["create", "npm", "elm", "list", "addprogram", "watch"]:
+        if s not in [
+            "create",
+            "npm",
+            "elm",
+            "list",
+            "addprogram",
+            "watch",
+            "generatemodel",
+        ]:
             raise ValidationError(f"The command '{s}' is not valid.")
 
     @staticmethod
     def __command_exit(
         xs: list[str],
     ) -> (
-        ExitSuccess[Create | List | AddProgram | Npm | Elm | Watch]
+        ExitSuccess[Create | List | AddProgram | Npm | Elm | Watch | GenerateModel]
         | ExitFailure[list[str], ValidationError]
     ):
         match xs:
@@ -214,6 +261,10 @@ Make sure that '{app_name}' exists in your INSTALLED_APPS in settings.py or try 
             case ["addprogram", v, p]:
                 return ExitSuccess(
                     {"command": "addprogram", "app_name": v, "program_name": p}
+                )
+            case ["generatemodel", v, p]:
+                return ExitSuccess(
+                    {"command": "generatemodel", "app_name": v, "program_name": p}
                 )
             case ["npm", v, *rest]:
                 return ExitSuccess({"command": "npm", "app_name": v, "args": rest})

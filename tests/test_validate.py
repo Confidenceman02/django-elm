@@ -22,6 +22,9 @@ def test_validate_failure_when_single_command():
     TestCase().assertIsInstance(
         Validations().acceptable_command(["addprogram"]), ExitFailure
     )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["generatemodel"]), ExitFailure
+    )
     TestCase().assertIsInstance(Validations().acceptable_command(["npm"]), ExitFailure)
     TestCase().assertIsInstance(Validations().acceptable_command(["elm"]), ExitFailure)
     TestCase().assertIsInstance(
@@ -38,6 +41,10 @@ def test_validate_failure_when_combo_command():
 def test_validate_failure_when_no_create_sequence():
     TestCase().assertIsInstance(
         Validations().acceptable_command(["addprogram", "my_app", "Main"]), ExitFailure
+    )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["generatemodel", "my_app", "Main"]),
+        ExitFailure,
     )
     TestCase().assertIsInstance(
         Validations().acceptable_command(["npm", "my_app"]), ExitFailure
@@ -58,6 +65,10 @@ def test_validate_failure_when_not_enough_args_with_create_sequence(settings):
 
     TestCase().assertIsInstance(
         Validations().acceptable_command(["addprogram", app_name]), ExitFailure
+    )
+
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["generatemodel", app_name]), ExitFailure
     )
 
     TestCase().assertIsInstance(
@@ -101,6 +112,21 @@ def test_validate_success_when_create_sequence(settings):
     cleanup_theme_app_dir(app_name)
 
 
+def test_validate_success_when_addprogram_sequence(settings):
+    app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
+    call_command("djelm", "create", app_name)
+    settings.INSTALLED_APPS += [app_name]
+    call_command("djelm", "addprogram", app_name, "Main")
+
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["generatemodel", app_name, "Main"]),
+        ExitSuccess,
+    )
+
+    settings.INSTALLED_APPS.remove(app_name)
+    cleanup_theme_app_dir(app_name)
+
+
 def test_validate_failure_when_app_external():
     TestCase().assertIsInstance(
         Validations().acceptable_command(["npm", "djelm", "install"]), ExitFailure
@@ -130,6 +156,10 @@ def test_validate_failure_when_create_sequence(settings):
     TestCase().assertIsInstance(
         Validations().acceptable_command(["create", "djelm"]), ExitFailure
     )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["generatemodel", app_name, "Main"]),
+        ExitFailure,
+    )
 
     TestCase().assertIsInstance(
         Validations().acceptable_command(["npm", app_name]), ExitFailure
@@ -151,6 +181,10 @@ def test_validate_failure_when_create_sequence_app_not_in_settings(settings):
     )
     TestCase().assertIsInstance(
         Validations().acceptable_command(["elm", app_name, "install", "elm/json"]),
+        ExitFailure,
+    )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["generatemodel", app_name, "Main"]),
         ExitFailure,
     )
     TestCase().assertIsInstance(

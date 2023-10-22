@@ -88,6 +88,20 @@ def is_init(app_name: str) -> bool:
     return False
 
 
+def is_program(app_name: str, prog_name: str) -> bool:
+    path_exit = get_app_src_path(app_name)
+    if path_exit.tag == "Success":
+        f = os.path.isfile(
+            os.path.join(
+                path_exit.value,
+                "src",
+                prog_name + ".elm",
+            )
+        )
+        return f
+    return False
+
+
 def module_name(app_name: str):
     return app_name[0].upper() + app_name[1:]
 

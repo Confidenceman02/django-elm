@@ -318,9 +318,7 @@ python manage.py elm init {app_name}
 """
             )
             return ExitSuccess(None)
-        return ExitFailure(
-            None, StrategyError(" Could not create project from template:")
-        )
+        return ExitFailure(None, StrategyError(cut_cookie.err))
 
 
 @dataclass(slots=True)
