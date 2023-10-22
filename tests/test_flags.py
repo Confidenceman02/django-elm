@@ -35,6 +35,18 @@ class TestStringFlags:
             "decoder_body": "Decode.string",
         }
 
+    def test_dict_to_elm_data(self):
+        SUT = Flags({"hello": StringFlag, "world": StringFlag})
+        assert SUT.to_elm_parser_data() == {
+            "alias_type": """{
+  hello : String
+, world : String
+}""",
+            "decoder_body": """Decode.succeed ToModel
+  |>  required "hello" Decode.string
+  |>  required "world" Decode.string""",
+        }
+
 
 class TestIntFlags:
     def test_dict_passes(self):

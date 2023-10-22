@@ -1,4 +1,5 @@
 import typing
+from functools import reduce
 
 from pydantic import BaseModel, Strict, TypeAdapter
 from typing_extensions import Annotated
@@ -19,13 +20,30 @@ class BaseFlag(metaclass=FlagMetaClass):
     def __new__(cls, d):
         if isinstance(d, dict):
             anno = {}
-            for k, v in d.items():
+            pipeline_decoder: list[str] = ["Decode.succeed ToModel"]
+            alias_values: list[str] = []
+            for idx, (k, v) in enumerate(d.items()):
                 try:
                     match v.core_schema["type"]:
                         case "str":
                             anno[k] = str
+                            pipeline_decoder.append(
+                                f"""\n  |>  required "{k}" Decode.string"""
+                            )
+                            if idx == 0:
+                                alias_values.append(f"  {k} : String")
+                            else:
+                                alias_values.append(f"\n, {k} : String")
+
                         case "int":
                             anno[k] = int
+                            pipeline_decoder.append(
+                                f"""\n  |>  required "{k}" Decode.int"""
+                            )
+                            if idx == 0:
+                                alias_values.append(f"  {k} : Int")
+                            else:
+                                alias_values.append(f"\n, {k} : Int")
                         case _:
                             raise Exception("Unsopported type")
                 except:
@@ -34,11 +52,23 @@ class BaseFlag(metaclass=FlagMetaClass):
             K = type("K", (BaseModel,), {"__annotations__": anno})
 
             class VD:
-                """validtes a dict flag input"""
+                """
+                Validtes a dict flag input.
+                """
 
                 @staticmethod
                 def parse(input) -> str:
                     return K.model_validate(input).model_dump_json()
+
+                @staticmethod
+                def to_elm_parser_data() -> dict[str, str]:
+                    alias_type = reduce(
+                        lambda acc, v: acc + v, iter(["{\n", *alias_values, "\n}"])
+                    )
+                    decoder_body = reduce(
+                        lambda acc, v: acc + v, iter(pipeline_decoder)
+                    )
+                    return {"alias_type": alias_type, "decoder_body": decoder_body}
 
             return VD
         if isinstance(d, TypeAdapter):

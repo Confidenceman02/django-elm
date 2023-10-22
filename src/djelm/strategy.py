@@ -47,6 +47,12 @@ class StrategyError(Exception):
 
 @dataclass(slots=True)
 class WatchStrategy:
+    """
+    Sets up the file watcher for the given djelm app.
+
+    When changes occur it will re-compile the elm programs its finds in 'src' directory.
+    """
+
     app_name: str
 
     def run(
@@ -84,6 +90,12 @@ class WatchStrategy:
 
 @dataclass(slots=True)
 class NpmStrategy:
+    """
+    A helper class to call the node package manager binary on the given djelm app.
+
+    The commands passed will execute in the directory of the djelm app that contains the package.json file.
+    """
+
     app_name: str
     args: list[str]
 
@@ -105,6 +117,12 @@ class NpmStrategy:
 
 @dataclass(slots=True)
 class ElmStrategy:
+    """
+    A Helper class to call an elm binary on the given djelm app.
+
+    The commands passed will execute in the directory of the djelm app that contains the elm.json file.
+    """
+
     app_name: str
     args: list[str]
 
@@ -126,6 +144,8 @@ class ElmStrategy:
 
 @dataclass(slots=True)
 class AddProgramStrategy:
+    """Create an elm program like SomeProgram.elm"""
+
     app_name: str
     prog_name: str
 
