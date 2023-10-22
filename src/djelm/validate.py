@@ -1,6 +1,6 @@
 from typing import Literal
 
-from django.core.management import settings  # type:ignore
+from django.core.management import settings
 from typing_extensions import TypedDict
 
 from .effect import ExitFailure, ExitSuccess
