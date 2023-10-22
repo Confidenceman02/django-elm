@@ -3,7 +3,7 @@ from django.core.management.base import LabelCommand
 from ...strategy import (
     AddProgramStrategy,
     CreateStrategy,
-    InitStrategy,
+    ElmStrategy,
     ListStrategy,
     NpmStrategy,
     Strategy,
@@ -17,21 +17,21 @@ class Command(LabelCommand):
     missing_args_message = """
 Command arguments are missing, please add one of the following:
   create <app-name> - to create a djelm app
-  init <app-name> - to initialize an Elm project in the <app-name> app
   addprogram <app-name> <program-name> - create an Elm program called <program-name> in the <app-name> app
   watch <app-name> - will watch the app's src file for Elm code changes and compile
   npm <app-name> [args].. - call your designated NODE_PACKAGE_MANAGER with [args]
+  elm <app-name> [args].. - call your designated ELM_BIN_PATH with [args]
   list - to list all your djelm apps
 Usage example:
-  python manage.py elm create djelm_app
-  python manage.py elm init djelm_app
-  python manage.py elm addprogram djelm_app MyElmProgram
-  python manage.py elm watch djelm_app
-  python manage.py elm npm djelm_app install
-  python manage.py elm list
+  python manage.py djelm create djelm_app
+  python manage.py djelm addprogram djelm_app MyElmProgram
+  python manage.py djelm watch djelm_app
+  python manage.py djelm npm djelm_app install
+  python manage.py djelm elm djelm_app install <elm-package>
+  python manage.py djelm list
 """
     validate = None
-    strategy: InitStrategy | CreateStrategy | AddProgramStrategy | ListStrategy | NpmStrategy | WatchStrategy
+    strategy: CreateStrategy | AddProgramStrategy | ListStrategy | NpmStrategy | ElmStrategy | WatchStrategy
 
     def __init__(self, *args, **kwargs):
         super(Command, self).__init__(*args, **kwargs)

@@ -8,7 +8,6 @@ from src.djelm.effect import ExitSuccess
 from src.djelm.strategy import (
     AddProgramStrategy,
     CreateStrategy,
-    InitStrategy,
     ListStrategy,
     NpmStrategy,
     Strategy,
@@ -27,7 +26,6 @@ def test_strategy_when_create(settings):
     call_command("djelm", "create", app_name)
     settings.INSTALLED_APPS += [app_name]
 
-    TestCase().assertIsInstance(Strategy().create("init", app_name), InitStrategy)
     TestCase().assertIsInstance(Strategy().create("watch", app_name), WatchStrategy)
     TestCase().assertIsInstance(
         ListStrategy().run(LabelCommand().stdout, LabelCommand().style), ExitSuccess
@@ -38,18 +36,6 @@ def test_strategy_when_create(settings):
     TestCase().assertIsInstance(
         Strategy().create("npm", app_name, "install"), NpmStrategy
     )
-
-    settings.INSTALLED_APPS.remove(app_name)
-    cleanup_theme_app_dir(app_name)
-
-
-def test_strategy_when_init(settings):
-    app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
-    call_command("djelm", "create", app_name)
-    settings.INSTALLED_APPS += [app_name]
-
-    call_command("djelm", "init", app_name)
-
     TestCase().assertIsInstance(
         AddProgramStrategy(app_name, "Main").run(
             LabelCommand().stdout, LabelCommand().style

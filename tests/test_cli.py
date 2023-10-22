@@ -59,6 +59,12 @@ def test_elm_create_directory(settings):
         )
     ), "The project .gitignore has been generated"
 
+    assert os.path.isfile(
+        os.path.join(
+            get_app_src_path(app_name).value, "elm.json"  # type:ignore
+        )
+    ), "The project elm.json file has been generated"
+
     assert os.path.isdir(
         os.path.join(
             get_app_src_path(app_name).value, "djelm_src"  # type:ignore
@@ -95,33 +101,11 @@ def test_elm_create_directory(settings):
     cleanup_theme_app_dir(app_name)
 
 
-def test_elm_init(settings):
-    app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
-    call_command("djelm", "create", app_name)
-    settings.INSTALLED_APPS += [app_name]
-
-    call_command("djelm", "init", app_name)
-
-    assert os.path.isfile(
-        os.path.join(
-            get_app_path(app_name).value, "static_src", "elm.json"  # type:ignore
-        )
-    ), "The app elm.json has been generated"
-
-    assert os.path.isdir(
-        os.path.join(get_app_path(app_name).value, "static_src", "src")  # type:ignore
-    ), "The elm starter src has been created"
-
-    settings.INSTALLED_APPS.remove(app_name)
-    cleanup_theme_app_dir(app_name)
-
-
 def test_elm_addprogram(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
     call_command("djelm", "create", app_name)
     settings.INSTALLED_APPS += [app_name]
 
-    call_command("djelm", "init", app_name)
     call_command("djelm", "addprogram", app_name, "Main")
 
     assert os.path.isfile(

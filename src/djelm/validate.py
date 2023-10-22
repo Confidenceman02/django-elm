@@ -6,17 +6,19 @@ from typing_extensions import TypedDict
 from .effect import ExitFailure, ExitSuccess
 from .utils import get_app_path, is_create, is_djelm, is_init, walk_level
 
-Init = TypedDict("Init", {"command": Literal["init"], "app_name": str})
 Create = TypedDict("Create", {"command": Literal["create"], "app_name": str})
 List = TypedDict("List", {"command": Literal["list"]})
 AddProgram = TypedDict(
     "AddProgram",
     {"command": Literal["addprogram"], "app_name": str, "program_name": str},
 )
-InitValidation = TypedDict("InitValidation", {"value": Init})
 Npm = TypedDict(
     "Npm",
     {"command": Literal["npm"], "app_name": str, "args": list[str]},
+)
+Elm = TypedDict(
+    "Elm",
+    {"command": Literal["elm"], "app_name": str, "args": list[str]},
 )
 Watch = TypedDict(
     "Watch",
@@ -32,7 +34,7 @@ class Validations:
     def acceptable_command(
         self, labels: list[str], *args
     ) -> (
-        ExitSuccess[Init | Create | List | AddProgram | Npm | Watch]
+        ExitSuccess[Create | List | AddProgram | Npm | Elm | Watch]
         | ExitFailure[list[str], ValidationError]
     ):
         try:
@@ -57,8 +59,6 @@ It looks like you are trying to run the 'create' command on the {app_name} app.
 
 I can't 'create' an app that has already been created.
 
-Perhaps you meant to run the 'init' command?
-
 To see all the available commans run:
 manage.py djelm
 
@@ -70,17 +70,6 @@ manage.py djelm
                         f"{self.__not_a_django_app_log('create')}\n"
                         f"Make sure the <app-name> does not already exist."
                     )
-            case ["init", app_name]:
-                app_path_exit = get_app_path(app_name)
-
-                if not app_path_exit.tag == "Success":
-                    raise ValidationError(self.__not_in_settings("init", app_name))
-                if not is_djelm(next(walk_level(app_path_exit.value))[2]):
-                    raise ValidationError(f'{self.__not_a_django_app_log("init")}\n')
-                if is_init(app_name):
-                    raise ValidationError(
-                        f"\nI can't run 'init' on the {app_name} app because it looks like you already have am elm.json file."
-                    )
             case ["npm", app_name, *rest]:
                 app_path_exit = get_app_path(app_name)
 
@@ -88,6 +77,13 @@ manage.py djelm
                     raise ValidationError(self.__not_in_settings("npm", app_name))
                 if not is_djelm(next(walk_level(app_path_exit.value))[2]):
                     raise ValidationError(self.__not_a_django_app_log("npm"))
+            case ["elm", app_name, *rest]:
+                app_path_exit = get_app_path(app_name)
+
+                if not app_path_exit.tag == "Success":
+                    raise ValidationError(self.__not_in_settings("elm", app_name))
+                if not is_djelm(next(walk_level(app_path_exit.value))[2]):
+                    raise ValidationError(self.__not_a_django_app_log("elm"))
             case ["watch", app_name]:
                 app_path_exit = get_app_path(app_name)
 
@@ -121,13 +117,11 @@ manage.py djelm
                         f"It looks like you are missing some files/directories.\n"
                         f"In order form me to add a program I need to see the following files/directories:\n"
                         f"{app_name}/elm.json, {app_name}/src/, {app_name}/templates/, {app_name}/templatetags/\n"
-                        f"Make sure you have run both 'manage.py djelm create {app_name}' and 'manage.py djelm init {app_name}' before adding a program"
+                        f"Make sure you have run 'manage.py djelm create {app_name}' before adding a program"
                     )
 
     def __check_command_combos(self, xs: list[str]) -> None:
         match xs:
-            case ["init", _]:
-                return
             case ["create", _]:
                 return
             case ["watch", _]:
@@ -148,17 +142,27 @@ manage.py djelm
                     "I was expecting some arguments for the 'npm' command. run 'manage.py djelm to see examples.'\n"
                 )
             case [
+                "elm",
+                _,
+            ]:
+                raise ValidationError(
+                    "I was expecting some arguments for the 'elm' command. run 'manage.py djelm to see examples.'\n"
+                )
+            case [
                 "npm",
             ]:
                 raise ValidationError(self.__missing_app_name_log("npm"))
+            case [
+                "elm",
+            ]:
+                raise ValidationError(self.__missing_app_name_log("elm"))
             case ["npm", _, *_]:
                 return
-
+            case ["elm", _, *_]:
+                return
             case ["watch"] as command_verb:
                 raise ValidationError(self.__missing_app_name_log(command_verb[0]))
 
-            case ["init"] as command_verb:
-                raise ValidationError(self.__missing_app_name_log(command_verb[0]))
             case ["create"] as command_verb:
                 raise ValidationError(self.__missing_app_name_log(command_verb[0]))
 
@@ -192,20 +196,17 @@ Make sure that '{app_name}' exists in your INSTALLED_APPS in settings.py or try 
 
     @staticmethod
     def __check_command_verb(s: str) -> None:
-        if s not in ["init", "create", "npm", "list", "addprogram", "watch"]:
+        if s not in ["create", "npm", "elm", "list", "addprogram", "watch"]:
             raise ValidationError(f"The command '{s}' is not valid.")
 
     @staticmethod
     def __command_exit(
         xs: list[str],
     ) -> (
-        ExitSuccess[Init | Create | List | AddProgram | Npm | Watch]
+        ExitSuccess[Create | List | AddProgram | Npm | Elm | Watch]
         | ExitFailure[list[str], ValidationError]
     ):
         match xs:
-            case ["init", v]:
-                arg: Init = {"command": "init", "app_name": v}
-                return ExitSuccess(arg)
             case ["create", v]:
                 return ExitSuccess({"command": "create", "app_name": v})
             case ["watch", v]:
@@ -216,6 +217,8 @@ Make sure that '{app_name}' exists in your INSTALLED_APPS in settings.py or try 
                 )
             case ["npm", v, *rest]:
                 return ExitSuccess({"command": "npm", "app_name": v, "args": rest})
+            case ["elm", v, *rest]:
+                return ExitSuccess({"command": "elm", "app_name": v, "args": rest})
             case ["list"]:
                 return ExitSuccess({"command": "list"})
             case _ as cmds:

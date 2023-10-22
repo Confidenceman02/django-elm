@@ -97,6 +97,27 @@ class NpmStrategy:
 
 
 @dataclass(slots=True)
+class ElmStrategy:
+    app_name: str
+    args: list[str]
+
+    def run(
+        self, logger, style
+    ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+        elm: Elm = Elm()
+        src_path = get_app_src_path(self.app_name)
+        if src_path.tag == "Success":
+            elm_exit = elm.command(self.args, target_dir=src_path.value)
+
+            if elm_exit.tag == "Success":
+                logger.write(elm_exit.value)
+                return ExitSuccess(None)
+            else:
+                return ExitFailure(None, err=StrategyError(elm_exit.err))
+        return ExitFailure(None, err=StrategyError())
+
+
+@dataclass(slots=True)
 class AddProgramStrategy:
     app_name: str
     prog_name: str
@@ -210,26 +231,6 @@ class AddProgramStrategy:
             )
 
 
-@dataclass(slots=True)
-class InitStrategy:
-    app_name: str
-
-    def run(
-        self, logger, style
-    ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
-        elm: Elm = Elm()
-        src_path = get_app_src_path(self.app_name)
-        if src_path.tag == "Success":
-            init_exit = elm.command("init", target_dir=src_path.value)
-
-            if init_exit.tag == "Success":
-                logger.write(init_exit.value)
-                return ExitSuccess(None)
-            else:
-                return ExitFailure(None, err=StrategyError(init_exit.err))
-        return ExitFailure(None, err=StrategyError())
-
-
 class ListStrategy:
     _apps: list[str] = settings.INSTALLED_APPS
 
@@ -296,7 +297,7 @@ class Strategy:
     def create(
         self, *labels
     ) -> (
-        InitStrategy
+        ElmStrategy
         | CreateStrategy
         | ListStrategy
         | AddProgramStrategy
@@ -307,8 +308,6 @@ class Strategy:
         match e:
             case ExitFailure(err=err):
                 raise err
-            case ExitSuccess(value={"command": "init", "app_name": app_name}):
-                return InitStrategy(cast(str, app_name))
             case ExitSuccess(value={"command": "create", "app_name": app_name}):
                 return CreateStrategy(cast(str, app_name))
             case ExitSuccess(value={"command": "watch", "app_name": app_name}):
@@ -327,5 +326,9 @@ class Strategy:
                 value={"command": "npm", "app_name": app_name, "args": args}
             ):
                 return NpmStrategy(cast(str, app_name), cast(list[str], args))
+            case ExitSuccess(
+                value={"command": "elm", "app_name": app_name, "args": args}
+            ):
+                return ElmStrategy(cast(str, app_name), cast(list[str], args))
             case _ as x:
                 raise StrategyError(f"Unable to handle {x}")

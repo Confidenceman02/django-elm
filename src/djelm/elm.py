@@ -1,3 +1,5 @@
+import os
+import signal
 import subprocess
 import sys
 
@@ -23,21 +25,28 @@ class Elm:
             raise binary.err
 
     def command(
-        self, *args, target_dir: str
-    ) -> ExitSuccess[str] | ExitFailure[None, ElmError | SystemExit]:
+        self, args: list[str], target_dir: str
+    ) -> ExitSuccess[None] | ExitFailure[None, ElmError | SystemExit]:
         try:
-            output = subprocess.check_output(
-                [self.elm_bin_path, *list(args)],
-                cwd=target_dir,
-                input=b"y",
+            process = subprocess.Popen(
+                [self.elm_bin_path, *list(args)], cwd=target_dir, stdout=subprocess.PIPE
             )
-            return ExitSuccess(output.decode("utf-8"))
+            if process.stdout is None:
+                raise Exception("stdout not available")
+            while process.poll() is None:
+                char = process.stdout.read(1).decode(sys.stdout.encoding)
+                sys.stdout.write(char)
+                sys.stdout.flush()
+
+            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            return ExitSuccess(None)
         except subprocess.CalledProcessError:
-            return ExitFailure(None, sys.exit(1))
-        except SystemExit as err:
-            return ExitFailure(None, ElmError(_elm_binary_log(err)))
+            sys.exit(1)
         except OSError as err:
-            return ExitFailure(None, ElmError(_elm_binary_log(err)))
+            return ExitFailure(
+                None,
+                ElmError(_elm_binary_log(err)),
+            )
 
     def stream_process(self, process):
         go = process.poll() is None
