@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "djelm",
     "django_browser_reload",
+    "test_elm",
 ]
 
 MIDDLEWARE = [

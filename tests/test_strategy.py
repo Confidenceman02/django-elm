@@ -8,6 +8,7 @@ from src.djelm.effect import ExitSuccess
 from src.djelm.strategy import (
     AddProgramStrategy,
     CreateStrategy,
+    GenerateModelStrategy,
     ListStrategy,
     NpmStrategy,
     Strategy,
@@ -21,7 +22,7 @@ def test_strategy_create_when_no_create():
     TestCase().assertIsInstance(Strategy().create("create", "my_app"), CreateStrategy)
 
 
-def test_strategy_when_create(settings):
+def test_strategy_success_after_create(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
     call_command("djelm", "create", app_name)
     settings.INSTALLED_APPS += [app_name]
@@ -43,6 +44,23 @@ def test_strategy_when_create(settings):
         ExitSuccess,
     )
     TestCase().assertIsInstance(Strategy().create("watch", app_name), WatchStrategy)
+    TestCase().assertIsInstance(
+        Strategy().create("addprogram", app_name, "Main"), AddProgramStrategy
+    )
+
+    settings.INSTALLED_APPS.remove(app_name)
+    cleanup_theme_app_dir(app_name)
+
+
+def test_strategy_success_after_addprogram(settings):
+    app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
+    call_command("djelm", "create", app_name)
+    settings.INSTALLED_APPS += [app_name]
+    call_command("djelm", "addprogram", app_name, "Main")
+
+    TestCase().assertIsInstance(
+        Strategy().create("generatemodel", app_name, "Main"), GenerateModelStrategy
+    )
 
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
