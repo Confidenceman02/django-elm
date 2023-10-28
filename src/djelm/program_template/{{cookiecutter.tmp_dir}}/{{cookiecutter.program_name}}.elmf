@@ -1,6 +1,7 @@
 module Models.{{cookiecutter.program_name}} exposing (..)
 
 import Json.Decode as Decode
+import Json.Decode.Pipeline exposing (required, optional, hardcoded)
 
 
 type alias ToModel =

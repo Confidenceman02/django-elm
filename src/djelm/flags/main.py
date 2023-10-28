@@ -28,22 +28,22 @@ class BaseFlag(metaclass=FlagMetaClass):
                         case "str":
                             anno[k] = str
                             pipeline_decoder.append(
-                                f"""\n  |>  required "{k}" Decode.string"""
+                                f"""\n        |>  required "{k}" Decode.string"""
                             )
                             if idx == 0:
-                                alias_values.append(f"  {k} : String")
+                                alias_values.append(f" {k} : String")
                             else:
-                                alias_values.append(f"\n, {k} : String")
+                                alias_values.append(f"\n    , {k} : String")
 
                         case "int":
                             anno[k] = int
                             pipeline_decoder.append(
-                                f"""\n  |>  required "{k}" Decode.int"""
+                                f"""\n        |>  required "{k}" Decode.int"""
                             )
                             if idx == 0:
-                                alias_values.append(f"  {k} : Int")
+                                alias_values.append(f" {k} : Int")
                             else:
-                                alias_values.append(f"\n, {k} : Int")
+                                alias_values.append(f"\n    , {k} : Int")
                         case _:
                             raise Exception("Unsopported type")
                 except:
@@ -63,7 +63,7 @@ class BaseFlag(metaclass=FlagMetaClass):
                 @staticmethod
                 def to_elm_parser_data() -> dict[str, str]:
                     alias_type = reduce(
-                        lambda acc, v: acc + v, iter(["{\n", *alias_values, "\n}"])
+                        lambda acc, v: acc + v, iter(["{", *alias_values, "\n    }"])
                     )
                     decoder_body = reduce(
                         lambda acc, v: acc + v, iter(pipeline_decoder)
