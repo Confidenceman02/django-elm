@@ -38,7 +38,11 @@ class Elm:
                 sys.stdout.write(char)
                 sys.stdout.flush()
 
-            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            try:
+                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            except:
+                return ExitSuccess(None)
+
             return ExitSuccess(None)
         except subprocess.CalledProcessError:
             sys.exit(1)

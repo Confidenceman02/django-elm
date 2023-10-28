@@ -4,6 +4,7 @@ from ...strategy import (
     AddProgramStrategy,
     CreateStrategy,
     ElmStrategy,
+    GenerateModelStrategy,
     ListStrategy,
     NpmStrategy,
     Strategy,
@@ -33,7 +34,7 @@ Usage example:
   python manage.py djelm list
 """
     validate = None
-    strategy: CreateStrategy | AddProgramStrategy | ListStrategy | NpmStrategy | ElmStrategy | WatchStrategy
+    strategy: CreateStrategy | AddProgramStrategy | ListStrategy | NpmStrategy | ElmStrategy | WatchStrategy | GenerateModelStrategy
 
     def __init__(self, *args, **kwargs):
         super(Command, self).__init__(*args, **kwargs)

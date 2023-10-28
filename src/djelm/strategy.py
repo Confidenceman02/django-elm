@@ -162,7 +162,7 @@ class GenerateModelStrategy:
             loader = importlib.machinery.SourceFileLoader(
                 tag_file_name(self.prog_name),
                 os.path.join(
-                    app_path_exit.value, "flags", tag_file_name(self.prog_name)
+                    app_path_exit.value, "flags", tag_file_name(self.prog_name) + ".py"
                 ),
             )
             mod = types.ModuleType(loader.name)
