@@ -4,3 +4,4 @@ root/
 **/__pycache__/
 .idea
 venv
+.doit.db.db
