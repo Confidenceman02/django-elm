@@ -19,7 +19,7 @@ class CookieCutter(Generic[T]):
         try:
             from cookiecutter.main import cookiecutter
         except (ImportError, ModuleNotFoundError):
-            logger.stdout.write("Couldn't find cookie cutter, installing...")
+            logger.write("Couldn't find cookie cutter, installing...")
             install_pip_package("cookiecutter")
             from cookiecutter.main import cookiecutter
         try:
