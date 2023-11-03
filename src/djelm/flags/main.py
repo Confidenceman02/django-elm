@@ -6,9 +6,11 @@ from typing_extensions import Annotated
 
 _annotated_string = Annotated[str, Strict()]
 _annotated_int = Annotated[int, Strict()]
+_annotated_bool = Annotated[bool, Strict()]
 
 StringFlag = TypeAdapter(_annotated_string)
 IntFlag = TypeAdapter(_annotated_int)
+BoolFlag = TypeAdapter(_annotated_bool)
 
 
 class FlagMetaClass(type):
@@ -44,6 +46,15 @@ class BaseFlag(metaclass=FlagMetaClass):
                                 alias_values.append(f" {k} : Int")
                             else:
                                 alias_values.append(f"\n    , {k} : Int")
+                        case "bool":
+                            anno[k] = bool
+                            pipeline_decoder.append(
+                                f"""\n        |>  required "{k}" Decode.bool"""
+                            )
+                            if idx == 0:
+                                alias_values.append(f" {k} : Bool")
+                            else:
+                                alias_values.append(f"\n    , {k} : Bool")
                         case _:
                             raise Exception("Unsopported type")
                 except:

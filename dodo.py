@@ -5,8 +5,8 @@ def task_buildimages():
     """
     return {
         "actions": [
-            "cd ops/ci && docker build -t ghcr.io/confidenceman02/django-elm/djelm:1 .",
-            "docker push ghcr.io/confidenceman02/django-elm/djelm:1",
+            "cd ops/ci && docker build -t ghcr.io/confidenceman02/django-elm/djelm:5 .",
+            "docker push ghcr.io/confidenceman02/django-elm/djelm:5",
         ],
         "targets": [],
     }
