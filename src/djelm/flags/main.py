@@ -6,10 +6,12 @@ from typing_extensions import Annotated
 
 _annotated_string = Annotated[str, Strict()]
 _annotated_int = Annotated[int, Strict()]
+_annotated_float = Annotated[float, Strict()]
 _annotated_bool = Annotated[bool, Strict()]
 
 StringFlag = TypeAdapter(_annotated_string)
 IntFlag = TypeAdapter(_annotated_int)
+FloatFlag = TypeAdapter(_annotated_float)
 BoolFlag = TypeAdapter(_annotated_bool)
 
 
@@ -46,6 +48,15 @@ class BaseFlag(metaclass=FlagMetaClass):
                                 alias_values.append(f" {k} : Int")
                             else:
                                 alias_values.append(f"\n    , {k} : Int")
+                        case "float":
+                            anno[k] = int
+                            pipeline_decoder.append(
+                                f"""\n        |>  required "{k}" Decode.float"""
+                            )
+                            if idx == 0:
+                                alias_values.append(f" {k} : Float")
+                            else:
+                                alias_values.append(f"\n    , {k} : Float")
                         case "bool":
                             anno[k] = bool
                             pipeline_decoder.append(
@@ -105,6 +116,11 @@ class BaseFlag(metaclass=FlagMetaClass):
                                 "alias_type": "Int",
                                 "decoder_body": "Decode.int",
                             }
+                        case "float":
+                            return {
+                                "alias_type": "Float",
+                                "decoder_body": "Decode.float",
+                            }
                         case "bool":
                             return {
                                 "alias_type": "Bool",
@@ -144,7 +160,7 @@ class Flags(BaseFlag):
     """
 
     if typing.TYPE_CHECKING:
-        parse: typing.Callable[[dict[str, str | int] | str | int], str]
+        parse: typing.Callable[[dict[str, str | int | bool | float] | str | int | float | bool], str]
         to_elm_parser_data: typing.Callable[[], dict[str, str]]
 
     pass
