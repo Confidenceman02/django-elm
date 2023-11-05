@@ -105,6 +105,11 @@ class BaseFlag(metaclass=FlagMetaClass):
                                 "alias_type": "Int",
                                 "decoder_body": "Decode.int",
                             }
+                        case "bool":
+                            return {
+                                "alias_type": "Bool",
+                                "decoder_body": "Decode.bool",
+                            }
                         case _:
                             raise Exception(
                                 f"Can't resolve core_schema type: {d.core_schema['type']}"

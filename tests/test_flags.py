@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from djelm.flags.main import Flags, IntFlag, StringFlag
+from djelm.flags.main import BoolFlag, Flags, IntFlag, StringFlag
 
 
 class TestStringFlags:
@@ -76,4 +76,35 @@ class TestIntFlags:
         assert SUT.to_elm_parser_data() == {
             "alias_type": "Int",
             "decoder_body": "Decode.int",
+        }
+
+class TestBoolFlags:
+    def test_dict_flag_succeeds(self):
+        d = {"hello": BoolFlag}
+        SUT = Flags(d)
+        assert SUT.parse({"hello": True}) == '{"hello":true}'
+
+    def test_dict_flag_fails(self):
+        """
+        Values match the flag types
+        """
+        d = {"hello": IntFlag}
+        SUT = Flags(d)
+        with pytest.raises(ValidationError):
+            SUT.parse({"hello": "world"})
+
+    def test_bool_flag_success(self):
+        SUT = Flags(BoolFlag)
+        assert SUT.parse(True) == "true"
+
+    def test_bool_flag_fails(self):
+        SUT = Flags(IntFlag)
+        with pytest.raises(ValidationError):
+            SUT.parse("hello world")
+
+    def test_bool_to_elm_data(self):
+        SUT = Flags(BoolFlag)
+        assert SUT.to_elm_parser_data() == {
+            "alias_type": "Bool",
+            "decoder_body": "Decode.bool",
         }
