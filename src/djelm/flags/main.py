@@ -1,4 +1,5 @@
 import typing
+from dataclasses import dataclass
 from functools import reduce
 
 from pydantic import BaseModel, Strict, TypeAdapter
@@ -21,6 +22,62 @@ ListFlag = TypeAdapter(typing.List[Primitive])
 DictFlag = TypeAdapter(typing.Dict[str, Primitive])
 
 
+@dataclass(slots=True)
+class StringDecoder:
+    value: str
+
+    def pipeline(self):
+        return f"""|>  required "{self.value}" Decode.string"""
+
+    def alias(self):
+        return f"""{self.value} : String"""
+
+    def nested_alias(self):
+        return f""", {self.value} : String"""
+
+
+@dataclass(slots=True)
+class IntDecoder:
+    value: str
+
+    def pipeline(self):
+        return f"""|>  required "{self.value}" Decode.int"""
+
+    def alias(self):
+        return f"""{self.value} : Int"""
+
+    def nested_alias(self):
+        return f""", {self.value} : Int"""
+
+
+@dataclass(slots=True)
+class BoolDecoder:
+    value: str
+
+    def pipeline(self):
+        return f"""|>  required "{self.value}" Decode.bool"""
+
+    def alias(self):
+        return f"""{self.value} : Bool"""
+
+    def nested_alias(self):
+        return f""", {self.value} : Bool"""
+
+
+@dataclass(slots=True)
+class FloatDecoder:
+    value: str
+
+    def pipeline(self):
+        return f"""|>  required "{self.value}" Decode.float"""
+
+    def alias(self):
+        return f"""{self.value} : Float"""
+
+    def nested_alias(self):
+        return f""", {self.value} : Float"""
+
+
 class FlagMetaClass(type):
     def __new__(cls, class_name, bases, attrs):
         return type(class_name, bases, attrs)
@@ -38,40 +95,48 @@ class BaseFlag(metaclass=FlagMetaClass):
                         case "str":
                             anno[k] = str
                             pipeline_decoder.append(
-                                f"""\n        |>  required "{k}" Decode.string"""
+                                f"""\n        {StringDecoder(k).pipeline()}"""
                             )
                             if idx == 0:
-                                alias_values.append(f" {k} : String")
+                                alias_values.append(f" {StringDecoder(k).alias()}")
                             else:
-                                alias_values.append(f"\n    , {k} : String")
+                                alias_values.append(
+                                    f"\n    {StringDecoder(k).nested_alias()}"
+                                )
 
                         case "int":
                             anno[k] = int
                             pipeline_decoder.append(
-                                f"""\n        |>  required "{k}" Decode.int"""
+                                f"""\n        {IntDecoder(k).pipeline()}"""
                             )
                             if idx == 0:
-                                alias_values.append(f" {k} : Int")
+                                alias_values.append(f" {IntDecoder(k).alias()}")
                             else:
-                                alias_values.append(f"\n    , {k} : Int")
+                                alias_values.append(
+                                    f"\n    {IntDecoder(k).nested_alias()}"
+                                )
                         case "float":
                             anno[k] = int
                             pipeline_decoder.append(
-                                f"""\n        |>  required "{k}" Decode.float"""
+                                f"""\n        {FloatDecoder(k).pipeline()}"""
                             )
                             if idx == 0:
-                                alias_values.append(f" {k} : Float")
+                                alias_values.append(f" {FloatDecoder(k).alias()}")
                             else:
-                                alias_values.append(f"\n    , {k} : Float")
+                                alias_values.append(
+                                    f"\n    {FloatDecoder(k).nested_alias()}"
+                                )
                         case "bool":
                             anno[k] = bool
                             pipeline_decoder.append(
-                                f"""\n        |>  required "{k}" Decode.bool"""
+                                f"""\n        {BoolDecoder(k).pipeline()}"""
                             )
                             if idx == 0:
-                                alias_values.append(f" {k} : Bool")
+                                alias_values.append(f" {BoolDecoder(k).alias()}")
                             else:
-                                alias_values.append(f"\n    , {k} : Bool")
+                                alias_values.append(
+                                    f"\n    {BoolDecoder(k).nested_alias()}"
+                                )
                         case _:
                             raise Exception("Unsopported type")
                 except:
