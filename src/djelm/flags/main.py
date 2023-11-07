@@ -5,21 +5,45 @@ from functools import reduce
 from pydantic import BaseModel, Strict, TypeAdapter
 from typing_extensions import Annotated
 
-Primitive = str | int | float | bool
-DictType = typing.Dict[str, Primitive]
-ListType = typing.List[Primitive]
+# Primitive = typing.Union[str, int, float, bool]
+# AllType = typing.Union[
+#     "StringFlag",
+#     "IntFlag",
+#     "FloatFlag",
+#     "BoolFlag",
+#     typing.List["AllType"],
+#     typing.Dict[str, "AllType"],
+# ]
 
 _annotated_string = Annotated[str, Strict()]
 _annotated_int = Annotated[int, Strict()]
 _annotated_float = Annotated[float, Strict()]
 _annotated_bool = Annotated[bool, Strict()]
 
-StringFlag = TypeAdapter(_annotated_string)
-IntFlag = TypeAdapter(_annotated_int)
-FloatFlag = TypeAdapter(_annotated_float)
-BoolFlag = TypeAdapter(_annotated_bool)
-ListFlag = TypeAdapter(typing.List[Primitive])
-DictFlag = TypeAdapter(typing.Dict[str, Primitive])
+StringAdapter = TypeAdapter(_annotated_string)
+IntAdapter = TypeAdapter(_annotated_int)
+FloatAdapter = TypeAdapter(_annotated_float)
+BoolAdapter = TypeAdapter(_annotated_bool)
+
+
+@dataclass(slots=True)
+class StringFlag:
+    adapter = StringAdapter
+
+
+@dataclass(slots=True)
+class IntFlag:
+    adapter = IntAdapter
+
+
+@dataclass(slots=True)
+class FloatFlag:
+    adapter = FloatAdapter
+
+
+@dataclass(slots=True)
+class BoolFlag:
+    adapter = BoolAdapter
 
 
 @dataclass(slots=True)
@@ -91,8 +115,8 @@ class BaseFlag(metaclass=FlagMetaClass):
             alias_values: list[str] = []
             for idx, (k, v) in enumerate(d.items()):
                 try:
-                    match v.core_schema["type"]:
-                        case "str":
+                    match v:
+                        case StringFlag():
                             anno[k] = str
                             pipeline_decoder.append(
                                 f"""\n        {StringDecoder(k).pipeline()}"""
@@ -104,7 +128,7 @@ class BaseFlag(metaclass=FlagMetaClass):
                                     f"\n    {StringDecoder(k).nested_alias()}"
                                 )
 
-                        case "int":
+                        case IntFlag():
                             anno[k] = int
                             pipeline_decoder.append(
                                 f"""\n        {IntDecoder(k).pipeline()}"""
@@ -115,7 +139,7 @@ class BaseFlag(metaclass=FlagMetaClass):
                                 alias_values.append(
                                     f"\n    {IntDecoder(k).nested_alias()}"
                                 )
-                        case "float":
+                        case FloatFlag():
                             anno[k] = int
                             pipeline_decoder.append(
                                 f"""\n        {FloatDecoder(k).pipeline()}"""
@@ -126,7 +150,7 @@ class BaseFlag(metaclass=FlagMetaClass):
                                 alias_values.append(
                                     f"\n    {FloatDecoder(k).nested_alias()}"
                                 )
-                        case "bool":
+                        case BoolFlag():
                             anno[k] = bool
                             pipeline_decoder.append(
                                 f"""\n        {BoolDecoder(k).pipeline()}"""
@@ -140,7 +164,7 @@ class BaseFlag(metaclass=FlagMetaClass):
                         case _:
                             raise Exception("Unsopported type")
                 except:
-                    raise Exception("Value needs to be a StringFlag")
+                    raise Exception("Value needs to be a valid Flag type")
 
             K = type("K", (BaseModel,), {"__annotations__": anno})
 
@@ -164,58 +188,61 @@ class BaseFlag(metaclass=FlagMetaClass):
                     return {"alias_type": alias_type, "decoder_body": decoder_body}
 
             return VD
-        if isinstance(d, TypeAdapter):
 
-            class VS:
-                """Validates a single flag input"""
+        class VS:
+            """Validates a single flag input"""
 
-                @staticmethod
-                def parse(input) -> str:
-                    # TODO check for List
-                    d.validate_python(input)
-                    return d.dump_json(input).decode("utf-8")
+            @staticmethod
+            def parse(input) -> str:
+                d.adapter.validate_python(input)
+                return d.adapter.dump_json(input).decode("utf-8")
 
-                @staticmethod
-                def to_elm_parser_data() -> dict[str, str]:
-                    match d.core_schema["type"]:
-                        case "str":
-                            return {
-                                "alias_type": "String",
-                                "decoder_body": "Decode.string",
-                            }
-                        case "int":
-                            return {
-                                "alias_type": "Int",
-                                "decoder_body": "Decode.int",
-                            }
-                        case "float":
-                            return {
-                                "alias_type": "Float",
-                                "decoder_body": "Decode.float",
-                            }
-                        case "bool":
-                            return {
-                                "alias_type": "Bool",
-                                "decoder_body": "Decode.bool",
-                            }
-                        case _:
-                            raise Exception(
-                                f"Can't resolve core_schema type: {d.core_schema['type']}"
-                            )
+            @staticmethod
+            def to_elm_parser_data() -> dict[str, str]:
+                match d:
+                    case StringFlag():
+                        return {
+                            "alias_type": "String",
+                            "decoder_body": "Decode.string",
+                        }
+                    case IntFlag():
+                        return {
+                            "alias_type": "Int",
+                            "decoder_body": "Decode.int",
+                        }
+                    case FloatFlag():
+                        return {
+                            "alias_type": "Float",
+                            "decoder_body": "Decode.float",
+                        }
+                    case BoolFlag():
+                        return {
+                            "alias_type": "Bool",
+                            "decoder_body": "Decode.bool",
+                        }
+                    case _:
+                        raise Exception(
+                            f"Can't resolve core_schema type: {d.core_schema['type']}"
+                        )
 
-            return VS
+        return VS
 
-        raise Exception(
-            """
-Input needs to be a dict of field names to Flag types or a single flag type
+    def parse_dict(self, d):
+        for idx, (k, v) in enumerate(d.items()):
+            anno = {}
+            try:
+                match v.core_schema["type"]:
+                    case "str":
+                        anno[k] = str
+                    case "int":
+                        anno[k] = int
+                    case "float":
+                        anno[k] = float
+                    case "bool":
+                        anno[k] = bool
 
-e.g.
-
-Flags({"hello": StringFlag}) # dict of field names to flag types
-
-Flags(StringFlag) # single flag type
-"""
-        )
+            except:
+                raise Exception("Value needs to be a StringFlag")
 
 
 class Flags(BaseFlag):
