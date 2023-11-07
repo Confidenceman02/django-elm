@@ -35,7 +35,7 @@ class TestStringFlags:
             "decoder_body": "Decode.string",
         }
 
-    def test_dict_to_elm_data(self):
+    def test_dict_string_to_elm_data(self):
         SUT = Flags({"hello": StringFlag, "world": StringFlag})
         assert SUT.to_elm_parser_data() == {
             "alias_type": """{ hello : String
@@ -78,6 +78,18 @@ class TestIntFlags:
             "decoder_body": "Decode.int",
         }
 
+    def test_dict_int_to_elm_data(self):
+        SUT = Flags({"hello": IntFlag, "world": IntFlag})
+        assert SUT.to_elm_parser_data() == {
+            "alias_type": """{ hello : Int
+    , world : Int
+    }""",
+            "decoder_body": """Decode.succeed ToModel
+        |>  required "hello" Decode.int
+        |>  required "world" Decode.int""",
+        }
+
+
 class TestFloatFlags:
     def test_dict_flag_succeeds(self):
         d = {"hello": FloatFlag}
@@ -109,6 +121,18 @@ class TestFloatFlags:
             "decoder_body": "Decode.float",
         }
 
+    def test_dict_float_to_elm_data(self):
+        SUT = Flags({"hello": FloatFlag, "world": FloatFlag})
+        assert SUT.to_elm_parser_data() == {
+            "alias_type": """{ hello : Float
+    , world : Float
+    }""",
+            "decoder_body": """Decode.succeed ToModel
+        |>  required "hello" Decode.float
+        |>  required "world" Decode.float""",
+        }
+
+
 class TestBoolFlags:
     def test_dict_flag_succeeds(self):
         d = {"hello": BoolFlag}
@@ -138,4 +162,15 @@ class TestBoolFlags:
         assert SUT.to_elm_parser_data() == {
             "alias_type": "Bool",
             "decoder_body": "Decode.bool",
+        }
+
+    def test_dict_bool_to_elm_data(self):
+        SUT = Flags({"hello": BoolFlag, "world": BoolFlag})
+        assert SUT.to_elm_parser_data() == {
+            "alias_type": """{ hello : Bool
+    , world : Bool
+    }""",
+            "decoder_body": """Decode.succeed ToModel
+        |>  required "hello" Decode.bool
+        |>  required "world" Decode.bool""",
         }

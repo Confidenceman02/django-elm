@@ -4,6 +4,10 @@ from functools import reduce
 from pydantic import BaseModel, Strict, TypeAdapter
 from typing_extensions import Annotated
 
+Primitive = str | int | float | bool
+DictType = typing.Dict[str, Primitive]
+ListType = typing.List[Primitive]
+
 _annotated_string = Annotated[str, Strict()]
 _annotated_int = Annotated[int, Strict()]
 _annotated_float = Annotated[float, Strict()]
@@ -13,6 +17,8 @@ StringFlag = TypeAdapter(_annotated_string)
 IntFlag = TypeAdapter(_annotated_int)
 FloatFlag = TypeAdapter(_annotated_float)
 BoolFlag = TypeAdapter(_annotated_bool)
+ListFlag = TypeAdapter(typing.List[Primitive])
+DictFlag = TypeAdapter(typing.Dict[str, Primitive])
 
 
 class FlagMetaClass(type):
@@ -100,6 +106,7 @@ class BaseFlag(metaclass=FlagMetaClass):
 
                 @staticmethod
                 def parse(input) -> str:
+                    # TODO check for List
                     d.validate_python(input)
                     return d.dump_json(input).decode("utf-8")
 
@@ -160,7 +167,7 @@ class Flags(BaseFlag):
     """
 
     if typing.TYPE_CHECKING:
-        parse: typing.Callable[[dict[str, str | int | bool | float] | str | int | float | bool], str]
+        parse: typing.Callable[[DictType | Primitive], str]
         to_elm_parser_data: typing.Callable[[], dict[str, str]]
 
     pass
