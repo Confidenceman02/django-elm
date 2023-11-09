@@ -1,12 +1,12 @@
 import pytest
 from pydantic import ValidationError
 
-from djelm.flags.main import BoolFlag, Flags, FloatFlag, IntFlag, StringFlag
+from djelm.flags.main import BoolFlag, Flags, FloatFlag, IntFlag, ObjectFlag, StringFlag
 
 
 class TestStringFlags:
     def test_dict_flag_succeeds(self):
-        d = {"hello": StringFlag()}
+        d = ObjectFlag({"hello": StringFlag()})
         SUT = Flags(d)
         assert SUT.parse({"hello": "world"}) == '{"hello":"world"}'
 
@@ -14,7 +14,7 @@ class TestStringFlags:
         """
         Values match the flag types
         """
-        d = {"hello": StringFlag()}
+        d = ObjectFlag({"hello": StringFlag()})
         SUT = Flags(d)
         with pytest.raises(ValidationError):
             SUT.parse({"hello": 12})
@@ -36,7 +36,7 @@ class TestStringFlags:
         }
 
     def test_dict_string_to_elm_data(self):
-        SUT = Flags({"hello": StringFlag(), "world": StringFlag()})
+        SUT = Flags(ObjectFlag({"hello": StringFlag(), "world": StringFlag()}))
         assert SUT.to_elm_parser_data() == {
             "alias_type": """{ hello : String
     , world : String
@@ -49,7 +49,7 @@ class TestStringFlags:
 
 class TestIntFlags:
     def test_dict_flag_succeeds(self):
-        d = {"hello": IntFlag()}
+        d = ObjectFlag({"hello": IntFlag()})
         SUT = Flags(d)
         assert SUT.parse({"hello": 1}) == '{"hello":1}'
 
@@ -57,7 +57,7 @@ class TestIntFlags:
         """
         Values match the flag types
         """
-        d = {"hello": IntFlag()}
+        d = ObjectFlag({"hello": IntFlag()})
         SUT = Flags(d)
         with pytest.raises(ValidationError):
             SUT.parse({"hello": "world"})
@@ -79,7 +79,7 @@ class TestIntFlags:
         }
 
     def test_dict_int_to_elm_data(self):
-        SUT = Flags({"hello": IntFlag(), "world": IntFlag()})
+        SUT = Flags(ObjectFlag({"hello": IntFlag(), "world": IntFlag()}))
         assert SUT.to_elm_parser_data() == {
             "alias_type": """{ hello : Int
     , world : Int
@@ -92,7 +92,7 @@ class TestIntFlags:
 
 class TestFloatFlags:
     def test_dict_flag_succeeds(self):
-        d = {"hello": FloatFlag()}
+        d = ObjectFlag({"hello": FloatFlag()})
         SUT = Flags(d)
         assert SUT.parse({"hello": 1.0}) == '{"hello":1}'
 
@@ -100,7 +100,7 @@ class TestFloatFlags:
         """
         Values match the flag types
         """
-        d = {"hello": FloatFlag()}
+        d = ObjectFlag({"hello": FloatFlag()})
         SUT = Flags(d)
         with pytest.raises(ValidationError):
             SUT.parse({"hello": "world"})
@@ -122,7 +122,7 @@ class TestFloatFlags:
         }
 
     def test_dict_float_to_elm_data(self):
-        SUT = Flags({"hello": FloatFlag(), "world": FloatFlag()})
+        SUT = Flags(ObjectFlag({"hello": FloatFlag(), "world": FloatFlag()}))
         assert SUT.to_elm_parser_data() == {
             "alias_type": """{ hello : Float
     , world : Float
@@ -135,7 +135,7 @@ class TestFloatFlags:
 
 class TestBoolFlags:
     def test_dict_flag_succeeds(self):
-        d = {"hello": BoolFlag()}
+        d = ObjectFlag({"hello": BoolFlag()})
         SUT = Flags(d)
         assert SUT.parse({"hello": True}) == '{"hello":true}'
 
@@ -143,7 +143,7 @@ class TestBoolFlags:
         """
         Values match the flag types
         """
-        d = {"hello": BoolFlag()}
+        d = ObjectFlag({"hello": BoolFlag()})
         SUT = Flags(d)
         with pytest.raises(ValidationError):
             SUT.parse({"hello": "world"})
@@ -165,7 +165,7 @@ class TestBoolFlags:
         }
 
     def test_dict_bool_to_elm_data(self):
-        SUT = Flags({"hello": BoolFlag(), "world": BoolFlag()})
+        SUT = Flags(ObjectFlag({"hello": BoolFlag(), "world": BoolFlag()}))
         assert SUT.to_elm_parser_data() == {
             "alias_type": """{ hello : Bool
     , world : Bool

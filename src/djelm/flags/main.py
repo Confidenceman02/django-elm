@@ -5,45 +5,47 @@ from functools import reduce
 from pydantic import BaseModel, Strict, TypeAdapter
 from typing_extensions import Annotated
 
-# Primitive = typing.Union[str, int, float, bool]
-# AllType = typing.Union[
-#     "StringFlag",
-#     "IntFlag",
-#     "FloatFlag",
-#     "BoolFlag",
-#     typing.List["AllType"],
-#     typing.Dict[str, "AllType"],
-# ]
-
 _annotated_string = Annotated[str, Strict()]
 _annotated_int = Annotated[int, Strict()]
 _annotated_float = Annotated[float, Strict()]
 _annotated_bool = Annotated[bool, Strict()]
 
-StringAdapter = TypeAdapter(_annotated_string)
-IntAdapter = TypeAdapter(_annotated_int)
-FloatAdapter = TypeAdapter(_annotated_float)
-BoolAdapter = TypeAdapter(_annotated_bool)
+_StringAdapter = TypeAdapter(_annotated_string)
+_IntAdapter = TypeAdapter(_annotated_int)
+_FloatAdapter = TypeAdapter(_annotated_float)
+_BoolAdapter = TypeAdapter(_annotated_bool)
 
 
 @dataclass(slots=True)
 class StringFlag:
-    adapter = StringAdapter
+    adapter = _StringAdapter
 
 
 @dataclass(slots=True)
 class IntFlag:
-    adapter = IntAdapter
+    adapter = _IntAdapter
 
 
 @dataclass(slots=True)
 class FloatFlag:
-    adapter = FloatAdapter
+    adapter = _FloatAdapter
 
 
 @dataclass(slots=True)
 class BoolFlag:
-    adapter = BoolAdapter
+    adapter = _BoolAdapter
+
+
+ObjectType = typing.Dict[str, "Primitive"]
+Primitive = StringFlag | IntFlag | FloatFlag | BoolFlag | ObjectType
+FlagsArgObject = dict[str, "PrimitiveFlag"]
+PrimitiveFlag = str | int | float | bool | FlagsArgObject
+
+
+@dataclass(slots=True)
+class ObjectFlag:
+    obj: ObjectType
+    adapter = _BoolAdapter
 
 
 @dataclass(slots=True)
@@ -109,11 +111,11 @@ class FlagMetaClass(type):
 
 class BaseFlag(metaclass=FlagMetaClass):
     def __new__(cls, d):
-        if isinstance(d, dict):
+        if isinstance(d, ObjectFlag):
             anno = {}
             pipeline_decoder: list[str] = ["Decode.succeed ToModel"]
             alias_values: list[str] = []
-            for idx, (k, v) in enumerate(d.items()):
+            for idx, (k, v) in enumerate(d.obj.items()):
                 try:
                     match v:
                         case StringFlag():
@@ -161,6 +163,7 @@ class BaseFlag(metaclass=FlagMetaClass):
                                 alias_values.append(
                                     f"\n    {BoolDecoder(k).nested_alias()}"
                                 )
+                        # TODO Handle ObjectFlag
                         case _:
                             raise Exception("Unsopported type")
                 except:
@@ -170,7 +173,7 @@ class BaseFlag(metaclass=FlagMetaClass):
 
             class VD:
                 """
-                Validtes a dict flag input.
+                Validates ObjectFlag input.
                 """
 
                 @staticmethod
@@ -222,27 +225,10 @@ class BaseFlag(metaclass=FlagMetaClass):
                         }
                     case _:
                         raise Exception(
-                            f"Can't resolve core_schema type: {d.core_schema['type']}"
+                            f"Can't resolve core_schema type: {d.adapter.core_schema['type']}"
                         )
 
         return VS
-
-    def parse_dict(self, d):
-        for idx, (k, v) in enumerate(d.items()):
-            anno = {}
-            try:
-                match v.core_schema["type"]:
-                    case "str":
-                        anno[k] = str
-                    case "int":
-                        anno[k] = int
-                    case "float":
-                        anno[k] = float
-                    case "bool":
-                        anno[k] = bool
-
-            except:
-                raise Exception("Value needs to be a StringFlag")
 
 
 class Flags(BaseFlag):
@@ -259,7 +245,7 @@ class Flags(BaseFlag):
     """
 
     if typing.TYPE_CHECKING:
-        parse: typing.Callable[[DictType | Primitive], str]
+        parse: typing.Callable[[PrimitiveFlag], str]
         to_elm_parser_data: typing.Callable[[], dict[str, str]]
 
     pass
