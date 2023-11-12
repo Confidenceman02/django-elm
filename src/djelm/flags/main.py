@@ -120,14 +120,26 @@ class ObjectDecoder:
     def pipeline(self):
         return f"""|>  required "{self.value}" {self.value}Decoder"""
 
+    def pipeline_starter(self):
+        return f"""{self._to_decoder_annotation()}\n    {self._to_pipeline_succeed()}"""
+
     def alias(self):
         return f"""{self.value} : {self._to_alias()}"""
+
+    def alias_model(self):
+        return f"""type alias {self._to_alias()}Model ="""
 
     def nested_alias(self):
         return f""", {self.value} : {self._to_alias()}"""
 
     def _to_alias(self) -> str:
         return self.value[0].upper() + self.value[1:]
+
+    def _to_decoder_annotation(self):
+        return f"""{self.value}Decoder : Decode.Decoder {self._to_alias()}\n{self.value}Decoder ="""
+
+    def _to_pipeline_succeed(self):
+        return f"""Decode.succeed {self._to_alias()}"""
 
 
 class FlagMetaClass(type):
@@ -204,6 +216,7 @@ def _prepare_object_helper(d: ObjectFlag, decoder_start: str) -> ObjHelperReturn
     anno: typing.Dict[str, PrimitiveFlagType] = {}
     pipeline_decoder: str = decoder_start
     alias_values: str = ""
+    decoder_extra: str = ""
     for idx, (k, v) in enumerate(d.obj.items()):
         try:
             match v:
@@ -242,14 +255,17 @@ def _prepare_object_helper(d: ObjectFlag, decoder_start: str) -> ObjHelperReturn
                     else:
                         alias_values += f"\n    {BoolDecoder(k).nested_alias()}"
                 case ObjectFlag(obj=obj):
-                    # TODO set decoder starter
+                    # TODO add alias extra
                     prepared_object_recursive = _prepare_object_helper(
-                        ObjectFlag(obj), ""
+                        ObjectFlag(obj), ObjectDecoder(k).pipeline_starter()
                     )
                     anno[k] = type(
                         "K",
                         (BaseModel,),
                         {"__annotations__": prepared_object_recursive["anno"]},
+                    )
+                    decoder_extra += (
+                        f"\n\n{prepared_object_recursive['pipeline_decoder']}"
                     )
                     pipeline_decoder += f"""\n        {ObjectDecoder(k).pipeline()}"""
                     if idx == 0:
@@ -264,7 +280,7 @@ def _prepare_object_helper(d: ObjectFlag, decoder_start: str) -> ObjHelperReturn
             raise Exception("Value needs to be a valid Flag type")
     return {
         "anno": anno,
-        "pipeline_decoder": pipeline_decoder,
+        "pipeline_decoder": pipeline_decoder + decoder_extra,
         "alias_values": alias_values,
     }
 

@@ -232,5 +232,10 @@ class TestObjectFlags:
             "alias_type": """{ hello : Hello
     }""",
             "decoder_body": """Decode.succeed ToModel
-        |>  required "hello" helloDecoder""",
+        |>  required "hello" helloDecoder
+
+helloDecoder : Decode.Decoder Hello
+helloDecoder =
+    Decode.succeed Hello
+        |>  required "world" Decode.string""",
         }
