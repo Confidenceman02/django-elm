@@ -1,6 +1,5 @@
 import typing
 from dataclasses import dataclass
-from functools import reduce
 
 from pydantic import BaseModel, Strict, TypeAdapter
 from typing_extensions import Annotated
@@ -36,16 +35,26 @@ class BoolFlag:
     adapter = _BoolAdapter
 
 
-ObjectType = typing.Dict[str, "Primitive"]
-Primitive = StringFlag | IntFlag | FloatFlag | BoolFlag | ObjectType
-FlagsArgObject = dict[str, "PrimitiveFlag"]
-PrimitiveFlag = str | int | float | bool | FlagsArgObject
-
-
 @dataclass(slots=True)
 class ObjectFlag:
-    obj: ObjectType
-    adapter = _BoolAdapter
+    obj: typing.Dict[str, "Primitive"]
+
+
+Primitive = StringFlag | IntFlag | FloatFlag | BoolFlag | ObjectFlag
+FlagsObject = dict[str, "PrimitiveFlag"]
+FlagsList = list["PrimitiveFlag"]
+FlagsArgListType = list["PrimitiveFlagType"]
+PrimitiveFlagType = type[str] | type[int] | type[float] | type[bool] | type[BaseModel]
+PrimitiveFlag = str | int | float | bool | FlagsObject | FlagsList
+
+ObjHelperReturn = typing.TypedDict(
+    "ObjHelperReturn",
+    {
+        "anno": typing.Dict[str, PrimitiveFlagType],
+        "pipeline_decoder": str,
+        "alias_values": str,
+    },
+)
 
 
 @dataclass(slots=True)
@@ -55,7 +64,7 @@ class StringDecoder:
     def pipeline(self):
         return f"""|>  required "{self.value}" Decode.string"""
 
-    def alias(self):
+    def alias(self) -> str:
         return f"""{self.value} : String"""
 
     def nested_alias(self):
@@ -104,6 +113,23 @@ class FloatDecoder:
         return f""", {self.value} : Float"""
 
 
+@dataclass(slots=True)
+class ObjectDecoder:
+    value: str
+
+    def pipeline(self):
+        return f"""|>  required "{self.value}" {self.value}Decoder"""
+
+    def alias(self):
+        return f"""{self.value} : {self._to_alias()}"""
+
+    def nested_alias(self):
+        return f""", {self.value} : {self._to_alias()}"""
+
+    def _to_alias(self) -> str:
+        return self.value[0].upper() + self.value[1:]
+
+
 class FlagMetaClass(type):
     def __new__(cls, class_name, bases, attrs):
         return type(class_name, bases, attrs)
@@ -112,64 +138,9 @@ class FlagMetaClass(type):
 class BaseFlag(metaclass=FlagMetaClass):
     def __new__(cls, d):
         if isinstance(d, ObjectFlag):
-            anno = {}
-            pipeline_decoder: list[str] = ["Decode.succeed ToModel"]
-            alias_values: list[str] = []
-            for idx, (k, v) in enumerate(d.obj.items()):
-                try:
-                    match v:
-                        case StringFlag():
-                            anno[k] = str
-                            pipeline_decoder.append(
-                                f"""\n        {StringDecoder(k).pipeline()}"""
-                            )
-                            if idx == 0:
-                                alias_values.append(f" {StringDecoder(k).alias()}")
-                            else:
-                                alias_values.append(
-                                    f"\n    {StringDecoder(k).nested_alias()}"
-                                )
+            prepared_object = _prepare_object_helper(d, "Decode.succeed ToModel")
 
-                        case IntFlag():
-                            anno[k] = int
-                            pipeline_decoder.append(
-                                f"""\n        {IntDecoder(k).pipeline()}"""
-                            )
-                            if idx == 0:
-                                alias_values.append(f" {IntDecoder(k).alias()}")
-                            else:
-                                alias_values.append(
-                                    f"\n    {IntDecoder(k).nested_alias()}"
-                                )
-                        case FloatFlag():
-                            anno[k] = int
-                            pipeline_decoder.append(
-                                f"""\n        {FloatDecoder(k).pipeline()}"""
-                            )
-                            if idx == 0:
-                                alias_values.append(f" {FloatDecoder(k).alias()}")
-                            else:
-                                alias_values.append(
-                                    f"\n    {FloatDecoder(k).nested_alias()}"
-                                )
-                        case BoolFlag():
-                            anno[k] = bool
-                            pipeline_decoder.append(
-                                f"""\n        {BoolDecoder(k).pipeline()}"""
-                            )
-                            if idx == 0:
-                                alias_values.append(f" {BoolDecoder(k).alias()}")
-                            else:
-                                alias_values.append(
-                                    f"\n    {BoolDecoder(k).nested_alias()}"
-                                )
-                        # TODO Handle ObjectFlag
-                        case _:
-                            raise Exception("Unsopported type")
-                except:
-                    raise Exception("Value needs to be a valid Flag type")
-
-            K = type("K", (BaseModel,), {"__annotations__": anno})
+            K = type("K", (BaseModel,), {"__annotations__": prepared_object["anno"]})
 
             class VD:
                 """
@@ -182,13 +153,11 @@ class BaseFlag(metaclass=FlagMetaClass):
 
                 @staticmethod
                 def to_elm_parser_data() -> dict[str, str]:
-                    alias_type = reduce(
-                        lambda acc, v: acc + v, iter(["{", *alias_values, "\n    }"])
-                    )
-                    decoder_body = reduce(
-                        lambda acc, v: acc + v, iter(pipeline_decoder)
-                    )
-                    return {"alias_type": alias_type, "decoder_body": decoder_body}
+                    alias_type = "{" + prepared_object["alias_values"] + "\n    }"
+                    return {
+                        "alias_type": alias_type,
+                        "decoder_body": prepared_object["pipeline_decoder"],
+                    }
 
             return VD
 
@@ -229,6 +198,75 @@ class BaseFlag(metaclass=FlagMetaClass):
                         )
 
         return VS
+
+
+def _prepare_object_helper(d: ObjectFlag, decoder_start: str) -> ObjHelperReturn:
+    anno: typing.Dict[str, PrimitiveFlagType] = {}
+    pipeline_decoder: str = decoder_start
+    alias_values: str = ""
+    for idx, (k, v) in enumerate(d.obj.items()):
+        try:
+            match v:
+                case StringFlag():
+                    anno[k] = str
+                    pipeline_decoder += f"""\n        {StringDecoder(k).pipeline()}"""
+
+                    if idx == 0:
+                        alias_values += f" {StringDecoder(k).alias()}"
+                    else:
+                        alias_values += f"\n    {StringDecoder(k).nested_alias()}"
+
+                case IntFlag():
+                    anno[k] = int
+                    pipeline_decoder += f"""\n        {IntDecoder(k).pipeline()}"""
+
+                    if idx == 0:
+                        alias_values += f" {IntDecoder(k).alias()}"
+                    else:
+                        alias_values += f"\n    {IntDecoder(k).nested_alias()}"
+
+                case FloatFlag():
+                    anno[k] = int
+                    pipeline_decoder += f"""\n        {FloatDecoder(k).pipeline()}"""
+
+                    if idx == 0:
+                        alias_values += f" {FloatDecoder(k).alias()}"
+                    else:
+                        alias_values += f"\n    {FloatDecoder(k).nested_alias()}"
+
+                case BoolFlag():
+                    anno[k] = bool
+                    pipeline_decoder += f"""\n        {BoolDecoder(k).pipeline()}"""
+                    if idx == 0:
+                        alias_values += f" {BoolDecoder(k).alias()}"
+                    else:
+                        alias_values += f"\n    {BoolDecoder(k).nested_alias()}"
+                case ObjectFlag(obj=obj):
+                    # TODO set decoder starter
+                    prepared_object_recursive = _prepare_object_helper(
+                        ObjectFlag(obj), ""
+                    )
+                    anno[k] = type(
+                        "K",
+                        (BaseModel,),
+                        {"__annotations__": prepared_object_recursive["anno"]},
+                    )
+                    pipeline_decoder += f"""\n        {ObjectDecoder(k).pipeline()}"""
+                    if idx == 0:
+                        alias_values += f" {ObjectDecoder(k).alias()}"
+                    else:
+                        alias_values += f"\n    {ObjectDecoder(k).nested_alias()}"
+
+                # TODO Handle ListFlag
+                case _:
+                    raise Exception("Unsopported type")
+        except:
+            raise Exception("Value needs to be a valid Flag type")
+    return {
+        "anno": anno,
+        "pipeline_decoder": pipeline_decoder,
+        "alias_values": alias_values,
+    }
 
 
 class Flags(BaseFlag):
