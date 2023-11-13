@@ -126,9 +126,6 @@ class ObjectDecoder:
     def alias(self):
         return f"""{self.value} : {self._to_alias()}"""
 
-    def alias_model(self):
-        return f"""type alias {self._to_alias()}Model ="""
-
     def nested_alias(self):
         return f""", {self.value} : {self._to_alias()}"""
 
@@ -137,6 +134,9 @@ class ObjectDecoder:
 
     def _to_decoder_annotation(self):
         return f"""{self.value}Decoder : Decode.Decoder {self._to_alias()}\n{self.value}Decoder ="""
+
+    def _to_alias_definition(self, body: str):
+        return f"""\n\ntype alias {self._to_alias()} =\n    {body}"""
 
     def _to_pipeline_succeed(self):
         return f"""Decode.succeed {self._to_alias()}"""
@@ -165,7 +165,7 @@ class BaseFlag(metaclass=FlagMetaClass):
 
                 @staticmethod
                 def to_elm_parser_data() -> dict[str, str]:
-                    alias_type = "{" + prepared_object["alias_values"] + "\n    }"
+                    alias_type = prepared_object["alias_values"]
                     return {
                         "alias_type": alias_type,
                         "decoder_body": prepared_object["pipeline_decoder"],
@@ -217,6 +217,7 @@ def _prepare_object_helper(d: ObjectFlag, decoder_start: str) -> ObjHelperReturn
     pipeline_decoder: str = decoder_start
     alias_values: str = ""
     decoder_extra: str = ""
+    alias_extra: str = ""
     for idx, (k, v) in enumerate(d.obj.items()):
         try:
             match v:
@@ -267,6 +268,9 @@ def _prepare_object_helper(d: ObjectFlag, decoder_start: str) -> ObjHelperReturn
                     decoder_extra += (
                         f"\n\n{prepared_object_recursive['pipeline_decoder']}"
                     )
+                    alias_extra += ObjectDecoder(k)._to_alias_definition(
+                        prepared_object_recursive["alias_values"]
+                    )
                     pipeline_decoder += f"""\n        {ObjectDecoder(k).pipeline()}"""
                     if idx == 0:
                         alias_values += f" {ObjectDecoder(k).alias()}"
@@ -281,7 +285,7 @@ def _prepare_object_helper(d: ObjectFlag, decoder_start: str) -> ObjHelperReturn
     return {
         "anno": anno,
         "pipeline_decoder": pipeline_decoder + decoder_extra,
-        "alias_values": alias_values,
+        "alias_values": "{" + alias_values + "\n    }" + alias_extra,
     }
 
 
