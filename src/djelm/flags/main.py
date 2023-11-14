@@ -34,13 +34,16 @@ class FloatFlag:
 class BoolFlag:
     adapter = _BoolAdapter
 
+@dataclass(slots=True)
+class ListFlag:
+    obj: "Primitive"
 
 @dataclass(slots=True)
 class ObjectFlag:
     obj: typing.Dict[str, "Primitive"]
 
 
-Primitive = StringFlag | IntFlag | FloatFlag | BoolFlag | ObjectFlag
+Primitive = StringFlag | IntFlag | FloatFlag | BoolFlag | ListFlag | ObjectFlag
 FlagsObject = dict[str, "PrimitiveFlag"]
 FlagsList = list["PrimitiveFlag"]
 FlagsArgListType = list["PrimitiveFlagType"]
@@ -62,7 +65,7 @@ class StringDecoder:
     value: str
 
     def pipeline(self):
-        return f"""|>  required "{self.value}" Decode.string"""
+        return f"""|>  required "{self.value}" {StringDecoder._raw_decoder()}"""
 
     def alias(self) -> str:
         return f"""{self.value} : String"""
@@ -70,13 +73,17 @@ class StringDecoder:
     def nested_alias(self):
         return f""", {self.value} : String"""
 
+    @staticmethod
+    def _raw_decoder():
+        return "Decode.string"
+
 
 @dataclass(slots=True)
 class IntDecoder:
     value: str
 
     def pipeline(self):
-        return f"""|>  required "{self.value}" Decode.int"""
+        return f"""|>  required "{self.value}" {IntDecoder._raw_decoder()}"""
 
     def alias(self):
         return f"""{self.value} : Int"""
@@ -84,13 +91,17 @@ class IntDecoder:
     def nested_alias(self):
         return f""", {self.value} : Int"""
 
+    @staticmethod
+    def _raw_decoder():
+        return "Decode.int"
+
 
 @dataclass(slots=True)
 class BoolDecoder:
     value: str
 
     def pipeline(self):
-        return f"""|>  required "{self.value}" Decode.bool"""
+        return f"""|>  required "{self.value}" {BoolDecoder._raw_decoder()}"""
 
     def alias(self):
         return f"""{self.value} : Bool"""
@@ -98,13 +109,16 @@ class BoolDecoder:
     def nested_alias(self):
         return f""", {self.value} : Bool"""
 
+    @staticmethod
+    def _raw_decoder():
+        return "Decode.bool"
 
 @dataclass(slots=True)
 class FloatDecoder:
     value: str
 
     def pipeline(self):
-        return f"""|>  required "{self.value}" Decode.float"""
+        return f"""|>  required "{self.value}" {FloatDecoder._raw_decoder()}"""
 
     def alias(self):
         return f"""{self.value} : Float"""
@@ -112,10 +126,18 @@ class FloatDecoder:
     def nested_alias(self):
         return f""", {self.value} : Float"""
 
+    @staticmethod
+    def _raw_decoder():
+        return "Decode.float"
+
+@dataclass(slots=True)
+class ListDecoder:
+    pass
 
 @dataclass(slots=True)
 class ObjectDecoder:
     value: str
+    depth: int
 
     def pipeline(self):
         return f"""|>  required "{self.value}" {self.value}Decoder"""
@@ -130,7 +152,7 @@ class ObjectDecoder:
         return f""", {self.value} : {self._to_alias()}"""
 
     def _to_alias(self) -> str:
-        return self.value[0].upper() + self.value[1:]
+        return self.value[0].upper() + self.value[1:] + self._depth_markers()
 
     def _to_decoder_annotation(self):
         return f"""{self.value}Decoder : Decode.Decoder {self._to_alias()}\n{self.value}Decoder ="""
@@ -140,6 +162,12 @@ class ObjectDecoder:
 
     def _to_pipeline_succeed(self):
         return f"""Decode.succeed {self._to_alias()}"""
+
+    def _depth_markers(self) -> str:
+        marker = ""
+        for _ in range(self.depth):
+            marker += "_"
+        return marker
 
 
 class FlagMetaClass(type):
@@ -187,22 +215,22 @@ class BaseFlag(metaclass=FlagMetaClass):
                     case StringFlag():
                         return {
                             "alias_type": "String",
-                            "decoder_body": "Decode.string",
+                            "decoder_body": StringDecoder._raw_decoder(),
                         }
                     case IntFlag():
                         return {
                             "alias_type": "Int",
-                            "decoder_body": "Decode.int",
+                            "decoder_body": IntDecoder._raw_decoder(),
                         }
                     case FloatFlag():
                         return {
                             "alias_type": "Float",
-                            "decoder_body": "Decode.float",
+                            "decoder_body": FloatDecoder._raw_decoder(),
                         }
                     case BoolFlag():
                         return {
                             "alias_type": "Bool",
-                            "decoder_body": "Decode.bool",
+                            "decoder_body": BoolDecoder._raw_decoder(),
                         }
                     case _:
                         raise Exception(
@@ -212,7 +240,7 @@ class BaseFlag(metaclass=FlagMetaClass):
         return VS
 
 
-def _prepare_object_helper(d: ObjectFlag, decoder_start: str) -> ObjHelperReturn:
+def _prepare_object_helper(d: ObjectFlag, decoder_start: str, depth: int = 1) -> ObjHelperReturn:
     anno: typing.Dict[str, PrimitiveFlagType] = {}
     pipeline_decoder: str = decoder_start
     alias_values: str = ""
@@ -257,7 +285,7 @@ def _prepare_object_helper(d: ObjectFlag, decoder_start: str) -> ObjHelperReturn
                         alias_values += f"\n    {BoolDecoder(k).nested_alias()}"
                 case ObjectFlag(obj=obj):
                     prepared_object_recursive = _prepare_object_helper(
-                        ObjectFlag(obj), ObjectDecoder(k).pipeline_starter()
+                        ObjectFlag(obj), ObjectDecoder(k, depth).pipeline_starter(), depth + 1
                     )
                     anno[k] = type(
                         "K",
@@ -267,14 +295,14 @@ def _prepare_object_helper(d: ObjectFlag, decoder_start: str) -> ObjHelperReturn
                     decoder_extra += (
                         f"\n\n{prepared_object_recursive['pipeline_decoder']}"
                     )
-                    alias_extra += ObjectDecoder(k)._to_alias_definition(
+                    alias_extra += ObjectDecoder(k, depth)._to_alias_definition(
                         prepared_object_recursive["alias_values"]
                     )
-                    pipeline_decoder += f"""\n        {ObjectDecoder(k).pipeline()}"""
+                    pipeline_decoder += f"""\n        {ObjectDecoder(k, depth).pipeline()}"""
                     if idx == 0:
-                        alias_values += f" {ObjectDecoder(k).alias()}"
+                        alias_values += f" {ObjectDecoder(k, depth).alias()}"
                     else:
-                        alias_values += f"\n    {ObjectDecoder(k).nested_alias()}"
+                        alias_values += f"\n    {ObjectDecoder(k, depth).nested_alias()}"
 
                 # TODO Handle ListFlag
                 case _:
@@ -292,17 +320,13 @@ class Flags(BaseFlag):
     """
     A class for validating djelm flags that are used in Elm programs.
 
-    You can pass a dict or a single flag type.
-
-    f1 = Flags({"hello": StringFlag})
+    f1 = Flags(ObjectFlag({"hello": StringFlag}))
     f1.parse({"hello": "world"}) -> '{"hello":"world"}'
 
-    f2 = Flags(StringFlag)
+    f2 = Flags(StringFlag())
     f2.parse("hello world") -> '"hello world"'
     """
 
     if typing.TYPE_CHECKING:
         parse: typing.Callable[[PrimitiveFlag], str]
         to_elm_parser_data: typing.Callable[[], dict[str, str]]
-
-    pass

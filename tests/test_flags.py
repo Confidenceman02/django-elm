@@ -229,17 +229,17 @@ class TestObjectFlags:
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """{ hello : Hello
+            "alias_type": """{ hello : Hello_
     }
 
-type alias Hello =
+type alias Hello_ =
     { world : String
     }""",
             "decoder_body": """Decode.succeed ToModel
         |>  required "hello" helloDecoder
 
-helloDecoder : Decode.Decoder Hello
+helloDecoder : Decode.Decoder Hello_
 helloDecoder =
-    Decode.succeed Hello
+    Decode.succeed Hello_
         |>  required "world" Decode.string""",
         }
