@@ -6,7 +6,6 @@ import defo from "@icelab/defo";
 
 const views = {
   djelm{{cookiecutter.program_name}}: async (el: HTMLElement, data: any) => {
-    console.log("Hello from defo!")
     //@ts-ignore
     const { Elm } = await import("../src/{{cookiecutter.program_name}}.elm")
 

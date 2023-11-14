@@ -256,7 +256,6 @@ def _prepare_object_helper(d: ObjectFlag, decoder_start: str) -> ObjHelperReturn
                     else:
                         alias_values += f"\n    {BoolDecoder(k).nested_alias()}"
                 case ObjectFlag(obj=obj):
-                    # TODO add alias extra
                     prepared_object_recursive = _prepare_object_helper(
                         ObjectFlag(obj), ObjectDecoder(k).pipeline_starter()
                     )

@@ -5,7 +5,7 @@ import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick)
 import Json.Decode exposing (decodeValue)
 import Json.Encode exposing (Value)
-import Models.Main exposing (ToModel, toModel)
+import Models.{{cookiecutter.program_name}} exposing (ToModel, toModel)
 
 
 type Msg

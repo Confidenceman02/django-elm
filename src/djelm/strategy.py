@@ -379,10 +379,7 @@ class CreateStrategy:
                 f"""
 ✨ I created the {style.SUCCESS(f"{app_name}")} djelm app for you.
 
-Make sure you add {style.SUCCESS(f"{app_name}")} to INSTALLED_APPS in settings.py then run the following command to initalise an Elm project:
-
-python manage.py elm init {app_name}
-
+Make sure you add {style.SUCCESS(f"{app_name}")} to INSTALLED_APPS in settings.py.
 """
             )
             return ExitSuccess(None)
