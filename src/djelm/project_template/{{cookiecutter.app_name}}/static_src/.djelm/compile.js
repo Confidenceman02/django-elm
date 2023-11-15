@@ -1,5 +1,6 @@
 "use strict";
 const _core = require("@parcel/core");
+const args = process.argv.slice(2);
 let bundler = new _core.Parcel({
   entries: "./djelm_src/*.ts",
   defaultConfig: "@parcel/config-default",

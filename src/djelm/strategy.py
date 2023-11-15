@@ -64,7 +64,7 @@ class WatchStrategy:
         if src_path.tag == "Success":
             try:
                 # first pass compile on start of watch
-                npm.command(os.path.join(src_path.value), ["run", "compile"])
+                npm.command(os.path.join(src_path.value), ["run", "compile:dev"])
                 return asyncio.run(
                     self.watch(
                         npm,
