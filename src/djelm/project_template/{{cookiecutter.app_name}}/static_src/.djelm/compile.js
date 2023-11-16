@@ -4,6 +4,7 @@ const args = process.argv.slice(2);
 let bundler = new _core.Parcel({
   entries: "./djelm_src/*.ts",
   defaultConfig: "@parcel/config-default",
+  mode: args[0],
   defaultTargetOptions: {
     distDir: "../static/dist",
   },
