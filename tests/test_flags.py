@@ -236,10 +236,10 @@ type alias Hello_ =
     { world : String
     }""",
             "decoder_body": """Decode.succeed ToModel
-        |>  required "hello" helloDecoder
+        |>  required "hello" hello_Decoder
 
-helloDecoder : Decode.Decoder Hello_
-helloDecoder =
+hello_Decoder : Decode.Decoder Hello_
+hello_Decoder =
     Decode.succeed Hello_
         |>  required "world" Decode.string""",
         }
