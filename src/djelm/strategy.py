@@ -71,7 +71,7 @@ class WatchStrategy:
                     self.watch(
                         npm,
                         src_path.value,
-                        ["run", "compile"],
+                        ["run", "compile:dev"],
                         os.path.join(src_path.value, "src"),
                         logger,
                     )
