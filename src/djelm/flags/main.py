@@ -4,56 +4,72 @@ from dataclasses import dataclass
 from pydantic import BaseModel, Strict, TypeAdapter
 from typing_extensions import Annotated
 
+
 _annotated_string = Annotated[str, Strict()]
 _annotated_int = Annotated[int, Strict()]
 _annotated_float = Annotated[float, Strict()]
 _annotated_bool = Annotated[bool, Strict()]
+
 
 _StringAdapter = TypeAdapter(_annotated_string)
 _IntAdapter = TypeAdapter(_annotated_int)
 _FloatAdapter = TypeAdapter(_annotated_float)
 _BoolAdapter = TypeAdapter(_annotated_bool)
 
+
 @dataclass(slots=True)
 class StringFlag:
     """Flag for the Elm String primitive"""
+
     adapter = _StringAdapter
 
 
 @dataclass(slots=True)
 class IntFlag:
     """Flag for the Elm Int primitive"""
+
     adapter = _IntAdapter
 
 
 @dataclass(slots=True)
 class FloatFlag:
     """Flag for the Elm Float primitive"""
+
     adapter = _FloatAdapter
 
 
 @dataclass(slots=True)
 class BoolFlag:
     """Flag for the Elm Bool primitive"""
+
     adapter = _BoolAdapter
+
 
 @dataclass(slots=True)
 class ListFlag:
     """Flag for the Elm List primitive"""
+
     obj: "Primitive"
+
 
 @dataclass(slots=True)
 class ObjectFlag:
     """Flag for the Elm {} primitive"""
+
     obj: typing.Dict[str, "Primitive"]
+
 
 class K(BaseModel):
     pass
+
+
 Primitive = StringFlag | IntFlag | FloatFlag | BoolFlag | ListFlag | ObjectFlag
 FlagsObject = dict[str, "PrimitiveFlag"]
 FlagsList = list["PrimitiveFlag"]
 FlagsArgListType = type[list[K]]
-PrimitiveFlagType = type[str] | type[int] | type[float] | type[bool] | type[BaseModel] | type[list]
+PrimitiveFlagType = (
+    type[str] | type[int] | type[float] | type[bool] | type[BaseModel] | type[list]
+)
 PrimitiveFlag = str | int | float | bool | FlagsObject | FlagsList
 
 ObjHelperReturn = typing.TypedDict(
@@ -66,11 +82,10 @@ ObjHelperReturn = typing.TypedDict(
 )
 
 
-
-
 @dataclass(slots=True)
 class StringDecoder:
     """Decoder helper for the Elm String primitive"""
+
     value: str
 
     def pipeline(self):
@@ -90,6 +105,7 @@ class StringDecoder:
 @dataclass(slots=True)
 class IntDecoder:
     """Decoder helper for the Elm Int primitive"""
+
     value: str
 
     def pipeline(self):
@@ -109,6 +125,7 @@ class IntDecoder:
 @dataclass(slots=True)
 class BoolDecoder:
     """Decoder helper for the Elm Bool primitive"""
+
     value: str
 
     def pipeline(self):
@@ -124,9 +141,11 @@ class BoolDecoder:
     def _raw_decoder():
         return "Decode.bool"
 
+
 @dataclass(slots=True)
 class FloatDecoder:
     """Decoder helper for the Elm Float primitive"""
+
     value: str
 
     def pipeline(self):
@@ -142,21 +161,28 @@ class FloatDecoder:
     def _raw_decoder():
         return "Decode.float"
 
+
 @dataclass(slots=True)
 class ListDecoder:
     """Decoder helper for the Elm List primitive"""
+
     value: str
     target: str
+
     def pipeline(self):
-        return f"""|>  required "{self.value}" {ListDecoder._raw_decoder(self.target)}"""
+        return (
+            f"""|>  required "{self.value}" {ListDecoder._raw_decoder(self.target)}"""
+        )
 
     @staticmethod
     def _raw_decoder(target: str):
         return f"Decode.list({target})"
 
+
 @dataclass(slots=True)
 class ObjectDecoder:
     """Decoder helper for the Elm {} primitive"""
+
     value: str
     depth: int
 
@@ -176,7 +202,10 @@ class ObjectDecoder:
         return self.value[0].upper() + self.value[1:] + self._depth_markers()
 
     def _to_decoder_annotation(self):
-        return f"""{self.value + self._depth_markers()}Decoder : Decode.Decoder {self._to_alias()}\n{self.value + self._depth_markers()}Decoder ="""
+        return f"""{self.value + self._depth_markers()}Decoder : Decode.Decoder {self._to_alias()}\n{self._to_decoder_name()}"""
+
+    def _to_decoder_name(self):
+        return f"""{self.value + self._depth_markers()}Decoder ="""
 
     def _to_alias_definition(self, body: str):
         return f"""\n\ntype alias {self._to_alias()} =\n    {body}"""
@@ -261,7 +290,9 @@ class BaseFlag(metaclass=FlagMetaClass):
         return VS
 
 
-def _prepare_object_helper(d: ObjectFlag, decoder_start: str, depth: int = 1) -> ObjHelperReturn:
+def _prepare_object_helper(
+    d: ObjectFlag, decoder_start: str, depth: int = 1
+) -> ObjHelperReturn:
     anno: typing.Dict[str, PrimitiveFlagType] = {}
     pipeline_decoder: str = decoder_start
     alias_values: str = ""
@@ -306,7 +337,9 @@ def _prepare_object_helper(d: ObjectFlag, decoder_start: str, depth: int = 1) ->
                         alias_values += f"\n    {BoolDecoder(k).nested_alias()}"
                 case ObjectFlag(obj=obj):
                     prepared_object_recursive = _prepare_object_helper(
-                        ObjectFlag(obj), ObjectDecoder(k, depth).pipeline_starter(), depth + 1
+                        ObjectFlag(obj),
+                        ObjectDecoder(k, depth).pipeline_starter(),
+                        depth + 1,
                     )
                     anno[k] = type(
                         "K",
@@ -319,33 +352,45 @@ def _prepare_object_helper(d: ObjectFlag, decoder_start: str, depth: int = 1) ->
                     alias_extra += ObjectDecoder(k, depth)._to_alias_definition(
                         prepared_object_recursive["alias_values"]
                     )
-                    pipeline_decoder += f"""\n        {ObjectDecoder(k, depth).pipeline()}"""
+                    pipeline_decoder += (
+                        f"""\n        {ObjectDecoder(k, depth).pipeline()}"""
+                    )
                     if idx == 0:
                         alias_values += f" {ObjectDecoder(k, depth).alias()}"
                     else:
-                        alias_values += f"\n    {ObjectDecoder(k, depth).nested_alias()}"
+                        alias_values += (
+                            f"\n    {ObjectDecoder(k, depth).nested_alias()}"
+                        )
 
-                # case ListFlag(obj=obj):
-                #     match obj:
-                #         case ObjectFlag(obj=obj1):
-                #             prepared_object_recursive = _prepare_object_helper(
-                #                 ObjectFlag(obj1), ObjectDecoder(k, depth).pipeline_starter(), depth + 1
-                #             )
-                #             anno[k] = typing.List[type(
-                #                 "K",
-                #                 (BaseModel,),
-                #                 {"__annotations__": prepared_object_recursive["anno"]},
-                #             )]
-                #             decoder_extra += (
-                #                 f"\n\n{prepared_object_recursive['pipeline_decoder']}"
-                #             )
-                #             alias_extra += ObjectDecoder(k, depth)._to_alias_definition(
-                #                 prepared_object_recursive["alias_values"]
-                #             )
-                #         pipeline_decoder += f"""\n        {ObjectDecoder(k, depth).pipeline()}"""
-                #         case other_primitive:
-                #             # TODO: Handle with a Raw decoder
-                #             pass
+                case ListFlag(obj=obj):
+                    match obj:
+                        case ObjectFlag(obj=obj1):
+                            prepared_object_recursive = _prepare_object_helper(
+                                ObjectFlag(obj1),
+                                ObjectDecoder(k, depth).pipeline_starter(),
+                                depth + 1,
+                            )
+                            anno[k] = typing.List[
+                                type(
+                                    "K",
+                                    (BaseModel,),
+                                    {
+                                        "__annotations__": prepared_object_recursive[
+                                            "anno"
+                                        ]
+                                    },
+                                )
+                            ]
+                            decoder_extra += (
+                                f"\n\n{prepared_object_recursive['pipeline_decoder']}"
+                            )
+                            alias_extra += ObjectDecoder(k, depth)._to_alias_definition(
+                                prepared_object_recursive["alias_values"]
+                            )
+                            pipeline_decoder += f"""\n        {ListDecoder(k, ObjectDecoder(k, depth)._to_decoder_name()).pipeline()}"""
+                        # case other_primitive:
+                        #     # TODO: Handle with a Raw decoder
+                        #     pass
 
                 case _:
                     raise Exception("Unsopported type")
