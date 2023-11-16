@@ -263,8 +263,15 @@ Primitive = (
 )
 FlagsObject = dict[str, "PrimitiveFlag"]
 FlagsList = list["PrimitiveFlag"]
+FlagsNullable = typing.Union[type[str], type[int], type[float], type[bool], type[None]]
 PrimitiveFlagType = (
-    type[str] | type[int] | type[float] | type[bool] | type[BaseModel] | type[list]
+    type[str]
+    | type[int]
+    | type[float]
+    | type[bool]
+    | type[BaseModel]
+    | type[list]
+    | FlagsNullable
 )
 PrimitiveFlag = str | int | float | bool | FlagsObject | FlagsList | None
 ObjHelperReturn = typing.TypedDict(
@@ -484,17 +491,35 @@ def _prepare_object_helper(
                 case NullableFlag(obj=obj1):
                     match obj1:
                         case NullableFlag(obj=obj2):
+                            # TODO
                             raise Exception(
                                 "djelm doesn't support NullabelFlag(NullableFlag) types"
                             )
+                            # TODO
                         case ObjectFlag(obj=obj2):
                             raise Exception(
                                 "djelm doesn't support NullabelFlag(ObjectFlag) types"
                             )
+                            # TODO
                         case ListFlag(obj=obj2):
                             raise Exception(
                                 "djelm doesn't support NullabelFlag(ListFlag) types"
                             )
+                        case other_flag:
+                            anno[k] = typing.Union[other_flag.t, None]  # type:ignore
+                            nullable_decoder = NullableDecoder(
+                                k, other_flag.decoder, other_flag.elm_t
+                            )
+                            pipeline_decoder += (
+                                f"""\n        {nullable_decoder.pipeline()}"""
+                            )
+
+                            if idx == 0:
+                                alias_values += f" {nullable_decoder.alias()}"
+                            else:
+                                alias_values += (
+                                    f"\n    {nullable_decoder.nested_alias()}"
+                                )
 
                 case _:
                     raise Exception("Unsopported type")

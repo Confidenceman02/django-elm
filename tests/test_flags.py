@@ -231,9 +231,22 @@ class TestObjectFlags:
             == '{"hello":{"world":"I have arrived"}}'
         )
 
+    def test_object_nullable_flag_succeeds(self):
+        """
+        ObjectFlag with NullableFlag are invalid
+        """
+        d = ObjectFlag({"hello": NullableFlag(StringFlag())})
+        d1 = ObjectFlag({"hello": NullableFlag(StringFlag())})
+        SUT = Flags(d)
+        SUT1 = Flags(d1)
+
+        assert SUT.parse({"hello": None}) == '{"hello":null}'
+
+        assert SUT1.parse({"hello": "world"}) == '{"hello":"world"}'
+
     def test_object_nullable_flag_fails(self):
         """
-        ObjectFlag with nested NullableFlag are invalid
+        ObjectFlag with NullableFlag are invalid
         """
         d = ObjectFlag({"hello": NullableFlag(NullableFlag(StringFlag()))})
         d1 = ObjectFlag({"hello": NullableFlag(ObjectFlag({"hello": StringFlag()}))})
@@ -332,4 +345,15 @@ hello_Decoder =
     }""",
             "decoder_body": """Decode.succeed ToModel
         |>  required "hello" (Decode.list Decode.string)""",
+        }
+
+    def test_object_nullable_value_to_elm_data(self):
+        """Values of type ObjectFlag are serialised in to elm types"""
+        d = ObjectFlag({"hello": NullableFlag(StringFlag())})
+        SUT = Flags(d)
+        assert SUT.to_elm_parser_data() == {
+            "alias_type": """{ hello : Maybe String
+    }""",
+            "decoder_body": """Decode.succeed ToModel
+        |>  required "hello" (Decode.nullable Decode.string)""",
         }
