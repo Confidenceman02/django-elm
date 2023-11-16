@@ -15,11 +15,11 @@ const views = {
     });
 
     return {
-      // Called whenever the value of the `defo` attribute changes
+      // Called whenever the value of the `djelm` attribute changes
       update: (newData, oldData) => {
         console.log("Updated")
       },
-      // Caled when the element (or its defo attribute) is removed from the DOM
+      // Called when the element (or its djelm attribute) is removed from the DOM
       destroy: () => {
         console.log("destroyed")
       }
