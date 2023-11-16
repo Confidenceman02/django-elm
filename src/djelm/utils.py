@@ -106,6 +106,10 @@ def module_name(app_name: str):
     return app_name[0].upper() + app_name[1:]
 
 
+def view_name(prog_name: str):
+    return prog_name[0].upper() + prog_name[1:].lower()
+
+
 def tag_file_name(prog_name: str):
     return prog_name[0].lower() + prog_name[1:]
 

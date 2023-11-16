@@ -24,6 +24,7 @@ from .utils import (
     program_file,
     scope_name,
     tag_file_name,
+    view_name,
     walk_level,
 )
 from .validate import Validations
@@ -33,6 +34,7 @@ AddProgramCookieExtra = TypedDict(
     "AddProgramCookieExtra",
     {
         "program_name": str,
+        "view_name": str,
         "tmp_dir": str,
         "tag_file": str,
         "scope": str,
@@ -242,6 +244,7 @@ class AddProgramStrategy:
                     cookie_dir_name="program_template",
                     extra={
                         "program_name": module_name(self.prog_name),
+                        "view_name": view_name(self.prog_name),
                         "tmp_dir": temp_dir_name,
                         "tag_file": tag_file_name(self.prog_name),
                         "scope": scope_name(self.app_name, self.prog_name),
