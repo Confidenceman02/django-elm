@@ -8,4 +8,4 @@ a valid Flag.
 
 from djelm.flags.main import Flags, IntFlag
 
-{{cookiecutter.program_name}}Flags = Flags(IntFlag)
+{{cookiecutter.program_name}}Flags = Flags(IntFlag())
