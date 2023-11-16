@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from pydantic import BaseModel, Strict, TypeAdapter
 from typing_extensions import Annotated
 
-
 _annotated_string = Annotated[str, Strict()]
 _annotated_int = Annotated[int, Strict()]
 _annotated_float = Annotated[float, Strict()]
@@ -136,6 +135,28 @@ class ListDecoder:
 
 
 @dataclass(slots=True)
+class NullableDecoder:
+    """Decoder helper for the Elm Maybe monad"""
+
+    value: str
+    targetDecoderName: str
+    targetTypeName: str
+
+    def pipeline(self):
+        return f"""|>  required "{self.value}" {NullableDecoder._raw_decoder(self.targetDecoderName)}"""
+
+    def alias(self):
+        return f"""{self.value} : Maybe {self.targetTypeName}"""
+
+    def nested_alias(self):
+        return f""", {self.value} : Maybe {self.targetTypeName}"""
+
+    @staticmethod
+    def _raw_decoder(decoder_def: str):
+        return f"(Decode.nullable {decoder_def})"
+
+
+@dataclass(slots=True)
 class ObjectDecoder:
     """Decoder helper for the Elm {} primitive"""
 
@@ -217,6 +238,13 @@ class BoolFlag:
 
 
 @dataclass(slots=True)
+class NullableFlag:
+    """Flag for the Elm Maybe monad"""
+
+    obj: "Primitive"
+
+
+@dataclass(slots=True)
 class ListFlag:
     """Flag for the Elm List primitive"""
 
@@ -230,14 +258,15 @@ class ObjectFlag:
     obj: typing.Dict[str, "Primitive"]
 
 
-Primitive = StringFlag | IntFlag | FloatFlag | BoolFlag | ListFlag | ObjectFlag
+Primitive = (
+    StringFlag | IntFlag | FloatFlag | BoolFlag | ListFlag | ObjectFlag | NullableFlag
+)
 FlagsObject = dict[str, "PrimitiveFlag"]
 FlagsList = list["PrimitiveFlag"]
 PrimitiveFlagType = (
     type[str] | type[int] | type[float] | type[bool] | type[BaseModel] | type[list]
 )
-PrimitiveFlag = str | int | float | bool | FlagsObject | FlagsList
-
+PrimitiveFlag = str | int | float | bool | FlagsObject | FlagsList | None
 ObjHelperReturn = typing.TypedDict(
     "ObjHelperReturn",
     {
@@ -398,13 +427,17 @@ def _prepare_object_helper(
                             raise Exception(
                                 "djelm doesn't support a multi-dimensional list types"
                             )
-                        case ObjectFlag(obj=obj1):
+                        case NullableFlag(obj=obj1):
+                            raise Exception(
+                                "djelm doesn't support a list of nullable types"
+                            )
+                        case ObjectFlag(obj=obj1):  # type:ignore
                             prepared_object_recursive = _prepare_object_helper(
-                                ObjectFlag(obj1),
+                                ObjectFlag(obj1),  # type:ignore
                                 ObjectDecoder(k, depth).pipeline_starter(),
                                 depth + 1,
                             )
-                            anno[k] = typing.List[
+                            anno[k] = typing.List[  # type:ignore
                                 type(
                                     "K",
                                     (BaseModel,),
@@ -436,7 +469,7 @@ def _prepare_object_helper(
                             else:
                                 alias_values += f"\n    {list_decoder.nested_alias()}"
                         case other_flag:
-                            anno[k] = list[other_flag.t]
+                            anno[k] = list[other_flag.t]  # type:ignore
                             list_decoder = ListDecoder(
                                 k, other_flag.decoder, other_flag.elm_t
                             )
@@ -448,6 +481,20 @@ def _prepare_object_helper(
                                 alias_values += f" {list_decoder.alias()}"
                             else:
                                 alias_values += f"\n    {list_decoder.nested_alias()}"
+                case NullableFlag(obj=obj1):
+                    match obj1:
+                        case NullableFlag(obj=obj2):
+                            raise Exception(
+                                "djelm doesn't support NullabelFlag(NullableFlag) types"
+                            )
+                        case ObjectFlag(obj=obj2):
+                            raise Exception(
+                                "djelm doesn't support NullabelFlag(ObjectFlag) types"
+                            )
+                        case ListFlag(obj=obj2):
+                            raise Exception(
+                                "djelm doesn't support NullabelFlag(ListFlag) types"
+                            )
 
                 case _:
                     raise Exception("Unsopported type")

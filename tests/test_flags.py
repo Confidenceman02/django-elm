@@ -7,6 +7,7 @@ from djelm.flags.main import (
     FloatFlag,
     IntFlag,
     ListFlag,
+    NullableFlag,
     ObjectFlag,
     StringFlag,
 )
@@ -218,7 +219,7 @@ class TestBoolFlags:
 
 
 class TestObjectFlags:
-    def test_object_flag_succeeds(self):
+    def test_object_string_flag_succeeds(self):
         """
         Values of type ObjectFlag parse correctly
         """
@@ -226,9 +227,26 @@ class TestObjectFlags:
         SUT = Flags(d)
 
         assert (
-                SUT.parse({"hello": {"world": "I have arrived"}})
-                == '{"hello":{"world":"I have arrived"}}'
+            SUT.parse({"hello": {"world": "I have arrived"}})
+            == '{"hello":{"world":"I have arrived"}}'
         )
+
+    def test_object_nullable_flag_fails(self):
+        """
+        ObjectFlag with nested NullableFlag are invalid
+        """
+        d = ObjectFlag({"hello": NullableFlag(NullableFlag(StringFlag()))})
+        d1 = ObjectFlag({"hello": NullableFlag(ObjectFlag({"hello": StringFlag()}))})
+        d2 = ObjectFlag({"hello": NullableFlag(ListFlag(StringFlag()))})
+
+        with pytest.raises(Exception):
+            Flags(d)
+
+        with pytest.raises(Exception):
+            Flags(d1)
+
+        with pytest.raises(Exception):
+            Flags(d2)
 
     def test_object_list_flag_succeeds(self):
         """
@@ -240,8 +258,8 @@ class TestObjectFlags:
         SUT1 = Flags(d1)
 
         assert (
-                SUT.parse({"hello": [{"world": "I have arrived"}]})
-                == '{"hello":[{"world":"I have arrived"}]}'
+            SUT.parse({"hello": [{"world": "I have arrived"}]})
+            == '{"hello":[{"world":"I have arrived"}]}'
         )
 
         assert SUT1.parse({"hello": ["world"]}) == '{"hello":["world"]}'
