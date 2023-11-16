@@ -18,71 +18,6 @@ _BoolAdapter = TypeAdapter(_annotated_bool)
 
 
 @dataclass(slots=True)
-class StringFlag:
-    """Flag for the Elm String primitive"""
-
-    adapter = _StringAdapter
-
-
-@dataclass(slots=True)
-class IntFlag:
-    """Flag for the Elm Int primitive"""
-
-    adapter = _IntAdapter
-
-
-@dataclass(slots=True)
-class FloatFlag:
-    """Flag for the Elm Float primitive"""
-
-    adapter = _FloatAdapter
-
-
-@dataclass(slots=True)
-class BoolFlag:
-    """Flag for the Elm Bool primitive"""
-
-    adapter = _BoolAdapter
-
-
-@dataclass(slots=True)
-class ListFlag:
-    """Flag for the Elm List primitive"""
-
-    obj: "Primitive"
-
-
-@dataclass(slots=True)
-class ObjectFlag:
-    """Flag for the Elm {} primitive"""
-
-    obj: typing.Dict[str, "Primitive"]
-
-
-class K(BaseModel):
-    pass
-
-
-Primitive = StringFlag | IntFlag | FloatFlag | BoolFlag | ListFlag | ObjectFlag
-FlagsObject = dict[str, "PrimitiveFlag"]
-FlagsList = list["PrimitiveFlag"]
-FlagsArgListType = type[list[K]]
-PrimitiveFlagType = (
-    type[str] | type[int] | type[float] | type[bool] | type[BaseModel] | type[list]
-)
-PrimitiveFlag = str | int | float | bool | FlagsObject | FlagsList
-
-ObjHelperReturn = typing.TypedDict(
-    "ObjHelperReturn",
-    {
-        "anno": typing.Dict[str, PrimitiveFlagType],
-        "pipeline_decoder": str,
-        "alias_values": str,
-    },
-)
-
-
-@dataclass(slots=True)
 class StringDecoder:
     """Decoder helper for the Elm String primitive"""
 
@@ -92,14 +27,18 @@ class StringDecoder:
         return f"""|>  required "{self.value}" {StringDecoder._raw_decoder()}"""
 
     def alias(self) -> str:
-        return f"""{self.value} : String"""
+        return f"""{self.value} : {StringDecoder._raw_type()}"""
 
     def nested_alias(self):
-        return f""", {self.value} : String"""
+        return f""", {self.value} : {StringDecoder._raw_type()}"""
 
     @staticmethod
     def _raw_decoder():
         return "Decode.string"
+
+    @staticmethod
+    def _raw_type():
+        return "String"
 
 
 @dataclass(slots=True)
@@ -112,14 +51,18 @@ class IntDecoder:
         return f"""|>  required "{self.value}" {IntDecoder._raw_decoder()}"""
 
     def alias(self):
-        return f"""{self.value} : Int"""
+        return f"""{self.value} : {IntDecoder._raw_type()}"""
 
     def nested_alias(self):
-        return f""", {self.value} : Int"""
+        return f""", {self.value} : {IntDecoder._raw_type()}"""
 
     @staticmethod
     def _raw_decoder():
         return "Decode.int"
+
+    @staticmethod
+    def _raw_type():
+        return "Int"
 
 
 @dataclass(slots=True)
@@ -132,14 +75,18 @@ class BoolDecoder:
         return f"""|>  required "{self.value}" {BoolDecoder._raw_decoder()}"""
 
     def alias(self):
-        return f"""{self.value} : Bool"""
+        return f"""{self.value} : {BoolDecoder._raw_type()}"""
 
     def nested_alias(self):
-        return f""", {self.value} : Bool"""
+        return f""", {self.value} : {BoolDecoder._raw_type()}"""
 
     @staticmethod
     def _raw_decoder():
         return "Decode.bool"
+
+    @staticmethod
+    def _raw_type():
+        return "Bool"
 
 
 @dataclass(slots=True)
@@ -152,14 +99,18 @@ class FloatDecoder:
         return f"""|>  required "{self.value}" {FloatDecoder._raw_decoder()}"""
 
     def alias(self):
-        return f"""{self.value} : Float"""
+        return f"""{self.value} : {FloatDecoder._raw_type()}"""
 
     def nested_alias(self):
-        return f""", {self.value} : Float"""
+        return f""", {self.value} : {FloatDecoder._raw_type()}"""
 
     @staticmethod
     def _raw_decoder():
         return "Decode.float"
+
+    @staticmethod
+    def _raw_type():
+        return "Float"
 
 
 @dataclass(slots=True)
@@ -223,6 +174,78 @@ class ObjectDecoder:
         for _ in range(self.depth):
             marker += "_"
         return marker
+
+
+@dataclass(slots=True)
+class StringFlag:
+    """Flag for the Elm String primitive"""
+
+    adapter = _StringAdapter
+    t = str
+    elm_t = StringDecoder._raw_type()
+    decoder = StringDecoder._raw_decoder()
+
+
+@dataclass(slots=True)
+class IntFlag:
+    """Flag for the Elm Int primitive"""
+
+    adapter = _IntAdapter
+    t = int
+    elm_t = IntDecoder._raw_type()
+    decoder = IntDecoder._raw_decoder()
+
+
+@dataclass(slots=True)
+class FloatFlag:
+    """Flag for the Elm Float primitive"""
+
+    adapter = _FloatAdapter
+    t = float
+    elm_t = FloatDecoder._raw_type()
+    decoder = FloatDecoder._raw_decoder()
+
+
+@dataclass(slots=True)
+class BoolFlag:
+    """Flag for the Elm Bool primitive"""
+
+    adapter = _BoolAdapter
+    t = bool
+    elm_t = BoolDecoder._raw_type()
+    decoder = BoolDecoder._raw_decoder()
+
+
+@dataclass(slots=True)
+class ListFlag:
+    """Flag for the Elm List primitive"""
+
+    obj: "Primitive"
+
+
+@dataclass(slots=True)
+class ObjectFlag:
+    """Flag for the Elm {} primitive"""
+
+    obj: typing.Dict[str, "Primitive"]
+
+
+Primitive = StringFlag | IntFlag | FloatFlag | BoolFlag | ListFlag | ObjectFlag
+FlagsObject = dict[str, "PrimitiveFlag"]
+FlagsList = list["PrimitiveFlag"]
+PrimitiveFlagType = (
+    type[str] | type[int] | type[float] | type[bool] | type[BaseModel] | type[list]
+)
+PrimitiveFlag = str | int | float | bool | FlagsObject | FlagsList
+
+ObjHelperReturn = typing.TypedDict(
+    "ObjHelperReturn",
+    {
+        "anno": typing.Dict[str, PrimitiveFlagType],
+        "pipeline_decoder": str,
+        "alias_values": str,
+    },
+)
 
 
 class FlagMetaClass(type):
@@ -291,6 +314,8 @@ class BaseFlag(metaclass=FlagMetaClass):
                         raise Exception(
                             f"Can't resolve core_schema type: {d.adapter.core_schema['type']}"
                         )
+
+        assert isinstance(d, (StringFlag, IntFlag, FloatFlag, BoolFlag))
 
         return VS
 
@@ -369,6 +394,10 @@ def _prepare_object_helper(
 
                 case ListFlag(obj=obj):
                     match obj:
+                        case ListFlag(obj=obj1):
+                            raise Exception(
+                                "djelm doesn't support a multi-dimensional list types"
+                            )
                         case ObjectFlag(obj=obj1):
                             prepared_object_recursive = _prepare_object_helper(
                                 ObjectFlag(obj1),
@@ -397,6 +426,19 @@ def _prepare_object_helper(
                                 k,
                                 object_decoder._to_decoder_name(),
                                 object_decoder._to_alias(),
+                            )
+                            pipeline_decoder += (
+                                f"""\n        {list_decoder.pipeline()}"""
+                            )
+
+                            if idx == 0:
+                                alias_values += f" {list_decoder.alias()}"
+                            else:
+                                alias_values += f"\n    {list_decoder.nested_alias()}"
+                        case other_flag:
+                            anno[k] = list[other_flag.t]
+                            list_decoder = ListDecoder(
+                                k, other_flag.decoder, other_flag.elm_t
                             )
                             pipeline_decoder += (
                                 f"""\n        {list_decoder.pipeline()}"""

@@ -159,6 +159,15 @@ class TestFloatFlags:
         }
 
 
+class TestListFlags:
+    def test_fails_to_parse(self):
+        """ListFlag can only be used inside an ObjectFlag"""
+        d = ListFlag(StringFlag())
+
+        with pytest.raises(AssertionError):
+            Flags(d)
+
+
 class TestBoolFlags:
     def test_object_flag_succeeds(self):
         d = ObjectFlag({"hello": BoolFlag()})
@@ -217,8 +226,8 @@ class TestObjectFlags:
         SUT = Flags(d)
 
         assert (
-            SUT.parse({"hello": {"world": "I have arrived"}})
-            == '{"hello":{"world":"I have arrived"}}'
+                SUT.parse({"hello": {"world": "I have arrived"}})
+                == '{"hello":{"world":"I have arrived"}}'
         )
 
     def test_object_list_flag_succeeds(self):
@@ -226,12 +235,16 @@ class TestObjectFlags:
         Values of type ObjectFlag parse correctly
         """
         d = ObjectFlag({"hello": ListFlag(ObjectFlag({"world": StringFlag()}))})
+        d1 = ObjectFlag({"hello": ListFlag(StringFlag())})
         SUT = Flags(d)
+        SUT1 = Flags(d1)
 
         assert (
-            SUT.parse({"hello": [{"world": "I have arrived"}]})
-            == '{"hello":[{"world":"I have arrived"}]}'
+                SUT.parse({"hello": [{"world": "I have arrived"}]})
+                == '{"hello":[{"world":"I have arrived"}]}'
         )
+
+        assert SUT1.parse({"hello": ["world"]}) == '{"hello":["world"]}'
 
     def test_object_flag_fails(self):
         """
@@ -242,6 +255,13 @@ class TestObjectFlags:
 
         with pytest.raises(ValidationError):
             SUT.parse({"hello": "world"})
+
+    def test_object_multi_list_flag_fails(self):
+        """Multi dimensional lists not supported"""
+        d = ObjectFlag({"hello": ListFlag(ListFlag(StringFlag()))})
+
+        with pytest.raises(Exception):
+            Flags(d)
 
     def test_object_value_to_elm_data(self):
         """Values of type ObjectFlag are serialised in to elm types"""
@@ -283,4 +303,15 @@ hello_Decoder : Decode.Decoder Hello_
 hello_Decoder =
     Decode.succeed Hello_
         |>  required "world" Decode.string""",
+        }
+
+    def test_object_simple_list_value_to_elm_data(self):
+        """Values of type ObjectFlag are serialised in to elm types"""
+        d = ObjectFlag({"hello": ListFlag(StringFlag())})
+        SUT = Flags(d)
+        assert SUT.to_elm_parser_data() == {
+            "alias_type": """{ hello : List String
+    }""",
+            "decoder_body": """Decode.succeed ToModel
+        |>  required "hello" (Decode.list Decode.string)""",
         }
