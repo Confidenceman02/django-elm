@@ -264,24 +264,23 @@ hello_Decoder =
         |>  required "world" Decode.string""",
         }
 
+    def test_object_list_value_to_elm_data(self):
+        """Values of type ObjectFlag are serialised in to elm types"""
+        d = ObjectFlag({"hello": ListFlag(ObjectFlag({"world": StringFlag()}))})
+        SUT = Flags(d)
 
-#     def test_object_list_value_to_elm_data(self):
-#         """Values of type ObjectFlag are serialised in to elm types"""
-#         d = ObjectFlag({"hello": ListFlag(ObjectFlag({"world": StringFlag()}))})
-#         SUT = Flags(d)
-#
-#         assert SUT.to_elm_parser_data() == {
-#             "alias_type": """{ hello : Hello_
-#     }
-#
-# type alias Hello_ =
-#     { world : String
-#     }""",
-#             "decoder_body": """Decode.succeed ToModel
-#         |>  required "hello" hello_Decoder
-#
-# hello_Decoder : Decode.Decoder Hello_
-# hello_Decoder =
-#     Decode.succeed Hello_
-#         |>  required "world" Decode.string""",
-#         }
+        assert SUT.to_elm_parser_data() == {
+            "alias_type": """{ hello : List Hello_
+    }
+
+type alias Hello_ =
+    { world : String
+    }""",
+            "decoder_body": """Decode.succeed ToModel
+        |>  required "hello" (Decode.list hello_Decoder)
+
+hello_Decoder : Decode.Decoder Hello_
+hello_Decoder =
+    Decode.succeed Hello_
+        |>  required "world" Decode.string""",
+        }

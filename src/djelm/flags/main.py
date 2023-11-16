@@ -167,16 +167,21 @@ class ListDecoder:
     """Decoder helper for the Elm List primitive"""
 
     value: str
-    target: str
+    targetDecoderName: str
+    targetTypeName: str
 
     def pipeline(self):
-        return (
-            f"""|>  required "{self.value}" {ListDecoder._raw_decoder(self.target)}"""
-        )
+        return f"""|>  required "{self.value}" {ListDecoder._raw_decoder(self.targetDecoderName)}"""
+
+    def alias(self):
+        return f"""{self.value} : List {self.targetTypeName}"""
+
+    def nested_alias(self):
+        return f""", {self.value} : List {self.targetTypeName}"""
 
     @staticmethod
-    def _raw_decoder(target: str):
-        return f"Decode.list({target})"
+    def _raw_decoder(decoder_def: str):
+        return f"(Decode.list {decoder_def})"
 
 
 @dataclass(slots=True)
@@ -202,10 +207,10 @@ class ObjectDecoder:
         return self.value[0].upper() + self.value[1:] + self._depth_markers()
 
     def _to_decoder_annotation(self):
-        return f"""{self.value + self._depth_markers()}Decoder : Decode.Decoder {self._to_alias()}\n{self._to_decoder_name()}"""
+        return f"""{self.value + self._depth_markers()}Decoder : Decode.Decoder {self._to_alias()}\n{self._to_decoder_name()} ="""
 
     def _to_decoder_name(self):
-        return f"""{self.value + self._depth_markers()}Decoder ="""
+        return f"""{self.value + self._depth_markers()}Decoder"""
 
     def _to_alias_definition(self, body: str):
         return f"""\n\ntype alias {self._to_alias()} =\n    {body}"""
@@ -387,10 +392,20 @@ def _prepare_object_helper(
                             alias_extra += ObjectDecoder(k, depth)._to_alias_definition(
                                 prepared_object_recursive["alias_values"]
                             )
-                            pipeline_decoder += f"""\n        {ListDecoder(k, ObjectDecoder(k, depth)._to_decoder_name()).pipeline()}"""
-                        # case other_primitive:
-                        #     # TODO: Handle with a Raw decoder
-                        #     pass
+                            object_decoder = ObjectDecoder(k, depth)
+                            list_decoder = ListDecoder(
+                                k,
+                                object_decoder._to_decoder_name(),
+                                object_decoder._to_alias(),
+                            )
+                            pipeline_decoder += (
+                                f"""\n        {list_decoder.pipeline()}"""
+                            )
+
+                            if idx == 0:
+                                alias_values += f" {list_decoder.alias()}"
+                            else:
+                                alias_values += f"\n    {list_decoder.nested_alias()}"
 
                 case _:
                     raise Exception("Unsopported type")
