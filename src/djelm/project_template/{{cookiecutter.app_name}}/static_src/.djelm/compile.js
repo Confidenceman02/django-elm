@@ -13,7 +13,7 @@ async function Main() {
   try {
     let { bundleGraph, buildTime } = await bundler.run();
     let bundles = bundleGraph.getBundles();
-    console.log(`✨ Built ${bundles.length} bundles in ${buildTime}ms!`);
+    console.log(`✨ Built ${bundles.length} bundles in ${buildTime}ms!\n`);
   } catch (err) {
     console.error(err.diagnostics);
     process.exit(1);

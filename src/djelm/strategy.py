@@ -72,7 +72,10 @@ class WatchStrategy:
                         npm,
                         src_path.value,
                         ["run", "compile:dev"],
-                        os.path.join(src_path.value, "src"),
+                        [
+                            os.path.join(src_path.value, "src"),
+                            os.path.join(src_path.value, "djelm_src"),
+                        ],
                         logger,
                     )
                 )
@@ -80,11 +83,18 @@ class WatchStrategy:
                 return ExitSuccess(None)
         return ExitFailure(None, StrategyError("Error"))
 
-    async def watch(self, npm: NPM, path: str, commands: list[str], dir: str, logger):
-        async for changes in awatch(dir):
+    async def watch(
+        self, npm: NPM, path: str, commands: list[str], dir: list[str], logger
+    ):
+        async for changes in awatch(*dir):
             for change, f in changes:
+                # VIM for some reason triggers an ADDED(1) event when saving a buffer
                 if change == 1:
-                    logger.write(f"FILE CHANGE: {f}")
+                    logger.write(f"FILE ADDED: {f}")
+                    # recompile
+                    npm.command(path, commands)
+                if change == 2:
+                    logger.write(f"FILE MODIFIED: {f}")
                     # recompile
                     npm.command(path, commands)
 
