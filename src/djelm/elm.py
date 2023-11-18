@@ -26,7 +26,7 @@ class Elm:
 
     def command(
         self, args: list[str], target_dir: str
-    ) -> ExitSuccess[None] | ExitFailure[None, ElmError | SystemExit]:
+    ) -> ExitSuccess[str] | ExitFailure[None, ElmError | SystemExit]:
         try:
             process = subprocess.Popen(
                 [self.elm_bin_path, *list(args)], cwd=target_dir, stdout=subprocess.PIPE
@@ -41,9 +41,9 @@ class Elm:
             try:
                 os.killpg(os.getpgid(process.pid), signal.SIGTERM)
             except:
-                return ExitSuccess(None)
+                return ExitSuccess(f"cmd: {args}")
 
-            return ExitSuccess(None)
+            return ExitSuccess(f"cmd: {args}")
         except subprocess.CalledProcessError:
             sys.exit(1)
         except OSError as err:
