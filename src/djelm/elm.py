@@ -40,7 +40,7 @@ class Elm:
 
             try:
                 os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-            except:
+            except Exception:
                 return ExitSuccess(f"cmd: {args}")
 
             return ExitSuccess(f"cmd: {args}")

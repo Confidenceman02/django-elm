@@ -192,6 +192,7 @@ class GenerateModelStrategy:
                     extra={
                         "program_name": module_name(self.prog_name),
                         "tmp_dir": temp_dir_name,
+                        "view_name": "",
                         "tag_file": "",
                         "scope": "",
                         "alias_type": flags.to_elm_parser_data()["alias_type"],

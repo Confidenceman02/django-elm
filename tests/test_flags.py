@@ -116,7 +116,7 @@ class TestFloatFlags:
         d = ObjectFlag({"hello": FloatFlag()})
         SUT = Flags(d)
 
-        assert SUT.parse({"hello": 1.0}) == '{"hello":1}'
+        assert SUT.parse({"hello": 1.0}) == '{"hello":1.0}'
 
     def test_dict_flag_fails(self):
         """

@@ -1,6 +1,6 @@
 from typing import Literal
 
-from django.core.management import settings
+from django.conf import settings
 from typing_extensions import TypedDict
 
 from .effect import ExitFailure, ExitSuccess
@@ -74,14 +74,14 @@ manage.py djelm
                         f"{self.__not_a_django_app_log('create')}\n"
                         f"Make sure the <app-name> does not already exist."
                     )
-            case ["npm", app_name, *rest]:
+            case ["npm", app_name, *_]:
                 app_path_exit = get_app_path(app_name)
 
                 if not app_path_exit.tag == "Success":
                     raise ValidationError(self.__not_in_settings("npm", app_name))
                 if not is_djelm(next(walk_level(app_path_exit.value))[2]):
                     raise ValidationError(self.__not_a_django_app_log("npm"))
-            case ["elm", app_name, *rest]:
+            case ["elm", app_name, *_]:
                 app_path_exit = get_app_path(app_name)
 
                 if not app_path_exit.tag == "Success":

@@ -20,7 +20,7 @@ class NPM:
         npm_bin_path = get_config("NODE_PACKAGE_MANAGER")
         try:
             process = subprocess.Popen(
-                [npm_bin_path] + args, cwd=cwd, stdout=subprocess.PIPE
+                [npm_bin_path, *args], cwd=cwd, stdout=subprocess.PIPE
             )
             if process.stdout is None:
                 raise Exception("stdout not available")

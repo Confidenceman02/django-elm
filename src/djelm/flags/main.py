@@ -386,7 +386,7 @@ def _prepare_object_helper(
                         alias_values += f"\n    {IntDecoder(k).nested_alias()}"
 
                 case FloatFlag():
-                    anno[k] = int
+                    anno[k] = float
                     pipeline_decoder += f"""\n        {FloatDecoder(k).pipeline()}"""
 
                     if idx == 0:
@@ -490,18 +490,18 @@ def _prepare_object_helper(
                                 alias_values += f"\n    {list_decoder.nested_alias()}"
                 case NullableFlag(obj=obj1):
                     match obj1:
-                        case NullableFlag(obj=obj2):
+                        case NullableFlag(obj=_):
                             # TODO
                             raise Exception(
                                 "djelm doesn't support NullabelFlag(NullableFlag) types"
                             )
                             # TODO
-                        case ObjectFlag(obj=obj2):
+                        case ObjectFlag(obj=_):
                             raise Exception(
                                 "djelm doesn't support NullabelFlag(ObjectFlag) types"
                             )
                             # TODO
-                        case ListFlag(obj=obj2):
+                        case ListFlag(obj=_):
                             raise Exception(
                                 "djelm doesn't support NullabelFlag(ListFlag) types"
                             )
@@ -523,8 +523,8 @@ def _prepare_object_helper(
 
                 case _:
                     raise Exception("Unsopported type")
-        except:
-            raise Exception("Value needs to be a valid Flag type")
+        except Exception as err:
+            raise err
     return {
         "anno": anno,
         "pipeline_decoder": pipeline_decoder + decoder_extra,
