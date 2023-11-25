@@ -1,0 +1,20 @@
+{
+  "name": "{{ cookiecutter.app_name }}",
+  "version": "1.0.0",
+  "license": "MIT",
+  "scripts": {
+    "compile:dev": "node .djelm/compile.js development",
+    "compile:prod": "node .djelm/compile.js production"
+  },
+  "devDependencies": {
+    "@parcel/config-default": "^2.10.0",
+    "@parcel/core": "^2.10.0",
+    "@parcel/transformer-elm": "^2.10.0",
+    "elm": "^0.19.1-5",
+    "parcel": "^2.9.3",
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "@icelab/defo": "^0.0.3"
+  }
+}

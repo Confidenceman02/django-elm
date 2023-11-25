@@ -1,0 +1,8 @@
+.tox/
+root/
+*.py[cod]
+**/__pycache__/
+.idea
+venv
+.doit.db.db
+**/*.DS_Store
