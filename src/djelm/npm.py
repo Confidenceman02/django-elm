@@ -15,12 +15,15 @@ class NPMError(Exception):
 @dataclass(slots=True)
 class NPM:
     def command(
-        self, cwd: str, args: list[str]
+        self, cwd: str, args: list[str], raise_err: bool = False
     ) -> ExitSuccess[None] | ExitFailure[None, NPMError]:
         npm_bin_path = get_config("NODE_PACKAGE_MANAGER")
         try:
             process = subprocess.Popen(
-                [npm_bin_path, *args], cwd=cwd, stdout=subprocess.PIPE
+                [npm_bin_path, *args],
+                cwd=cwd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
             )
             if process.stdout is None:
                 raise Exception("stdout not available")
@@ -28,6 +31,11 @@ class NPM:
                 sys.stdout.write(c.decode("utf-8", "ignore"))
                 if process.poll() is not None:
                     break
+            for c in iter(lambda: process.stderr.read(), ""):  # type:ignore
+                if c.decode("utf-8", "ignore") is not "" and raise_err:
+                    raise Exception(c.decode("utf-8", "ignore"))
+                break
+
             os.killpg(os.getpgid(process.pid), signal.SIGTERM)
             return ExitSuccess(None)
         except subprocess.CalledProcessError:
