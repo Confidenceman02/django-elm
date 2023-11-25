@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "djelm"
 version = "0.1.0"
-description = "A framework for using Elm programs in Django"
-authors = ["Confidencemna02 <johh.terreu@gmail.com>"]
+description = "A framework for writing Elm programs in Django"
+authors = ["Confidenceman02"]
 readme = "README.md"
 keywords = ["django", "elm"]
 classifiers = [
