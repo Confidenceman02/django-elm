@@ -25,9 +25,14 @@ jobs:
           python -m pip install --user virtualenv
           python -m venv venv
           source venv/bin/activate
-          python -m pip install poetry
+          python -m pip install poetry ruff
           poetry install
+      - name: Lint
+        run: |
+          source venv/bin/activate
+          ruff check src/
       - name: Test with tox
         run: |
           source venv/bin/activate
+          ruff check src/
           poetry run tox
