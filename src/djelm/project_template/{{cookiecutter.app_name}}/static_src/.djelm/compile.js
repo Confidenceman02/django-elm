@@ -15,7 +15,11 @@ async function Main() {
     let bundles = bundleGraph.getBundles();
     console.log(`✨ Built ${bundles.length} bundles in ${buildTime}ms!\n`);
   } catch (err) {
-    console.error(err.diagnostics);
+    if (Array.isArray(err.diagnostics)) {
+      err.diagnostics.forEach((d) => console.error(d.message ? d.message : d));
+    } else {
+      console.error(err.diagnostics);
+    }
     process.exit(1);
   }
 }

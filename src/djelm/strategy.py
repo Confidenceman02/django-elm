@@ -61,12 +61,15 @@ class WatchStrategy:
     def run(
         self, logger, style
     ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
-        npm = NPM()
+        npm = NPM(raise_err=False)
         src_path = get_app_src_path(self.app_name)
         if src_path.tag == "Success":
             try:
                 # first pass compile on start of watch
-                npm.command(os.path.join(src_path.value), ["run", "compile:dev"])
+                npm.command(
+                    os.path.join(src_path.value),
+                    ["run", "compile:dev"],
+                )
                 return asyncio.run(
                     self.watch(
                         npm,

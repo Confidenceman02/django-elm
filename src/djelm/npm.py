@@ -14,8 +14,10 @@ class NPMError(Exception):
 
 @dataclass(slots=True)
 class NPM:
+    raise_err: bool = True
+
     def command(
-        self, cwd: str, args: list[str], raise_err: bool = False
+        self, cwd: str, args: list[str]
     ) -> ExitSuccess[None] | ExitFailure[None, NPMError]:
         npm_bin_path = get_config("NODE_PACKAGE_MANAGER")
         try:
@@ -32,7 +34,7 @@ class NPM:
                 if process.poll() is not None:
                     break
             for c in iter(lambda: process.stderr.read(), ""):  # type:ignore
-                if c.decode("utf-8", "ignore") is not "" and raise_err:
+                if c.decode("utf-8", "ignore") != "" and self.raise_err:
                     raise Exception(c.decode("utf-8", "ignore"))
                 break
 
