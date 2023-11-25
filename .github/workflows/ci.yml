@@ -30,7 +30,7 @@ jobs:
       - name: Lint
         run: |
           source venv/bin/activate
-          ruff check src/
+          ruff check .
       - name: Test with tox
         run: |
           source venv/bin/activate
