@@ -1,4 +1,9 @@
-# Elm integration for Django a.k.a. Django + Elm = 💚
+# DJelm
+
+[![DJelm](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Confidenceman02/django-elm/main/assets/badge/v0.json)](https://github.com/Confidenceman02/django-elm)
+[![Actions status](https://Confidenceman02.github.io/djelm/workflows/CI/badge.svg)](https://github.com/Confidenceman02/django-elm/actions)
+
+# Elm integration for Django a.k.a. Django + Elm = 💚 DJelm
 
 ## Goal
 
