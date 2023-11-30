@@ -52,8 +52,7 @@ class StrategyError(Exception):
 class WatchStrategy:
     """
     Sets up the file watcher for the given djelm app.
-
-    When changes occur it will re-compile the elm programs its finds in 'src' directory.
+    When changes occur it will re-compile the elm programs.
     """
 
     app_name: str
@@ -64,6 +63,9 @@ class WatchStrategy:
         npm = NPM(raise_err=False)
         src_path = get_app_src_path(self.app_name)
         if src_path.tag == "Success":
+            shutil.rmtree(
+                os.path.join(src_path.value, ".parcel-cache"), ignore_errors=True
+            )
             try:
                 # first pass compile on start of watch
                 npm.command(
