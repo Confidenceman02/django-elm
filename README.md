@@ -13,13 +13,13 @@
 Quite often in a server side rendered Django project you reach a point where part of the UI needs to change. Sometimes that
 change is very simple, like a button click that adds or removes a todo item, or perhaps a variety of controls that dynamically updates a map.
 
-Whatever the case, handling these changes typically involves the use of javascript and depending on the UI requirements, could range in complexity greatly.
+Whatever the case, handling these changes typically involves the use of javascript.
 
-Perhaps all you need is a humble script tag to handle a click and update some DOM, but beware, there be dragons! What starts off as humble can easily turn in
-to an unmanagable dumpster fire of spaghetti code, bespoke state management and a littering of header script imports to third party javascript you don't
+Perhaps all you need is a humble event listener to handle a click and update some DOM, but beware, there be dragons! What starts off as humble can easily turn in
+to an unmanagable dumpster fire of spaghetti code, bespoke state management and a littering of header script imports to bloated third party javascript you don't
 even know if you are using.
 
-The goal for Djelm then is to be a bridge to an island of interactivity, leveraging the full power of Elm for all your stateful UI that would otherwise be
+The goal for Djelm then is to be a bridge to an island of interactivity, leveraging the full power of Elm for all your bespoke UI that would otherwise be
 clunky to build.
 
 ## When to use
@@ -38,15 +38,13 @@ In fact I would encourage folks use the following guidelines before leveraging t
      to that of a framework.
 
 3. Try your hardest to justify not using a framework.
-   - Despite Djelm going to great lengths to minimize complexity, there's no getting around it that adding a framework increases your projects complexity footprint.
+   - Despite Djelm going to great lengths to encapsulate complexity, there's no getting around it that adding a framework increases your projects complexity footprint.
      If you realise that some slick UI can be sensibly achieved with the guidelines above, congratulations! You have avoided adding complexity.
 
 I promise that two things will happen if you follow the above advice.
 
 1. You will write far fewer lines of framework code.
-2. The framework code that you do end up writing will not only be justifiably fit for purpose, but if you use Djelm, an absolute joy to write and maintain!
-
-If you are determined that you need a framework for part of your UI, then lets get started!
+2. The framework code that you do end up writing will not only be justifiably fit for purpose, but in the case of Djelm, a robust, correct, reliable joy to maintain!
 
 ## Requirements
 
@@ -58,7 +56,7 @@ Djelm will expect the Elm binary to be in your `PATH`.
 
 Head on over to the [installation guide](https://guide.elm-lang.org/install/elm.html) to get the Elm binary on your system.
 
-After installing, let's make sure Elm is ready to go. On a command line:
+After installing, let's make sure Elm is ready to go. In your terminal run the command:
 
 ```bash
 elm
@@ -92,17 +90,17 @@ INSTALLED_APPS = [
 - Optionally set you package manager of choice.
 
 > [!NOTE]
-> By default Djelm will try to use [pnpm](https://pnpm.io/). Use the [install guide](https://pnpm.io/installation) if you don't have it and would like to use it.
+> If you don't set this variable then Djelm will try to use [pnpm](https://pnpm.io/). Use the [install guide](https://pnpm.io/installation) if you would like to use this default and you don't currently have it installed.
 
 ```python
 # settings.py
 
-NODE_PACKAGE_MANAGER = "npm"
+NODE_PACKAGE_MANAGER = "yarn"
 ```
 
 ## Your first Elm program
 
-The first thing we will need to do is create a directory where all your elm programs will live. Djelm is fairly oppinionated about what lives inside this directory
+The first thing we will need to do is create a directory where all your elm programs will live. Djelm is fairly opinionated about what lives inside this directory
 so for the best experience let's use Djelm commands to create one for us.
 
 From your Django project root:
@@ -149,6 +147,10 @@ Now that we have a place for Elm programs to live let's go ahead and add one!
 python manage.py djelm addprogram elm_programs Main
 ```
 
+> [!TIP]
+> You can change the `Main` argument to whatever makes the most sense for your program. e.g. Map, TodoApp, UserProfile. For the most predictable results when generating a program, ensure you use the
+> Elm module naming conventions which you can find [here](https://guide.elm-lang.org/webapps/modules).
+
 Looking at the `elm_programs` directory we can see a few things have been added.
 
 > [!NOTE]
@@ -182,13 +184,18 @@ elm_programs
     └── main_tags.py *
 ```
 
-Jump in to the `src/Main.elm` file in the `elm_programs` directory and what you will see is a simple Elm program. You could probably work out what this program does just by looking at the `Msg` type!
+Jump in to the `src/Main.elm` file in the `elm_programs` directory and what you will see is a simple Elm program. You might be able to work out what this program does just by looking at the `Msg` type!
+
+```elm
+type Msg
+    = Increment
+    | Decrement
+```
 
 To actually run this Elm program with Django we will need to compile it, for that we will need to install the node packages defined in the `elm_programs` `package.json` file.
 
 > [!NOTE]
-> Elm programs don't actually need node at all to compile, however all Djelm Elm programs are bundled with a very lightweight amount of javascript that handles the DOM binding.
-> Check out the `static_src/djelm_src/Main.ts` file in the `elm_programs` directory if you are curious what that looks like!
+> Elm doesn't actually need node to compile programs. However, Djelm optimzes Elm programs to work with Django templates so a tiny amount of DOM binding code is bundled in.
 
 We can install all node packages with the following command:
 
@@ -196,7 +203,10 @@ We can install all node packages with the following command:
 python manage.py djelm npm elm_programs install
 ```
 
-alternatively you could:
+> [!NOTE]
+> The above command runs `pnpm install` in the `elm_programs/static_src` directory. `pnpm` will be substituted for whatever is in the `NODE_PACKAGE_MANAGER` variable in `settings.py`.
+
+alternatively you could do the following:
 
 ```bash
 cd elm_programs/static_src/ && pnpm install
@@ -214,7 +224,7 @@ You should see some output like the following:
  Built 2 bundles in 100ms!
 ```
 
-Let's take a look at what changed
+Let's take a look at what changed.
 
 ```bash
 elm_programs
@@ -251,13 +261,10 @@ elm_programs
 
 Djelm compiled our `Main.elm` program and bundled it up for us in a place where Django can work with it, awesome!
 
-> [!NOTE]
-> This is a `Development` build so the bundled code is not optimized yet.
-
 Let's now actually render something on the screen by adding our `Main` programs tags in a Django template.
 
 > [!NOTE]
-> I have added this `base.html` template to the `elm_programs/templates` for demonstration purposes. If you already have a Django project you can just add the relevant tags
+> I have added the following `base.html` template to the `elm_programs/templates` directory for demonstration purposes. If you already have a Django project you can just add the relevant tags
 > in whatever templates you want to render the elm program.
 
 ```html

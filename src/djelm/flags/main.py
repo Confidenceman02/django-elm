@@ -9,11 +9,12 @@ _annotated_int = Annotated[int, Strict()]
 _annotated_float = Annotated[float, Strict()]
 _annotated_bool = Annotated[bool, Strict()]
 
-
 _StringAdapter = TypeAdapter(_annotated_string)
 _IntAdapter = TypeAdapter(_annotated_int)
 _FloatAdapter = TypeAdapter(_annotated_float)
 _BoolAdapter = TypeAdapter(_annotated_bool)
+
+PreparedElm = typing.TypedDict("PreparedElm", {"alias_type": str, "decoder_body": str})
 
 
 @dataclass(slots=True)
@@ -124,7 +125,7 @@ class ListDecoder:
         return f"""|>  required "{self.value}" {ListDecoder._raw_decoder(self.targetDecoderName)}"""
 
     def alias(self):
-        return f"""{self.value} : List {self.targetTypeName}"""
+        return f"""{self.value} : {self._raw_type(self.targetTypeName)}"""
 
     def nested_alias(self):
         return f""", {self.value} : List {self.targetTypeName}"""
@@ -132,6 +133,10 @@ class ListDecoder:
     @staticmethod
     def _raw_decoder(decoder_def: str):
         return f"(Decode.list {decoder_def})"
+
+    @staticmethod
+    def _raw_type(targetType: str):
+        return f"(List {targetType})"
 
 
 @dataclass(slots=True)
@@ -155,6 +160,10 @@ class NullableDecoder:
     def _raw_decoder(decoder_def: str):
         return f"(Decode.nullable {decoder_def})"
 
+    @staticmethod
+    def _raw_type(targetType: str):
+        return f"(Maybe {targetType})"
+
 
 @dataclass(slots=True)
 class ObjectDecoder:
@@ -164,7 +173,7 @@ class ObjectDecoder:
     depth: int
 
     def pipeline(self):
-        return f"""|>  required "{self.value}" {self.value + self._depth_markers()}Decoder"""
+        return f"""|>  required "{self.value}" {self._to_decoder_name()}"""
 
     def pipeline_starter(self):
         return f"""{self._to_decoder_annotation()}\n    {self._to_pipeline_succeed()}"""
@@ -201,40 +210,20 @@ class ObjectDecoder:
 class StringFlag:
     """Flag for the Elm String primitive"""
 
-    adapter = _StringAdapter
-    t = str
-    elm_t = StringDecoder._raw_type()
-    decoder = StringDecoder._raw_decoder()
-
 
 @dataclass(slots=True)
 class IntFlag:
     """Flag for the Elm Int primitive"""
-
-    adapter = _IntAdapter
-    t = int
-    elm_t = IntDecoder._raw_type()
-    decoder = IntDecoder._raw_decoder()
 
 
 @dataclass(slots=True)
 class FloatFlag:
     """Flag for the Elm Float primitive"""
 
-    adapter = _FloatAdapter
-    t = float
-    elm_t = FloatDecoder._raw_type()
-    decoder = FloatDecoder._raw_decoder()
-
 
 @dataclass(slots=True)
 class BoolFlag:
     """Flag for the Elm Bool primitive"""
-
-    adapter = _BoolAdapter
-    t = bool
-    elm_t = BoolDecoder._raw_type()
-    decoder = BoolDecoder._raw_decoder()
 
 
 @dataclass(slots=True)
@@ -264,7 +253,7 @@ Primitive = (
 FlagsObject = dict[str, "PrimitiveFlag"]
 FlagsList = list["PrimitiveFlag"]
 FlagsNullable = typing.Union[type[str], type[int], type[float], type[bool], type[None]]
-PrimitiveFlagType = (
+PrimitiveObjectFlagType = (
     type[str]
     | type[int]
     | type[float]
@@ -273,13 +262,25 @@ PrimitiveFlagType = (
     | type[list]
     | FlagsNullable
 )
-PrimitiveFlag = str | int | float | bool | FlagsObject | FlagsList | None
+PrimitiveFlag = (
+    str | int | float | bool | FlagsObject | FlagsList | FlagsNullable | None
+)
 ObjHelperReturn = typing.TypedDict(
     "ObjHelperReturn",
     {
-        "anno": typing.Dict[str, PrimitiveFlagType],
+        "anno": typing.Dict[str, PrimitiveObjectFlagType],
         "pipeline_decoder": str,
         "alias_values": str,
+    },
+)
+SingleHelperReturn = typing.TypedDict(
+    "SingleHelperReturn",
+    {
+        "adapter": TypeAdapter,
+        "anno": PrimitiveObjectFlagType,
+        "alias_extra": str,
+        "decoder_extra": str,
+        "elm_values": PreparedElm,
     },
 )
 
@@ -292,9 +293,11 @@ class FlagMetaClass(type):
 class BaseFlag(metaclass=FlagMetaClass):
     def __new__(cls, d):
         if isinstance(d, ObjectFlag):
-            prepared_object = _prepare_object_helper(d, "Decode.succeed ToModel")
+            prepared_object = _prepare_object_flag_helper(d, "Decode.succeed ToModel")
 
             K = type("K", (BaseModel,), {"__annotations__": prepared_object["anno"]})
+
+            adapter = TypeAdapter(Annotated[K, None])
 
             class VD:
                 """
@@ -303,7 +306,8 @@ class BaseFlag(metaclass=FlagMetaClass):
 
                 @staticmethod
                 def parse(input) -> str:
-                    return K.model_validate(input).model_dump_json()
+                    adapter.validate_python(input)
+                    return adapter.dump_json(input).decode("utf-8")
 
                 @staticmethod
                 def to_elm_parser_data() -> dict[str, str]:
@@ -315,51 +319,121 @@ class BaseFlag(metaclass=FlagMetaClass):
 
             return VD
 
+        prepared_single = _prepare_single_flag_helper(
+            d, ObjectDecoder("inlineToModel", 1)
+        )
+
         class VS:
             """Validates a single flag input"""
 
             @staticmethod
             def parse(input) -> str:
-                d.adapter.validate_python(input)
-                return d.adapter.dump_json(input).decode("utf-8")
+                prepared_single["adapter"].validate_python(input)
+                return prepared_single["adapter"].dump_json(input).decode("utf-8")
 
             @staticmethod
-            def to_elm_parser_data() -> dict[str, str]:
-                match d:
-                    case StringFlag():
-                        return {
-                            "alias_type": "String",
-                            "decoder_body": StringDecoder._raw_decoder(),
-                        }
-                    case IntFlag():
-                        return {
-                            "alias_type": "Int",
-                            "decoder_body": IntDecoder._raw_decoder(),
-                        }
-                    case FloatFlag():
-                        return {
-                            "alias_type": "Float",
-                            "decoder_body": FloatDecoder._raw_decoder(),
-                        }
-                    case BoolFlag():
-                        return {
-                            "alias_type": "Bool",
-                            "decoder_body": BoolDecoder._raw_decoder(),
-                        }
-                    case _:
-                        raise Exception(
-                            f"Can't resolve core_schema type: {d.adapter.core_schema['type']}"
-                        )
+            def to_elm_parser_data() -> PreparedElm:
+                return prepared_single["elm_values"]
 
-        assert isinstance(d, (StringFlag, IntFlag, FloatFlag, BoolFlag))
+        assert isinstance(
+            d, (StringFlag, IntFlag, FloatFlag, BoolFlag, ListFlag, NullableFlag)
+        )
 
         return VS
 
 
-def _prepare_object_helper(
+def _prepare_single_flag_helper(
+    d: Primitive, object_decoder: ObjectDecoder | None = None, depth: int = 1
+) -> SingleHelperReturn:
+    adapter: TypeAdapter
+    anno: PrimitiveObjectFlagType
+    alias_type: str = ""
+    decoder_body = ""
+    decoder_extra: str = ""
+    alias_extra: str = ""
+    match d:
+        case StringFlag():
+            adapter = _StringAdapter
+            anno = _annotated_string
+            alias_type = StringDecoder._raw_type()
+            decoder_body = StringDecoder._raw_decoder()
+        case IntFlag():
+            adapter = _IntAdapter
+            anno = _annotated_int
+            alias_type = IntDecoder._raw_type()
+            decoder_body = IntDecoder._raw_decoder()
+        case FloatFlag():
+            adapter = _FloatAdapter
+            anno = _annotated_float
+            alias_type = FloatDecoder._raw_type()
+            decoder_body = FloatDecoder._raw_decoder()
+        case BoolFlag():
+            adapter = _BoolAdapter
+            anno = _annotated_bool
+            alias_type = BoolDecoder._raw_type()
+            decoder_body = BoolDecoder._raw_decoder()
+        case NullableFlag(obj=obj):
+            single_flag = _prepare_single_flag_helper(obj, object_decoder)
+            t = single_flag["anno"]
+            adapter = TypeAdapter(Annotated[typing.Optional[t], Strict()])
+            anno = typing.Optional[t]  # type:ignore
+            alias_type = NullableDecoder._raw_type(
+                single_flag["elm_values"]["alias_type"]
+            )
+            alias_type += single_flag["alias_extra"]
+            decoder_body = NullableDecoder._raw_decoder(
+                single_flag["elm_values"]["decoder_body"]
+            )
+            decoder_body += single_flag["decoder_extra"]
+        case ListFlag(obj=obj):
+            single_flag = _prepare_single_flag_helper(obj, object_decoder)
+            t = single_flag["anno"]
+            adapter = TypeAdapter(Annotated[list[t], None])
+            anno = list[t]  # type:ignore
+            alias_type = ListDecoder._raw_type(single_flag["elm_values"]["alias_type"])
+            alias_type += single_flag["alias_extra"]
+            decoder_body = ListDecoder._raw_decoder(
+                single_flag["elm_values"]["decoder_body"]
+            )
+            decoder_body += single_flag["decoder_extra"]
+        case ObjectFlag(obj=obj):
+            if object_decoder is None:
+                raise Exception(f"Missing an ObjectDecoder argument for {obj}")
+            object_flag = _prepare_object_flag_helper(
+                d, object_decoder.pipeline_starter(), depth
+            )
+            t = object_flag["anno"]  # type:ignore
+            base = type(
+                "K",
+                (BaseModel,),
+                {"__annotations__": t},
+            )
+            adapter = TypeAdapter(Annotated[base, None])
+            anno = Annotated[base, None]  # type:ignore
+            alias_type = object_decoder._to_alias()
+            alias_extra = object_decoder._to_alias_definition(
+                object_flag["alias_values"]
+            )
+            decoder_body = object_decoder._to_decoder_name()
+            decoder_extra = f"\n\n{object_flag['pipeline_decoder']}"
+        case _:
+            raise Exception(f"Can't resolve core_schema type for: {d}")
+    return {
+        "adapter": adapter,
+        "anno": anno,
+        "alias_extra": alias_extra,
+        "decoder_extra": decoder_extra,
+        "elm_values": {
+            "alias_type": alias_type,
+            "decoder_body": decoder_body,
+        },
+    }
+
+
+def _prepare_object_flag_helper(
     d: ObjectFlag, decoder_start: str, depth: int = 1
 ) -> ObjHelperReturn:
-    anno: typing.Dict[str, PrimitiveFlagType] = {}
+    anno: typing.Dict[str, PrimitiveObjectFlagType] = {}
     pipeline_decoder: str = decoder_start
     alias_values: str = ""
     decoder_extra: str = ""
@@ -367,42 +441,8 @@ def _prepare_object_helper(
     for idx, (k, v) in enumerate(d.obj.items()):
         try:
             match v:
-                case StringFlag():
-                    anno[k] = str
-                    pipeline_decoder += f"""\n        {StringDecoder(k).pipeline()}"""
-
-                    if idx == 0:
-                        alias_values += f" {StringDecoder(k).alias()}"
-                    else:
-                        alias_values += f"\n    {StringDecoder(k).nested_alias()}"
-
-                case IntFlag():
-                    anno[k] = int
-                    pipeline_decoder += f"""\n        {IntDecoder(k).pipeline()}"""
-
-                    if idx == 0:
-                        alias_values += f" {IntDecoder(k).alias()}"
-                    else:
-                        alias_values += f"\n    {IntDecoder(k).nested_alias()}"
-
-                case FloatFlag():
-                    anno[k] = float
-                    pipeline_decoder += f"""\n        {FloatDecoder(k).pipeline()}"""
-
-                    if idx == 0:
-                        alias_values += f" {FloatDecoder(k).alias()}"
-                    else:
-                        alias_values += f"\n    {FloatDecoder(k).nested_alias()}"
-
-                case BoolFlag():
-                    anno[k] = bool
-                    pipeline_decoder += f"""\n        {BoolDecoder(k).pipeline()}"""
-                    if idx == 0:
-                        alias_values += f" {BoolDecoder(k).alias()}"
-                    else:
-                        alias_values += f"\n    {BoolDecoder(k).nested_alias()}"
                 case ObjectFlag(obj=obj):
-                    prepared_object_recursive = _prepare_object_helper(
+                    prepared_object_recursive = _prepare_object_flag_helper(
                         ObjectFlag(obj),
                         ObjectDecoder(k, depth).pipeline_starter(),
                         depth + 1,
@@ -429,97 +469,81 @@ def _prepare_object_helper(
                         )
 
                 case ListFlag(obj=obj):
-                    match obj:
-                        case ListFlag(obj=obj1):
-                            raise Exception(
-                                "djelm doesn't support a multi-dimensional list types"
-                            )
-                        case NullableFlag(obj=obj1):
-                            raise Exception(
-                                "djelm doesn't support a list of nullable types"
-                            )
-                        case ObjectFlag(obj=obj1):  # type:ignore
-                            prepared_object_recursive = _prepare_object_helper(
-                                ObjectFlag(obj1),  # type:ignore
-                                ObjectDecoder(k, depth).pipeline_starter(),
-                                depth + 1,
-                            )
-                            anno[k] = typing.List[  # type:ignore
-                                type(
-                                    "K",
-                                    (BaseModel,),
-                                    {
-                                        "__annotations__": prepared_object_recursive[
-                                            "anno"
-                                        ]
-                                    },
-                                )
-                            ]
-                            decoder_extra += (
-                                f"\n\n{prepared_object_recursive['pipeline_decoder']}"
-                            )
-                            alias_extra += ObjectDecoder(k, depth)._to_alias_definition(
-                                prepared_object_recursive["alias_values"]
-                            )
-                            object_decoder = ObjectDecoder(k, depth)
-                            list_decoder = ListDecoder(
-                                k,
-                                object_decoder._to_decoder_name(),
-                                object_decoder._to_alias(),
-                            )
-                            pipeline_decoder += (
-                                f"""\n        {list_decoder.pipeline()}"""
-                            )
+                    single_flag = _prepare_single_flag_helper(
+                        obj, ObjectDecoder(k, depth)
+                    )
+                    list_decoder = ListDecoder(
+                        k,
+                        single_flag["elm_values"]["decoder_body"],
+                        single_flag["elm_values"]["alias_type"],
+                    )
+                    alias_extra = single_flag["alias_extra"]
+                    decoder_extra = single_flag["decoder_extra"]
+                    anno[k] = list[single_flag["anno"]]  # type:ignore
 
-                            if idx == 0:
-                                alias_values += f" {list_decoder.alias()}"
-                            else:
-                                alias_values += f"\n    {list_decoder.nested_alias()}"
-                        case other_flag:
-                            anno[k] = list[other_flag.t]  # type:ignore
-                            list_decoder = ListDecoder(
-                                k, other_flag.decoder, other_flag.elm_t
-                            )
-                            pipeline_decoder += (
-                                f"""\n        {list_decoder.pipeline()}"""
-                            )
+                    pipeline_decoder += f"""\n        {list_decoder.pipeline()}"""
 
-                            if idx == 0:
-                                alias_values += f" {list_decoder.alias()}"
-                            else:
-                                alias_values += f"\n    {list_decoder.nested_alias()}"
+                    if idx == 0:
+                        alias_values += f" {list_decoder.alias()}"
+                    else:
+                        alias_values += f"\n    {list_decoder.nested_alias()}"
                 case NullableFlag(obj=obj1):
-                    match obj1:
-                        case NullableFlag(obj=_):
-                            # TODO
-                            raise Exception(
-                                "djelm doesn't support NullabelFlag(NullableFlag) types"
-                            )
-                            # TODO
-                        case ObjectFlag(obj=_):
-                            raise Exception(
-                                "djelm doesn't support NullabelFlag(ObjectFlag) types"
-                            )
-                            # TODO
-                        case ListFlag(obj=_):
-                            raise Exception(
-                                "djelm doesn't support NullabelFlag(ListFlag) types"
-                            )
-                        case other_flag:
-                            anno[k] = typing.Union[other_flag.t, None]  # type:ignore
-                            nullable_decoder = NullableDecoder(
-                                k, other_flag.decoder, other_flag.elm_t
-                            )
-                            pipeline_decoder += (
-                                f"""\n        {nullable_decoder.pipeline()}"""
-                            )
+                    single_flag = _prepare_single_flag_helper(
+                        obj1, ObjectDecoder(k, depth)
+                    )
+                    nullable_decoder = NullableDecoder(
+                        k,
+                        single_flag["elm_values"]["decoder_body"],
+                        single_flag["elm_values"]["alias_type"],
+                    )
+                    alias_extra = single_flag["alias_extra"]
+                    decoder_extra = single_flag["decoder_extra"]
+                    anno[k] = typing.Optional[single_flag["anno"]]  # type:ignore
 
-                            if idx == 0:
-                                alias_values += f" {nullable_decoder.alias()}"
-                            else:
-                                alias_values += (
-                                    f"\n    {nullable_decoder.nested_alias()}"
-                                )
+                    pipeline_decoder += f"""\n        {nullable_decoder.pipeline()}"""
+
+                    if idx == 0:
+                        alias_values += f" {nullable_decoder.alias()}"
+                    else:
+                        alias_values += f"\n    {nullable_decoder.nested_alias()}"
+                case StringFlag():
+                    single_prepared = _prepare_single_flag_helper(v)
+                    anno[k] = single_prepared["anno"]
+                    pipeline_decoder += f"""\n        {StringDecoder(k).pipeline()}"""
+
+                    if idx == 0:
+                        alias_values += f" {StringDecoder(k).alias()}"
+                    else:
+                        alias_values += f"\n    {StringDecoder(k).nested_alias()}"
+
+                case IntFlag():
+                    single_prepared = _prepare_single_flag_helper(v)
+                    anno[k] = single_prepared["anno"]
+                    pipeline_decoder += f"""\n        {IntDecoder(k).pipeline()}"""
+
+                    if idx == 0:
+                        alias_values += f" {IntDecoder(k).alias()}"
+                    else:
+                        alias_values += f"\n    {IntDecoder(k).nested_alias()}"
+
+                case FloatFlag():
+                    single_prepared = _prepare_single_flag_helper(v)
+                    anno[k] = single_prepared["anno"]
+                    pipeline_decoder += f"""\n        {FloatDecoder(k).pipeline()}"""
+
+                    if idx == 0:
+                        alias_values += f" {FloatDecoder(k).alias()}"
+                    else:
+                        alias_values += f"\n    {FloatDecoder(k).nested_alias()}"
+
+                case BoolFlag():
+                    single_prepared = _prepare_single_flag_helper(v)
+                    anno[k] = single_prepared["anno"]
+                    pipeline_decoder += f"""\n        {BoolDecoder(k).pipeline()}"""
+                    if idx == 0:
+                        alias_values += f" {BoolDecoder(k).alias()}"
+                    else:
+                        alias_values += f"\n    {BoolDecoder(k).nested_alias()}"
 
                 case _:
                     raise Exception("Unsopported type")
