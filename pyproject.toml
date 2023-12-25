@@ -17,6 +17,10 @@ classifiers = [
     "Framework :: Django"
 ]
 
+[project.urls]
+Repository = "https://github.com/Confidenceman02/django-elm"
+Changelog = "https://github.com/Confidenceman02/django-elm/blob/main/CHANGELOG.md"
+
 packages = [
     { include = "djelm", from = "src" }
 ]

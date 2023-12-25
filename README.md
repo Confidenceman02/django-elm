@@ -1,30 +1,24 @@
-# DJelm
+# Djelm
 
-[![DJelm](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Confidenceman02/django-elm/main/assets/badge/v0.json)](https://github.com/Confidenceman02/django-elm)
+[![Djelm](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Confidenceman02/django-elm/main/assets/badge/v0.json)](https://github.com/Confidenceman02/django-elm)
 [![Actions status](https://Confidenceman02.github.io/djelm/workflows/CI/badge.svg)](https://github.com/Confidenceman02/django-elm/actions)
 [![](https://img.shields.io/badge/license-MIT-blue)](https://github.com/Confidenceman02/django-elm/blob/main/LICENSE)
 
-# Elm integration for Django a.k.a. Django + Elm = 💚 DJelm
+# Elm integration for Django a.k.a. Django + Elm = 💚 Djelm
 
 ---
 
-## Why to use
+## The why
 
-Quite often in a server side rendered Django project you reach a point where part of the UI needs to change. Sometimes that
-change is very simple, like a button click that adds or removes a todo item, or perhaps a variety of controls that dynamically updates a map.
+Elm is a static, strongly typed language with an approachable syntax and provides a way to build reactive UI programs that are robust, correct, and famously, delightful
+to write and maintain.
 
-Whatever the case, handling these changes typically involves the use of javascript.
+The goal for Djelm then is to provide the bridge for Django projects to seamlessly leverage Elm for building reactive UI's. Djelm handles all the implementation for Elm and Django
+to work together so you can focus on the building part rather than the gluing part.
 
-Perhaps all you need is a humble event listener to handle a click and update some DOM, but beware, there be dragons! What starts off as humble can easily turn in
-to an unmanagable dumpster fire of spaghetti code, bespoke state management and a littering of header script imports to bloated third party javascript you don't
-even know if you are using.
+## The when
 
-The goal for Djelm then is to be a bridge to an island of interactivity, leveraging the full power of Elm for all your bespoke UI that would otherwise be
-clunky to build.
-
-## When to use
-
-Djelm is **not intended to be the primary UI** solution for a DJango project, although you will be tempted for it to be so, such is the delightfullness of the Elm language.
+Djelm is **not intended to be the primary UI** solution for a Django project, although you will be tempted for it to be so, such is the delightfullness of the Elm language.
 In fact I would encourage folks use the following guidelines before leveraging the power of a framework like Elm, or any framework for that matter.
 
 1. Push the Django template conventions to their limit.
@@ -37,14 +31,10 @@ In fact I would encourage folks use the following guidelines before leveraging t
    - This combo being able to handle the vast majority of your UI reactivity is entirely conceivable and usually a more light weight approach
      to that of a framework.
 
-3. Try your hardest to justify not using a framework.
-   - Despite Djelm going to great lengths to encapsulate complexity, there's no getting around it that adding a framework increases your projects complexity footprint.
-     If you realise that some slick UI can be sensibly achieved with the guidelines above, congratulations! You have avoided adding complexity.
-
-I promise that two things will happen if you follow the above advice.
+Two things are likely to happen if you follow the above advice.
 
 1. You will write far fewer lines of framework code.
-2. The framework code that you do end up writing will not only be justifiably fit for purpose, but in the case of Djelm, a robust, correct, reliable joy to maintain!
+2. The framework code that you do end up writing will be justifiably fit for purpose.
 
 ## Requirements
 
@@ -69,10 +59,10 @@ You should see a friendly welcome message and some other helpful Elm info.
 > [!NOTE]
 > This set up guide assumes you have a Django project already set up. If not check out the excellent [Django docs](https://docs.djangoproject.com/en/4.2/intro/tutorial01/) to get one going.
 
-- You will need the `django-elm` package, let's get it with `pip`.
+- You will need the `djelm` package, let's get it with `pip`.
 
 ```bash
-pip install django-elm
+pip install djelm
 ```
 
 - Add the `djelm` app to your `INSTALLED_APPS` in `settings.py`
