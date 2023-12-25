@@ -1,12 +1,12 @@
 [tool.poetry]
 name = "djelm"
 version = "0.1.0"
-description = "A framework for writing Elm programs in Django"
+description = "A framework for using Elm programs in a Django project"
 authors = ["Confidenceman02"]
 readme = "README.md"
 keywords = ["django", "elm"]
 classifiers = [
-    "Development Status :: 1 - Planning",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.11",
@@ -27,14 +27,13 @@ django = ">=4.2.5"
 watchfiles = "^0.21.0"
 pydantic = "^2.4.2"
 
-[tool.poetry.dev-dependencies]
-pytest = "^7.4.2"
-pytest-django = "^4.5.2"
-tox = "^4.11.3"
-pre-commit = "^3.4.0"
-
 [tool.poetry.group.test.dependencies]
 pytest = "^7.4.2"
+pytest-django = "^4.5.2"
+
+[tool.poetry.group.dev.dependencies]
+tox = "^4.11.3"
+ruff = "^0.1.9"
 
 [build-system]
 requires = ["poetry-core"]
