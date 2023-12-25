@@ -25,7 +25,7 @@ jobs:
           python -m pip install --user virtualenv
           python -m venv venv
           source venv/bin/activate
-          python -m pip install poetry ruff
+          python -m pip install poetry
           poetry install
       - name: Lint
         run: |
