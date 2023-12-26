@@ -1,3 +1,5 @@
+import argparse
+
 from django.core.management.base import LabelCommand
 
 from ...strategy import (
@@ -40,20 +42,23 @@ Usage example:
         super(Command, self).__init__(*args, **kwargs)
         self.validate = Validations()
 
-    # def add_arguments(self, parser):
-    #     _, unknown = parser.parse_known_args()
-    #
-    #     if unknown[1] and unknown[1] in ["npm"]:
-    #         super(Command, self).add_arguments(parser)
-    #
-    #         for arg in unknown:
-    #             print(arg)
-    #             if arg.startswith("-"):
-    #                 parser.add_argument(arg, type=str)
-    #     else:
-    #         super(Command, self).add_arguments(parser)
+    def add_arguments(self, parser):
+        _, unknown = parser.parse_known_args()
+
+        if 1 < len(unknown) and unknown[1] in ["npm"]:
+            parser.add_argument("strategy")
+            parser.add_argument("app")
+            parser.add_argument("rest", nargs=argparse.REMAINDER)
+
+        else:
+            super(Command, self).add_arguments(parser)
 
     def handle(self, *labels, **options):
+        if len(labels) == 0:
+            # We are dealing with an npm strategy when there are no labels
+            return self.handle_labels(
+                *(options["strategy"], options["app"], *options["rest"])
+            )
         return self.handle_labels(*labels, **options)
 
     def handle_labels(self, *labels, **options):

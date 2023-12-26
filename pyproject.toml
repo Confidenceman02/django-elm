@@ -38,6 +38,7 @@ pytest-django = "^4.5.2"
 [tool.poetry.group.dev.dependencies]
 tox = "^4.11.3"
 ruff = "^0.1.9"
+django-browser-reload = "^1.12.1"
 
 [build-system]
 requires = ["poetry-core"]
