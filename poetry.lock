@@ -110,6 +110,21 @@ argon2 = ["argon2-cffi (>=19.1.0)"]
 bcrypt = ["bcrypt"]
 
 [[package]]
+name = "django-browser-reload"
+version = "1.12.1"
+description = "Automatically reload your browser in development."
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "django-browser-reload-1.12.1.tar.gz", hash = "sha256:875b6bd01db13380522ccb4ae75871a2edeae74bb5ac92bf32eb76763d575d86"},
+    {file = "django_browser_reload-1.12.1-py3-none-any.whl", hash = "sha256:08b457f1b6599bf782d4d2ecdfb0897d6fc936ac4035060d0269c2af5ef4ef7a"},
+]
+
+[package.dependencies]
+asgiref = ">=3.6"
+Django = ">=3.2"
+
+[[package]]
 name = "filelock"
 version = "3.13.1"
 description = "A platform independent file lock."
@@ -591,4 +606,4 @@ anyio = ">=3.0.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "efffc6a56b0edf39bad9825e0cd7bf1c5b59c8170fe500ccee87fb5a0429a2d6"
+content-hash = "f1cac8e61a74b057786b3847290c93de90876564894f7bcdfd4b92bde83bf8c8"
