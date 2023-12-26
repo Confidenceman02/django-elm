@@ -10,11 +10,10 @@
 
 ## The why
 
-Elm is a static, strongly typed language with an approachable syntax and provides a way to build reactive UI programs that are robust, correct, and famously, delightful
+Elm is a static, strongly typed language with an approachable syntax and provides a way to build reactive UI programs that are robust, reliable, and famously, delightful
 to write and maintain.
 
-The goal for Djelm then is to provide the bridge for Django projects to seamlessly leverage Elm for building reactive UI's. Djelm handles all the implementation for Elm and Django
-to work together so you can focus on the building part rather than the gluing part.
+The goal for Djelm then is to provide the bridge for Django projects to seamlessly leverage Elm for building reactive UI's.
 
 ## The when
 
@@ -26,15 +25,15 @@ In fact I would encourage folks use the following guidelines before leveraging t
    - Django has a truly enormous amount of packages that can help you organise tricky UI for forms, tables, pagination, search etc.
      You get the benefit of these tools being tightly integrated with the Django framework, so explore them in depth.
 
-2. Try out a killer combo such as [HTMX](https://htmx.org/) and [Alpine JS](https://alpinejs.dev/)
+2. Try out a killer combo such as [HTMX](https://htmx.org/) and [Alpine JS](https://alpinejs.dev/).
 
    - This combo being able to handle the vast majority of your UI reactivity is entirely conceivable and usually a more light weight approach
      to that of a framework.
 
-Two things are likely to happen if you follow the above advice.
+3. Server render as much as you can.
 
-1. You will write far fewer lines of framework code.
-2. The framework code that you do end up writing will be justifiably fit for purpose.
+   - Djelm makes it possible to use Elm for your UI's like a surgeon's scalpel or a builders hammer and it's important to try find a good balance between an interactive UI
+     and one that is server side rendered(SSR).
 
 ## Requirements
 
@@ -57,7 +56,7 @@ You should see a friendly welcome message and some other helpful Elm info.
 ## Django set up
 
 > [!NOTE]
-> This set up guide assumes you have a Django project already set up. If not check out the excellent [Django docs](https://docs.djangoproject.com/en/4.2/intro/tutorial01/) to get one going.
+> This set up guide assumes you have a Django project already set up. If not, check out the excellent [Django docs](https://docs.djangoproject.com/en/4.2/intro/tutorial01/) to get one going.
 
 - You will need the `djelm` package, let's get it with `pip`.
 
