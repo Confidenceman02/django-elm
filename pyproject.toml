@@ -20,6 +20,7 @@ classifiers = [
 [project.urls]
 Repository = "https://github.com/Confidenceman02/django-elm"
 Changelog = "https://github.com/Confidenceman02/django-elm/blob/main/CHANGELOG.md"
+Issues = "https://github.com/Confidenceman02/django-elm/issues"
 
 packages = [
     { include = "djelm", from = "src" }
