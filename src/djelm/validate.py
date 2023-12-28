@@ -36,7 +36,7 @@ class ValidationError(Exception):
 
 class Validations:
     def acceptable_command(
-        self, labels: list[str], *args
+        self, labels: list[str], *_
     ) -> (
         ExitSuccess[Create | List | AddProgram | Npm | Elm | Watch | GenerateModel]
         | ExitFailure[list[str], ValidationError]
@@ -59,58 +59,69 @@ class Validations:
                 ):
                     raise ValidationError(
                         f"""
-It looks like you are trying to run the 'create' command on the {app_name} app.
+\033[91m-- APP ALREADY EXISTS ------------------------------------------------------------------------------------------------------------------------- command/create\033[0m
 
-I can't 'create' an app that has already been created.
+It looks like you are trying to run the command: 
 
-To see all the available commans run:
-manage.py djelm
+    \033[93mcreate\033[0m
 
-"""
+The app you are targeting is:
+
+    \033[93m{app_name}\033[0m 
+
+But according to your \033[1mINSTALLED_APPS\033[0m variable \033[1m{app_name}\033[0m already exists and I can't \033[1m'create'\033[0m an app that has already been created."""
                     )
 
                 if app_name in settings.INSTALLED_APPS:
                     raise ValidationError(
-                        f"{self.__not_a_django_app_log('create')}\n"
-                        f"Make sure the <app-name> does not already exist."
+                        Validations.__not_a_djelm_app("create", app_name)
                     )
             case ["npm", app_name, *_]:
                 app_path_exit = get_app_path(app_name)
 
                 if not app_path_exit.tag == "Success":
-                    raise ValidationError(self.__not_in_settings("npm", app_name))
+                    raise ValidationError(
+                        Validations.__not_in_settings("npm", app_name)
+                    )
                 if not is_djelm(next(walk_level(app_path_exit.value))[2]):
-                    raise ValidationError(self.__not_a_django_app_log("npm"))
+                    raise ValidationError(
+                        Validations.__not_a_djelm_app("npm", app_name)
+                    )
             case ["elm", app_name, *_]:
                 app_path_exit = get_app_path(app_name)
 
                 if not app_path_exit.tag == "Success":
-                    raise ValidationError(self.__not_in_settings("elm", app_name))
+                    raise ValidationError(
+                        Validations.__not_in_settings("elm", app_name)
+                    )
                 if not is_djelm(next(walk_level(app_path_exit.value))[2]):
-                    raise ValidationError(self.__not_a_django_app_log("elm"))
+                    raise ValidationError(
+                        Validations.__not_a_djelm_app("elm", app_name)
+                    )
             case ["watch", app_name]:
                 app_path_exit = get_app_path(app_name)
 
                 if not app_path_exit.tag == "Success":
                     raise ValidationError(self.__not_in_settings("watch", app_name))
                 if not is_djelm(next(walk_level(app_path_exit.value))[2]):
-                    raise ValidationError(f'{self.__not_a_django_app_log("watch")}\n')
-            case ["addprogram", _]:
+                    raise ValidationError(
+                        f'{Validations.__not_a_djelm_app("watch", app_name)}\n'
+                    )
+            case ["addprogram", app_name]:
                 raise ValidationError(
-                    """
-                    Missing a program name:\n
-                    To set up an elm program I need a name.\n
-                    Try running something like: 'manage.py djelm addprogram <program>'
-                    """
+                    f"""
+
+{Validations.__missing_program_name("addprogram", app_name)}
+
+\033[4m\033[1mHint\033[0m: It helps if the name you choose describes what the program will do, something like \033[1mAddressPicker\033[0m or \033[1mImageCarousel\033[0m.
+
+            e.g. \033[93mdjelm addprogram {app_name} ImageCarousel\033[0m"""
                 )
 
-            case ["generatemodel", _]:
+            case ["generatemodel", app_name]:
                 raise ValidationError(
-                    """
-                    Missing a program name:\n
-                    I need to know what program to generate a model for.\n
-                    Try running something like: 'manage.py djelm generatemodel <program>'
-                    """
+                    f"""
+{Validations.__missing_program_name("generatemodel", app_name)}"""
                 )
 
             case ["addprogram", app_name, _]:
@@ -122,15 +133,21 @@ manage.py djelm
                     )
                 if not is_djelm(next(walk_level(app_path_exit.value))[2]):
                     raise ValidationError(
-                        f'{self.__not_a_django_app_log("addprogram")}\n'
-                        f"make sure the "
+                        f'{Validations.__not_a_djelm_app("addprogram", app_name)}\n'
                     )
                 if not is_init(app_name) or not is_create(app_name):
                     raise ValidationError(
-                        f"It looks like you are missing some files/directories.\n"
-                        f"In order form me to add a program I need to see the following files/directories:\n"
-                        f"{app_name}/elm.json, {app_name}/src/, {app_name}/templates/, {app_name}/templatetags/\n"
-                        f"Make sure you have run 'manage.py djelm create {app_name}' before adding a program"
+                        f"""
+                        {Validations.__missing_files_directories(
+                            "addprogram",
+                            app_name,
+                            [
+                                f"{app_name}/static_src/elm.json",
+                                f"{app_name}/templates/",
+                                f"{app_name}/templatetags/",
+                            ],
+                        )}
+\033[4m\033[1mHint\033[0m: These files are usually automatically generated for you when you run the \033[1mcreate\033[0m commands."""
                     )
 
             case ["generatemodel", app_name, p]:
@@ -142,8 +159,7 @@ manage.py djelm
                     )
                 if not is_djelm(next(walk_level(app_path_exit.value))[2]):
                     raise ValidationError(
-                        f'{self.__not_a_django_app_log("generatemodel")}\n'
-                        f"make sure the "
+                        Validations.__not_a_djelm_app("generatemodel", app_name)
                     )
                 if (
                     not is_init(app_name)
@@ -151,10 +167,18 @@ manage.py djelm
                     or not is_program(app_name, p)
                 ):
                     raise ValidationError(
-                        f"It looks like you are missing some files/directories that I was expecting to be present.\n"
-                        f"In order for me to generate a model I need to see the following files/directories:\n"
-                        f"{app_name}/static_src/elm.json, {app_name}/templates/, {app_name}/templatetags/ {app_name}/static_src/src/{p}.elm\n"
-                        f"Make sure you have run 'manage.py djelm create {app_name}' and 'manage.py djelm addprogram {p}' as those commands will generate everything I need to generating a model."
+                        f"""
+                        {Validations.__missing_files_directories(
+                            "generatemodel",
+                            app_name,
+                            [
+                                f"{app_name}/static_src/elm.json",
+                                f"{app_name}/templates/",
+                                f"{app_name}/templatetags/",
+                                f"{app_name}/static_src/src/{p}.elm",
+                            ],
+                        )}
+\033[4m\033[1mHint\033[0m: These files are usually automatically generated for you when you run the \033[1mcreate\033[0m and \033[1maddprogram\033[0m commands."""
                     )
 
     def __check_command_combos(self, xs: list[str]) -> None:
@@ -177,6 +201,7 @@ manage.py djelm
                 "npm",
                 _,
             ]:
+                # TODO remove constraint
                 raise ValidationError(
                     "I was expecting some arguments for the 'npm' command. run 'manage.py djelm to see examples.'\n"
                 )
@@ -184,54 +209,138 @@ manage.py djelm
                 "elm",
                 _,
             ]:
+                # TODO remove constraint
                 raise ValidationError(
                     "I was expecting some arguments for the 'elm' command. run 'manage.py djelm to see examples.'\n"
                 )
             case [
                 "npm",
             ]:
-                raise ValidationError(self.__missing_app_name_log("npm"))
+                raise ValidationError(Validations.__missing_app_name("npm"))
             case [
                 "elm",
             ]:
-                raise ValidationError(self.__missing_app_name_log("elm"))
+                raise ValidationError(Validations.__missing_app_name("elm"))
             case ["npm", _, *_]:
                 return
             case ["elm", _, *_]:
                 return
             case ["watch"] as command_verb:
-                raise ValidationError(self.__missing_app_name_log(command_verb[0]))
+                raise ValidationError(Validations.__missing_app_name(command_verb[0]))
 
             case ["create"] as command_verb:
-                raise ValidationError(self.__missing_app_name_log(command_verb[0]))
+                raise ValidationError(Validations.__missing_app_name(command_verb[0]))
 
     @staticmethod
-    def __missing_app_name_log(cmd_verb: str) -> str:
+    def __missing_files_directories(
+        cmd_verb: str, app_name: str, files: list[str]
+    ) -> str:
+        missing = ""
+
+        for file in files:
+            missing += f"{file}\n    "
         return f"""
-        Missing argument:
+\033[91m-- MISSING FILES/DIRECTORIES ------------------------------------------------------------------------------------------------------------------------- command/{cmd_verb}\033[0m
+
+It looks like you are trying to run the command:
+
+    \033[93m{cmd_verb}\033[0m
+
+The app you are targeting is:
+
+    \033[93m{app_name}\033[0m
+
+But the {cmd_verb} command needs these files/directories to be present:
+
+    \033[93m{missing}\033[0m"""
+
+    @staticmethod
+    def __missing_program_name(cmd_verb: str, app_name: str) -> str:
+        return f"""
+\033[91m-- MISSING PROGRAM NAME ------------------------------------------------------------------------------------------------------------------------- command/{cmd_verb}\033[0m
+
+It looks like you are trying to run the command:
+
+    \033[93m{cmd_verb}\033[0m
+
+The app you are targeting is:
+
+    \033[93m{app_name}\033[0m
+
+But you haven't included the name of the Elm program you want me to run this command against.
+Make sure that you include a program name when running the \033[1m{cmd_verb}\033[0m command."""
+
+    @staticmethod
+    def __missing_app_name(cmd_verb: str) -> str:
+        return f"""
+
+\033[91m-- MISSING APP NAME ------------------------------------------------------------------------------------------------------------------------- command/{cmd_verb}\033[0m
         
-        The '{cmd_verb}' command is expecting an <app-name>"
-        
-        "The <app-name>  lets me know what app you want me to '{cmd_verb}'."
-        """
+It looks like you are trying to run the command:
+
+    \033[93m{cmd_verb}\033[0m
+
+But you haven't included the name of the djelm app you want me to run this command against.
+
+\033[4m\033[1mHint\033[0m: You can list your current djelm apps by running:
+
+        \033[93mmanage.py djelm list\033[0m"""
+
+    @staticmethod
+    def __invalid_strategy(cmd_verb: str) -> str:
+        return f"""
+
+\033[91m-- INVALID STRATEGY ------------------------------------------------------------------------------------------------------------------------- command/{cmd_verb}\033[0m
+
+It looks like you are trying to run the command:
+
+    \033[93m{cmd_verb}\033[0m
+
+But I don't recognise that command.
+
+Perhaps you meant one of these?:
+
+        \033[93mcreate
+        addprogram
+        watch
+        npm
+        elm
+        generatemodel
+        list\033[0m"""
 
     @staticmethod
     def __not_in_settings(cmd_verb: str, app_name: str) -> str:
         return f"""
 
-It looks like you are trying to run the '{cmd_verb}' command on a djelm app that is not listed in your settings.py.
+\033[91m-- MISSING APP ------------------------------------------------------------------------------------------------------------------------- command/{cmd_verb}\033[0m
 
-Make sure that '{app_name}' exists in your INSTALLED_APPS in settings.py or try run 'manage.py djelm create {app_name}' to create the app if you haven't already.
+It looks like you are trying to run the command:
 
-"""
+    \033[93m{cmd_verb}\033[0m
+
+The app you are targeting is:
+
+    \033[93m{app_name}\033[0m
+
+But I cant find the \033[1m{app_name}\033[0m app.
+
+\033[4m\033[1mHint\033[0m: Make sure that \033[1m{app_name}\033[0m exists in your \033[1mINSTALLED_APPS\033[0m variable in \033[1msettings.py\033[0m"""
 
     @staticmethod
-    def __not_a_django_app_log(cmd_verb: str) -> str:
+    def __not_a_djelm_app(cmd_verb: str, app_name: str) -> str:
         return f"""
-        f"It looks like you are trying to run the '{cmd_verb}' command on an installed app that was not "
-        f"created by djelm.\n"
-        f"I can't run {cmd_verb} on external apps that already exist.\n"
-        """
+
+\033[91m-- NOT A DJELM APP ------------------------------------------------------------------------------------------------------------------------- command/{cmd_verb}\033[0m
+
+It looks like you are trying to run the command:
+
+    \033[93m{cmd_verb}\033[0m
+
+The app you are targeting is:
+
+    \033[93m{app_name}\033[0m
+
+But \033[1m{app_name}\033[0m doesn't look like a djelm app and I can't run commands on apps I didn't create."""
 
     @staticmethod
     def __check_command_verb(s: str) -> None:
@@ -244,7 +353,7 @@ Make sure that '{app_name}' exists in your INSTALLED_APPS in settings.py or try 
             "watch",
             "generatemodel",
         ]:
-            raise ValidationError(f"The command '{s}' is not valid.")
+            raise ValidationError(Validations.__invalid_strategy(s))
 
     @staticmethod
     def __command_exit(
@@ -277,3 +386,16 @@ Make sure that '{app_name}' exists in your INSTALLED_APPS in settings.py or try 
                     cmds,
                     ValidationError(f"\nI can't handle the command arguments {cmds!s}"),
                 )
+
+
+# class bcolors:
+#     HEADER = '\033[95m'
+#     OKBLUE = '\033[94m'
+#     OKCYAN = '\033[96m'
+#     OKGREEN = '\033[92m'
+#     WARNING = '\033[93m'
+#     FAIL = '\033[91m'
+#     ENDC = '\033[0m'
+#     BOLD = '\033[1m'
+#     UNDERLINE = '\033[4m'
+#
