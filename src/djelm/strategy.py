@@ -327,12 +327,17 @@ class AddProgramStrategy:
                     )
 
                     logger.write(
-                        style.SUCCESS(
-                            f"I created an Elm program at {os.path.join(src_path.value, 'src', program_file(self.prog_name))}\n"
-                            f"I created a template at {os.path.join(app_path.value, 'templates', tag_file_name(self.prog_name) + '.html')}\n"
-                            f"I created a template tag at {os.path.join(app_path.value, 'templatetags', tag_file_name(self.prog_name) + '_tags.py')}\n"
-                            f"I created a typescript starter at {os.path.join(src_path.value, 'djelm_src', module_name(self.prog_name) + '.ts')}\n"
-                        )
+                        f"""
+I created the \033[92m{self.prog_name}.elm\033[0m program for you!
+
+Right now it's just a default little program that you can change to your hearts content.
+
+You can find it here:
+
+        \033[92m{os.path.join(src_path.value, 'src', program_file(self.prog_name))}\033[0m
+
+Check out <https://github.com/Confidenceman02/django-elm/blob/main/README.md> to find out how to compile it and see it in the browser.
+"""
                     )
                     return ExitSuccess(None)
                 return ExitFailure(None, err=temp_dir_path.err)
@@ -363,13 +368,16 @@ class ListStrategy:
 
         django_elm_apps = [os.path.basename(r) for r, _, f in dir_data if is_djelm(f)]
 
-        logger.write(style.SUCCESS("Here are all your installed django-elm apps:"))
+        apps = ""
+
         for app in django_elm_apps:
-            logger.write(style.SUCCESS(f"{app}"))
+            apps += f"\033[93m{app}\033[0m\n\t"
+
         logger.write(
-            style.WARNING(
-                "If you don't see all your django-elm apps make sure they are installed in your 'settings.py'."
-            )
+            f"""
+Here are all the djelm apps I found:
+
+        {apps}"""
         )
         return ExitSuccess(django_elm_apps)
 
@@ -396,9 +404,16 @@ class CreateStrategy:
             app_name = os.path.basename(cut_cookie.value)
             logger.write(
                 f"""
-✨ I created the {style.SUCCESS(f"{app_name}")} djelm app for you.
 
-Make sure you add {style.SUCCESS(f"{app_name}")} to INSTALLED_APPS in settings.py.
+Hi there! I have created the \033[92m{f"{app_name}"}\033[0m djelm app for you. This is where all your elm programs will live.
+
+Now you may be wondering, what will be in this app? Where do I add Elm files?
+How does it work with django so I can see it in the browser? How will my code grow? Do I need
+more directories?
+
+Check out <https://github.com/Confidenceman02/django-elm/blob/main/README.md> for all the answers!
+
+For now, make sure you add \033[92m"{f"{app_name}"}"\033[0m to the \033[1mINSTALLED_APPS\033[0m variable in \033[1msettings.py\033[0m.
 """
             )
             return ExitSuccess(None)
