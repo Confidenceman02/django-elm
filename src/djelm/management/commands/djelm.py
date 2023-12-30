@@ -26,6 +26,8 @@ Command arguments are missing, please add one of the following:
   elm <app-name> [args].. - call your designated ELM_BIN_PATH with [args]
   generatemodel <app-name> [args].. - generate a model for the existing program <program-name> in the <app-name> app
   list - to list all your djelm apps
+  compile <app-name> - to compile all your elm programs in the given <app-name> app
+  compilebuild <app-name> - to compile all your elm programs with a production level build in the given <app-name> app
 Usage example:
   python manage.py djelm create djelm_app
   python manage.py djelm addprogram djelm_app MyElmProgram
@@ -34,6 +36,8 @@ Usage example:
   python manage.py djelm elm djelm_app install <elm-package>
   python manage.py djelm generatemodel djelm_app MyElmProgram
   python manage.py djelm list
+  python manage.py djelm compile djelm_app
+  python manage.py djelm compilebuild djelm_app
 """
     validate = None
     strategy: CreateStrategy | AddProgramStrategy | ListStrategy | NpmStrategy | ElmStrategy | WatchStrategy | GenerateModelStrategy

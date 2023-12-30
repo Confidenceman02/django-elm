@@ -30,6 +30,12 @@ def test_validate_failure_when_single_command():
     TestCase().assertIsInstance(
         Validations().acceptable_command(["watch"]), ExitFailure
     )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["compile"]), ExitFailure
+    )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["compilebuild"]), ExitFailure
+    )
 
 
 def test_validate_failure_when_combo_command():
@@ -38,7 +44,7 @@ def test_validate_failure_when_combo_command():
     )
 
 
-def test_validate_failure_when_no_create_sequence():
+def test_validate_failure_when_not_app():
     TestCase().assertIsInstance(
         Validations().acceptable_command(["addprogram", "my_app", "Main"]), ExitFailure
     )
@@ -54,6 +60,12 @@ def test_validate_failure_when_no_create_sequence():
     )
     TestCase().assertIsInstance(
         Validations().acceptable_command(["watch", "my_app"]), ExitFailure
+    )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["compile", "my_app"]), ExitFailure
+    )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["compilebuild", "my_app"]), ExitFailure
     )
 
 
@@ -106,6 +118,12 @@ def test_validate_success_when_create_sequence(settings):
     )
     TestCase().assertIsInstance(
         Validations().acceptable_command(["addprogram", app_name, "Main"]), ExitSuccess
+    )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["compile", app_name]), ExitSuccess
+    )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["compilebuild", app_name]), ExitSuccess
     )
 
     settings.INSTALLED_APPS.remove(app_name)

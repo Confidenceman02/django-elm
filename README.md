@@ -124,8 +124,6 @@ elm_programs
 ├── static
 │   └── dist
 ├── static_src
-│   ├── .djelm
-│   │   └── compile.js
 │   ├── .gitignore
 │   ├── djelm_src
 │   ├── elm.json
@@ -168,8 +166,6 @@ elm_programs
 ├── static
 │   └── dist
 ├── static_src
-│   ├── .djelm
-│   │   └── compile.js
 │   ├── .gitignore
 │   ├── djelm_src
 │   │   └── Main.ts *
@@ -247,8 +243,6 @@ elm_programs
 │   │   └── Main.js *
 │   │   └── Main.js.map *
 ├── static_src
-│   ├── .djelm
-│   │   └── compile.js
 │   ├── .gitignore
 │   ├── djelm_src
 │   │   └── Main.ts
