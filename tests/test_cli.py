@@ -49,16 +49,6 @@ def test_elm_create_directory(settings):
         os.path.join(get_app_path(app_name).value, "static")  # type:ignore
     ), "The elm templates static directory has been created"
 
-    assert os.path.isdir(
-        os.path.join(get_app_src_path(app_name).value, ".djelm")  # type:ignore
-    ), "The elm templates static directory has been created"
-
-    assert os.path.isfile(
-        os.path.join(
-            get_app_src_path(app_name).value, ".djelm", "compile.js"  # type:ignore
-        )
-    ), "The project .gitignore has been generated"
-
     assert os.path.isfile(
         os.path.join(
             get_app_src_path(app_name).value, "elm.json"  # type:ignore

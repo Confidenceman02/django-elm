@@ -1,6 +1,9 @@
 import asyncio
 import os
 import shutil
+import signal
+import subprocess
+import sys
 import types
 import uuid
 from dataclasses import dataclass
@@ -49,6 +52,79 @@ class StrategyError(Exception):
 
 
 @dataclass(slots=True)
+class CompileStrategy:
+    """
+    Compiles all elm programs inside of a djelm app
+    """
+
+    app_name: str
+    build: bool = False
+
+    def run(
+        self, logger, style
+    ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+        src_path = get_app_src_path(self.app_name)
+
+        if src_path.tag == "Success":
+            try:
+                COMPILE_PROGRAM = f"""
+                "use strict";
+                const _core = require("@parcel/core");
+                let bundler = new _core.Parcel({{
+                  entries: "./djelm_src/*.ts",
+                  defaultConfig: "@parcel/config-default",
+                  mode: {"'production'" if self.build else "'development'"},
+                  defaultTargetOptions: {{
+                    distDir: "../static/dist",
+                  }},
+                }});
+                async function Main() {{
+                  try {{
+                    let {{ bundleGraph, buildTime }} = await bundler.run();
+                    let bundles = bundleGraph.getBundles();
+                    console.log(`✨ Built ${{bundles.length}} bundles in ${{buildTime}}ms!\n`);
+                  }} catch (err) {{
+                    if (Array.isArray(err.diagnostics)) {{
+                      err.diagnostics.forEach((d) => console.error(d.message ? d.message : d));
+                    }} else {{
+                      console.error(err.diagnostics);
+                    }}
+                    process.exit(1);
+                  }}
+                }}
+                Main().then(() => process.exit());
+                """
+                process = subprocess.Popen(
+                    [
+                        "node",
+                        "-e",
+                        COMPILE_PROGRAM,
+                    ],
+                    cwd=os.path.join(src_path.value),
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                if process.stdout is None:
+                    raise Exception("stdout not available")
+                for c in iter(lambda: process.stdout.read(1), ""):  # type:ignore
+                    sys.stdout.write(c.decode("utf-8", "ignore"))
+                    if process.poll() is not None:
+                        break
+                for c in iter(lambda: process.stderr.read(), ""):  # type:ignore
+                    if c.decode("utf-8", "ignore") != "":
+                        raise Exception(c.decode("utf-8", "ignore"))
+                    break
+                try:
+                    os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                except Exception as _:
+                    return ExitSuccess(None)
+                return ExitSuccess(None)
+            except subprocess.CalledProcessError:
+                sys.exit(1)
+        return ExitFailure(None, StrategyError("Error"))
+
+
+@dataclass(slots=True)
 class WatchStrategy:
     """
     Sets up the file watcher for the given djelm app.
@@ -60,7 +136,7 @@ class WatchStrategy:
     def run(
         self, logger, style
     ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
-        npm = NPM(raise_err=False)
+        compile = CompileStrategy(self.app_name)
         src_path = get_app_src_path(self.app_name)
         if src_path.tag == "Success":
             shutil.rmtree(
@@ -68,20 +144,16 @@ class WatchStrategy:
             )
             try:
                 # first pass compile on start of watch
-                npm.command(
-                    os.path.join(src_path.value),
-                    ["run", "compile:dev"],
-                )
+                compile.run(logger, style)
                 return asyncio.run(
                     self.watch(
-                        npm,
-                        src_path.value,
-                        ["run", "compile:dev"],
+                        compile,
                         [
                             os.path.join(src_path.value, "src"),
                             os.path.join(src_path.value, "djelm_src"),
                         ],
                         logger,
+                        style,
                     )
                 )
             except KeyboardInterrupt:
@@ -89,19 +161,26 @@ class WatchStrategy:
         return ExitFailure(None, StrategyError("Error"))
 
     async def watch(
-        self, npm: NPM, path: str, commands: list[str], dir: list[str], logger
+        self,
+        compile: CompileStrategy,
+        dir: list[str],
+        logger,
+        style,
     ):
         async for changes in awatch(*dir):
             for change, f in changes:
-                # VIM for some reason triggers an ADDED(1) event when saving a buffer
+                # VIM creates a file to check it can create a file, we want to ignore it
+                if f.endswith("4913"):
+                    continue
+                # VIM for some reason triggers an ADDED(2) event when saving a buffer
                 if change == 1:
                     logger.write(f"FILE ADDED: {f}")
                     # recompile
-                    npm.command(path, commands)
+                    compile.run(logger, style)
                 if change == 2:
                     logger.write(f"FILE MODIFIED: {f}")
                     # recompile
-                    npm.command(path, commands)
+                    compile.run(logger, style)
 
         return ExitSuccess(None)
 
@@ -405,7 +484,7 @@ class CreateStrategy:
             logger.write(
                 f"""
 
-Hi there! I have created the \033[92m{f"{app_name}"}\033[0m djelm app for you. This is where all your elm programs will live.
+Hi there! I have created the \033[92m{f"{app_name}"}\033[0m djelm app for you. This is where all your Elm programs will live.
 
 Now you may be wondering, what will be in this app? Where do I add Elm files?
 How does it work with django so I can see it in the browser? How will my code grow? Do I need
@@ -432,6 +511,7 @@ class Strategy:
         | NpmStrategy
         | WatchStrategy
         | GenerateModelStrategy
+        | CompileStrategy
     ):
         e = Validations().acceptable_command(list(labels))
         match e:
@@ -467,5 +547,9 @@ class Strategy:
                 value={"command": "elm", "app_name": app_name, "args": args}
             ):
                 return ElmStrategy(cast(str, app_name), cast(list[str], args))
+            case ExitSuccess(
+                value={"command": "compile", "app_name": app_name, "build": build}
+            ):
+                return CompileStrategy(cast(str, app_name), cast(bool, build))
             case _ as x:
                 raise StrategyError(f"Unable to handle {x}")

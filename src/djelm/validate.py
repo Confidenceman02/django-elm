@@ -28,6 +28,10 @@ GenerateModel = TypedDict(
     "GenerateModel",
     {"command": Literal["generatemodel"], "app_name": str, "program_name": str},
 )
+Compile = TypedDict(
+    "Compile",
+    {"command": Literal["compile"], "app_name": str, "build": bool},
+)
 
 
 class ValidationError(Exception):
@@ -38,7 +42,9 @@ class Validations:
     def acceptable_command(
         self, labels: list[str], *_
     ) -> (
-        ExitSuccess[Create | List | AddProgram | Npm | Elm | Watch | GenerateModel]
+        ExitSuccess[
+            Create | List | AddProgram | Npm | Elm | Watch | GenerateModel | Compile
+        ]
         | ExitFailure[list[str], ValidationError]
     ):
         try:
@@ -106,6 +112,26 @@ But according to your \033[1mINSTALLED_APPS\033[0m variable \033[1m{app_name}\03
                 if not is_djelm(next(walk_level(app_path_exit.value))[2]):
                     raise ValidationError(
                         f'{Validations.__not_a_djelm_app("watch", app_name)}\n'
+                    )
+            case ["compile", app_name]:
+                app_path_exit = get_app_path(app_name)
+
+                if not app_path_exit.tag == "Success":
+                    raise ValidationError(self.__not_in_settings("compile", app_name))
+                if not is_djelm(next(walk_level(app_path_exit.value))[2]):
+                    raise ValidationError(
+                        f'{Validations.__not_a_djelm_app("compile", app_name)}\n'
+                    )
+            case ["compilebuild", app_name]:
+                app_path_exit = get_app_path(app_name)
+
+                if not app_path_exit.tag == "Success":
+                    raise ValidationError(
+                        self.__not_in_settings("compilebuild", app_name)
+                    )
+                if not is_djelm(next(walk_level(app_path_exit.value))[2]):
+                    raise ValidationError(
+                        f'{Validations.__not_a_djelm_app("compilebuild", app_name)}\n'
                     )
             case ["addprogram", app_name]:
                 raise ValidationError(
@@ -191,12 +217,16 @@ But according to your \033[1mINSTALLED_APPS\033[0m variable \033[1m{app_name}\03
                 return
             case ["generatemodel", _, _]:
                 return
-            case ["list", _]:
-                raise ValidationError(
-                    "The 'list' command doesn't take any arguments\nTry - manage.py djelm list"
-                )
             case ["list"]:
                 return
+            case ["compile", _]:
+                return
+            case ["compilebuild", _]:
+                return
+            case ["list", *rest]:
+                raise ValidationError(
+                    Validations.__too_many_command_args("list", list(rest))
+                )
             case [
                 "npm",
                 _,
@@ -218,6 +248,26 @@ But according to your \033[1mINSTALLED_APPS\033[0m variable \033[1m{app_name}\03
             ]:
                 raise ValidationError(Validations.__missing_app_name("npm"))
             case [
+                "compile",
+            ]:
+                raise ValidationError(Validations.__missing_app_name("compile"))
+            case [
+                "compilebuild",
+            ]:
+                raise ValidationError(Validations.__missing_app_name("compilebuild"))
+            case ["compile", app_name, *rest]:
+                raise ValidationError(
+                    Validations.__too_many_command_args(
+                        "compile " + app_name, list(rest)
+                    )
+                )
+            case ["compilebuild", app_name, *rest]:
+                raise ValidationError(
+                    Validations.__too_many_command_args(
+                        "compilebuild " + app_name, list(rest)
+                    )
+                )
+            case [
                 "elm",
             ]:
                 raise ValidationError(Validations.__missing_app_name("elm"))
@@ -230,6 +280,27 @@ But according to your \033[1mINSTALLED_APPS\033[0m variable \033[1m{app_name}\03
 
             case ["create"] as command_verb:
                 raise ValidationError(Validations.__missing_app_name(command_verb[0]))
+
+    @staticmethod
+    def __too_many_command_args(cmd_verb: str, args: list[str]) -> str:
+        extra_args = ""
+        for arg in args:
+            extra_args += f"{arg} "
+        return f"""
+
+\033[91m-- TOO MANY ARGUMENTS ------------------------------------------------------------------------------------------------------------------------- command/{cmd_verb}\033[0m
+
+It looks like you are trying to run the command:
+
+    \033[93m{cmd_verb}\033[0m
+
+You also included these arguments:
+
+    \033[93m{extra_args}\033[0m
+
+But the \033[1m{cmd_verb}\033[0m command doesn't take any extra arguments.
+
+\033[4m\033[1mHint\033[0m: Try just running \033[1mpython manage.py djelm {cmd_verb}\033[0m"""
 
     @staticmethod
     def __missing_files_directories(
@@ -352,6 +423,8 @@ But \033[1m{app_name}\033[0m doesn't look like a djelm app and I can't run comma
             "addprogram",
             "watch",
             "generatemodel",
+            "compile",
+            "compilebuild",
         ]:
             raise ValidationError(Validations.__invalid_strategy(s))
 
@@ -359,7 +432,9 @@ But \033[1m{app_name}\033[0m doesn't look like a djelm app and I can't run comma
     def __command_exit(
         xs: list[str],
     ) -> (
-        ExitSuccess[Create | List | AddProgram | Npm | Elm | Watch | GenerateModel]
+        ExitSuccess[
+            Create | List | AddProgram | Npm | Elm | Watch | GenerateModel | Compile
+        ]
         | ExitFailure[list[str], ValidationError]
     ):
         match xs:
@@ -367,6 +442,12 @@ But \033[1m{app_name}\033[0m doesn't look like a djelm app and I can't run comma
                 return ExitSuccess({"command": "create", "app_name": v})
             case ["watch", v]:
                 return ExitSuccess({"command": "watch", "app_name": v})
+            case ["compile", v]:
+                return ExitSuccess(
+                    {"command": "compile", "app_name": v, "build": False}
+                )
+            case ["compilebuild", v]:
+                return ExitSuccess({"command": "compile", "app_name": v, "build": True})
             case ["addprogram", v, p]:
                 return ExitSuccess(
                     {"command": "addprogram", "app_name": v, "program_name": p}
