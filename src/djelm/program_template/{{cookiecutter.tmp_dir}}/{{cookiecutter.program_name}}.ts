@@ -16,13 +16,9 @@ const views = {
 
         return {
             // Called whenever the value of the `djelm` attribute changes
-            update: (newData, oldData) => {
-                console.log("Updated")
-            },
+            update: (newData, oldData) => {},
             // Called when the element (or its djelm attribute) is removed from the DOM
-            destroy: () => {
-                console.log("destroyed")
-            }
+            destroy: () => {},
         };
     }
 }
