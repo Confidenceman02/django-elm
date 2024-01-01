@@ -271,25 +271,21 @@ Let's now actually render something in the browser by adding our `Main` programs
 
 ```html
 <!-- base.html -->
-{% load static %} {% load static main_tags %}
-
+{% load static %}{% load static main_tags %}
 <!doctype html>
 <html lang="en">
   <head>
     <title>Django Tailwind</title>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
     {% include_main %}
   </head>
 
   <body>
-    <div>
-      <section>
-        <h1>Django + Elm = ❤️</h1>
-        <div>{% render_main %}</div>
-      </section>
-    </div>
+    <h1>Django + Elm = ❤️</h1>
+    {% render_main %}
+    <h1>Django + Elm + Again!!!!!!!!! = ❤️</h1>
+    {% render_main %}
   </body>
 </html>
 ```
