@@ -271,10 +271,10 @@ inlineToModel_Decoder =
             "alias_type": """(Maybe InlineToModel_)
 
 type alias InlineToModel_ =
-    { hello : Hello_
+    { hello : Hello__
     }
 
-type alias Hello_ =
+type alias Hello__ =
     { world : String
     }""",
             "decoder_body": """(Decode.nullable inlineToModel_Decoder)
@@ -282,11 +282,11 @@ type alias Hello_ =
 inlineToModel_Decoder : Decode.Decoder InlineToModel_
 inlineToModel_Decoder =
     Decode.succeed InlineToModel_
-        |>  required "hello" hello_Decoder
+        |>  required "hello" hello__Decoder
 
-hello_Decoder : Decode.Decoder Hello_
-hello_Decoder =
-    Decode.succeed Hello_
+hello__Decoder : Decode.Decoder Hello__
+hello__Decoder =
+    Decode.succeed Hello__
         |>  required "world" Decode.string""",
         }
 

@@ -371,7 +371,7 @@ def _prepare_inline_flags(
             if object_decoder is None:
                 raise Exception(f"Missing an ObjectDecoder argument for {obj}")
             object_flag = _prepare_pipeline_flags(
-                d, object_decoder.pipeline_starter(), depth
+                d, object_decoder.pipeline_starter(), depth + 1
             )
             t = object_flag["anno"]  # type:ignore
 
