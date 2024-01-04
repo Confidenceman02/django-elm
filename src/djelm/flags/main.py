@@ -447,8 +447,8 @@ def _prepare_pipeline_flags(
                         single_flag["elm_values"]["decoder_body"],
                         single_flag["elm_values"]["alias_type"],
                     )
-                    alias_extra = single_flag["alias_extra"]
-                    decoder_extra = single_flag["decoder_extra"]
+                    alias_extra += single_flag["alias_extra"]
+                    decoder_extra += single_flag["decoder_extra"]
                     anno[k] = list[single_flag["anno"]]  # type:ignore
 
                     pipeline_decoder += f"""\n        {list_decoder.pipeline()}"""
@@ -464,8 +464,8 @@ def _prepare_pipeline_flags(
                         single_flag["elm_values"]["decoder_body"],
                         single_flag["elm_values"]["alias_type"],
                     )
-                    alias_extra = single_flag["alias_extra"]
-                    decoder_extra = single_flag["decoder_extra"]
+                    alias_extra += single_flag["alias_extra"]
+                    decoder_extra += single_flag["decoder_extra"]
                     anno[k] = typing.Optional[single_flag["anno"]]  # type:ignore
 
                     pipeline_decoder += f"""\n        {nullable_decoder.pipeline()}"""

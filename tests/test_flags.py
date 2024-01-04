@@ -546,6 +546,22 @@ class TestBoolFlags:
 
 
 class TestObjectFlags:
+    def test_with_mix_parser(self):
+        d = ObjectFlag(
+            {
+                "hello": ObjectFlag({"world": StringFlag()}),
+                "someList": ListFlag(StringFlag()),
+            }
+        )
+        SUT = Flags(d)
+
+        assert (
+                SUT.parse({"hello": {"world": "I'm here"}, "someList": ["hello", "world"]})
+                == '{"hello":{"world":"I\'m here"},"someList":["hello","world"]}'
+        )
+        with pytest.raises(ValidationError):
+            SUT.parse({"hello": 22})
+
     def test_with_string_parser(self):
         d = ObjectFlag({"hello": StringFlag()})
         SUT = Flags(d)
@@ -559,8 +575,8 @@ class TestObjectFlags:
         SUT = Flags(d)
 
         assert (
-            SUT.parse({"hello": {"world": "I have arrived"}})
-            == '{"hello":{"world":"I have arrived"}}'
+                SUT.parse({"hello": {"world": "I have arrived"}})
+                == '{"hello":{"world":"I have arrived"}}'
         )
         with pytest.raises(ValidationError):
             SUT.parse({"hello": 22})
@@ -638,8 +654,8 @@ class TestObjectFlags:
         SUT = Flags(d)
 
         assert (
-            SUT.parse({"hello": [{"world": "I have arrived"}]})
-            == '{"hello":[{"world":"I have arrived"}]}'
+                SUT.parse({"hello": [{"world": "I have arrived"}]})
+                == '{"hello":[{"world":"I have arrived"}]}'
         )
         with pytest.raises(ValidationError):
             SUT.parse({"hello": "world"})
@@ -661,6 +677,33 @@ class TestObjectFlags:
         assert SUT.parse({"hello": ["null"]}) == '{"hello":["null"]}'
         with pytest.raises(ValidationError):
             SUT.parse({"hello": [22]})
+
+    def test_with_mix_to_elm_parser(self):
+        d = ObjectFlag(
+            {
+                "hello": ObjectFlag({"world": StringFlag()}),
+                "someList": ListFlag(StringFlag()),
+            }
+        )
+        SUT = Flags(d)
+
+        assert SUT.to_elm_parser_data() == {
+            "alias_type": """{ hello : Hello_
+    , someList : List String
+    }
+
+type alias Hello_ =
+    { world : String
+    }""",
+            "decoder_body": """Decode.succeed ToModel
+        |>  required "hello" hello_Decoder
+        |>  required "someList" (Decode.list Decode.string)
+
+hello_Decoder : Decode.Decoder Hello_
+hello_Decoder =
+    Decode.succeed Hello_
+        |>  required "world" Decode.string""",
+        }
 
     def test_with_list_with_nullable_with_string_to_elm_parser(self):
         d = ObjectFlag({"hello": ListFlag(NullableFlag(StringFlag()))})
