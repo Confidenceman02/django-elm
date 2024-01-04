@@ -59,6 +59,7 @@ class CompileStrategy:
 
     app_name: str
     build: bool = False
+    raise_error: bool = True
 
     def run(
         self, logger, style
@@ -112,7 +113,10 @@ class CompileStrategy:
                         break
                 for c in iter(lambda: process.stderr.read(), ""):  # type:ignore
                     if c.decode("utf-8", "ignore") != "":
-                        raise Exception(c.decode("utf-8", "ignore"))
+                        if self.raise_error:
+                            raise Exception(c.decode("utf-8", "ignore"))
+                        else:
+                            sys.stdout.write(c.decode("utf-8", "ignore"))
                     break
                 try:
                     os.killpg(os.getpgid(process.pid), signal.SIGTERM)
@@ -136,7 +140,7 @@ class WatchStrategy:
     def run(
         self, logger, style
     ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
-        compile = CompileStrategy(self.app_name)
+        compile = CompileStrategy(self.app_name, raise_error=False)
         src_path = get_app_src_path(self.app_name)
         if src_path.tag == "Success":
             shutil.rmtree(
