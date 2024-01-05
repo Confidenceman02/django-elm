@@ -15,6 +15,7 @@
 - [Requirements](#requirements)
 - [Elm setup](#elm-setup)
 - [Django setup](#django-setup)
+- [Djelm setup](#djelm-setup)
 - [Your first Elm program](#your-first-elm-program)
   - [create Command](#create-command)
   - [addprogram Command](#addprogram-command)
@@ -49,7 +50,7 @@ that will ensure your use of Djelm is fit for purpose.
 
 # Requirements
 
-Python 3.11 or newer with Django >= 4 or newer.
+Python 3.11 or newer with Django >= 4.2 or newer.
 
 # Elm setup
 
@@ -68,9 +69,40 @@ You should see a friendly welcome message and some other helpful Elm info.
 
 # Django setup
 
-> [!NOTE]
-> This guide assumes you have a Django project already set up or you already know how to create one. If not, check out the
-> excellent [Django docs](https://docs.djangoproject.com/en/4.2/intro/tutorial01/) to get one going.
+If you don't have a Django project ready to go, we will need to take care of some initial setup.
+
+Create a project directory:
+
+```bash
+mkdir django_djelm && cd django_djelm
+```
+
+Let's get the Django package with pip:
+
+```bash
+pip install django
+```
+
+Create the django project:
+
+```bash
+django-admin startproject djelmproject
+```
+
+Lets look at what `startproject` created:
+
+```bash
+djelmproject
+├── manage.py
+├── djelmproject
+│   ├── __init__.py
+│   ├── settings.py
+│   ├── urls.py
+│   ├── asgi.py
+│   └── wsgi.py
+```
+
+# Djelm setup
 
 You will need the `djelm` package, let's get it with `pip`.
 
