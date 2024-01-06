@@ -1,9 +1,8 @@
-import os
-import signal
 import subprocess
 import sys
 
 from djelm import get_config
+from djelm.subprocess import SubProcess
 
 from .effect import ExitFailure, ExitSuccess
 
@@ -28,21 +27,8 @@ class Elm:
         self, args: list[str], target_dir: str
     ) -> ExitSuccess[str] | ExitFailure[None, ElmError | SystemExit]:
         try:
-            process = subprocess.Popen(
-                [self.elm_bin_path, *list(args)], cwd=target_dir, stdout=subprocess.PIPE
-            )
-            if process.stdout is None:
-                raise Exception("stdout not available")
-            while process.poll() is None:
-                char = process.stdout.read(1).decode(sys.stdout.encoding)
-                sys.stdout.write(char)
-                sys.stdout.flush()
-
-            try:
-                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-            except Exception:
-                return ExitSuccess(f"cmd: {args}")
-
+            process = SubProcess([self.elm_bin_path, *list(args)], target_dir, True)
+            process.open()
             return ExitSuccess(f"cmd: {args}")
         except subprocess.CalledProcessError:
             sys.exit(1)
@@ -51,12 +37,6 @@ class Elm:
                 None,
                 ElmError(_elm_binary_log(err)),
             )
-
-    def stream_process(self, process):
-        go = process.poll() is None
-        for line in process.stdout:
-            print(line)
-        return go
 
     @staticmethod
     def elm_binary() -> ExitSuccess[str] | ExitFailure:

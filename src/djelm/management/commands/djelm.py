@@ -4,6 +4,7 @@ from django.core.management.base import LabelCommand
 
 from ...strategy import (
     AddProgramStrategy,
+    CompileStrategy,
     CreateStrategy,
     ElmStrategy,
     GenerateModelStrategy,
@@ -40,7 +41,7 @@ Usage example:
   python manage.py djelm compilebuild djelm_app
 """
     validate = None
-    strategy: CreateStrategy | AddProgramStrategy | ListStrategy | NpmStrategy | ElmStrategy | WatchStrategy | GenerateModelStrategy
+    strategy: CreateStrategy | AddProgramStrategy | ListStrategy | NpmStrategy | ElmStrategy | WatchStrategy | GenerateModelStrategy | CompileStrategy
 
     def __init__(self, *args, **kwargs):
         super(Command, self).__init__(*args, **kwargs)
@@ -57,7 +58,7 @@ Usage example:
         else:
             super(Command, self).add_arguments(parser)
 
-    def handle(self, *labels, **options):
+    def handle(self, *labels, **options):  # type:ignore
         if len(labels) == 0:
             # We are dealing with an npm strategy when there are no labels
             return self.handle_labels(

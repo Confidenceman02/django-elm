@@ -3,6 +3,7 @@ root/
 *.py[cod]
 **/__pycache__/
 .idea
+.hypothesis/
 venv
 .doit.db.db
 **/*.DS_Store
