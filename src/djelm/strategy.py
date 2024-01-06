@@ -6,6 +6,7 @@ import subprocess
 import sys
 import types
 import uuid
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from itertools import filterfalse
 from typing import Iterable, cast
@@ -15,6 +16,7 @@ from typing_extensions import TypedDict
 from watchfiles import awatch
 
 from djelm.cookiecutter import CookieCutter
+from djelm.flags.main import Flags
 
 from .effect import ExitFailure, ExitSuccess
 from .elm import Elm
@@ -243,19 +245,22 @@ class ElmStrategy:
         return ExitFailure(None, err=StrategyError())
 
 
-@dataclass(slots=True)
-class GenerateModelStrategy:
+class BaseGenerateModelStrategy(ABC):
+    @abstractmethod
+    def flags(self) -> Flags:
+        pass
+
+
+class GenerateModelStrategy(BaseGenerateModelStrategy):
     """Generate a model and decoders for an Elm program"""
 
-    app_name: str
-    prog_name: str
+    def __init__(self, app_name, prog_name) -> None:
+        self.app_name = app_name
+        self.prog_name = prog_name
 
-    def run(
-        self, logger, style
-    ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+    def flags(self) -> Flags:
         app_path_exit = get_app_path(self.app_name)
         src_path = get_app_src_path(self.app_name)
-
         if app_path_exit.tag == "Success" and src_path.tag == "Success":
             import importlib.machinery
 
@@ -269,42 +274,51 @@ class GenerateModelStrategy:
 
             try:
                 loader.exec_module(mod)
-                flags = getattr(mod, self.prog_name + "Flags")
-                temp_dir_name = (
-                    f'temp_program_djelm_{str(uuid.uuid1()).replace("-", "_")}'
-                )
-                ck = CookieCutter[AddProgramCookieExtra](
-                    file_dir=os.path.dirname(__file__),
-                    output_dir=os.path.join(src_path.value, "elm-stuff"),
-                    cookie_dir_name="program_template",
-                    extra={
-                        "program_name": module_name(self.prog_name),
-                        "tmp_dir": temp_dir_name,
-                        "view_name": "",
-                        "tag_file": "",
-                        "scope": "",
-                        "alias_type": flags.to_elm_parser_data()["alias_type"],
-                        "decoder_body": flags.to_elm_parser_data()["decoder_body"],
-                    },
-                )
-                temp_dir_path = ck.cut(logger)
-
-                if temp_dir_path.tag == "Success":
-                    # Move elm program flags
-                    shutil.copy(
-                        os.path.join(
-                            temp_dir_path.value, module_name(self.prog_name) + ".elmf"
-                        ),
-                        os.path.join(
-                            src_path.value,
-                            "src",
-                            "Models",
-                            module_name(self.prog_name) + ".elm",
-                        ),
-                    )
-                    return ExitSuccess(None)
             except Exception as err:
-                return ExitFailure(None, err=StrategyError(err))
+                raise err
+
+            return getattr(mod, self.prog_name + "Flags")
+        raise StrategyError("Unable to resolve app_path or src_path")
+
+    def run(
+        self, logger, style
+    ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+        app_path_exit = get_app_path(self.app_name)
+        src_path = get_app_src_path(self.app_name)
+
+        if app_path_exit.tag == "Success" and src_path.tag == "Success":
+            flags = self.flags()
+            temp_dir_name = f'temp_program_djelm_{str(uuid.uuid1()).replace("-", "_")}'
+            ck = CookieCutter[AddProgramCookieExtra](
+                file_dir=os.path.dirname(__file__),
+                output_dir=os.path.join(src_path.value, "elm-stuff"),
+                cookie_dir_name="program_template",
+                extra={
+                    "program_name": module_name(self.prog_name),
+                    "tmp_dir": temp_dir_name,
+                    "view_name": "",
+                    "tag_file": "",
+                    "scope": "",
+                    "alias_type": flags.to_elm_parser_data()["alias_type"],
+                    "decoder_body": flags.to_elm_parser_data()["decoder_body"],
+                },
+            )
+            temp_dir_path = ck.cut(logger)
+
+            if temp_dir_path.tag == "Success":
+                # Move elm program flags
+                shutil.copy(
+                    os.path.join(
+                        temp_dir_path.value, module_name(self.prog_name) + ".elmf"
+                    ),
+                    os.path.join(
+                        src_path.value,
+                        "src",
+                        "Models",
+                        module_name(self.prog_name) + ".elm",
+                    ),
+                )
+                return ExitSuccess(None)
         return ExitFailure(
             None,
             err=StrategyError(f"Couldn't resolve the path for {self.app_name} app."),

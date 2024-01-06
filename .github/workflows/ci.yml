@@ -26,7 +26,7 @@ jobs:
           poetry install
       - name: Lint
         run: |
-          poetry run ruff check .
+          poetry run tox -e lint
       - name: Test with tox
         run: |
-          poetry run tox
+          poetry run tox -e django42
