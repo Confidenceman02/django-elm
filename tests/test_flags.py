@@ -546,6 +546,11 @@ class TestBoolFlags:
 
 
 class TestObjectFlags:
+    def test_with_illegal_alias_key(self):
+        d = ObjectFlag({"hello$": StringFlag()})
+        with pytest.raises(ValidationError):
+            Flags(d)
+
     def test_with_mix_parser(self):
         d = ObjectFlag(
             {
@@ -556,8 +561,8 @@ class TestObjectFlags:
         SUT = Flags(d)
 
         assert (
-                SUT.parse({"hello": {"world": "I'm here"}, "someList": ["hello", "world"]})
-                == '{"hello":{"world":"I\'m here"},"someList":["hello","world"]}'
+            SUT.parse({"hello": {"world": "I'm here"}, "someList": ["hello", "world"]})
+            == '{"hello":{"world":"I\'m here"},"someList":["hello","world"]}'
         )
         with pytest.raises(ValidationError):
             SUT.parse({"hello": 22})
@@ -575,8 +580,8 @@ class TestObjectFlags:
         SUT = Flags(d)
 
         assert (
-                SUT.parse({"hello": {"world": "I have arrived"}})
-                == '{"hello":{"world":"I have arrived"}}'
+            SUT.parse({"hello": {"world": "I have arrived"}})
+            == '{"hello":{"world":"I have arrived"}}'
         )
         with pytest.raises(ValidationError):
             SUT.parse({"hello": 22})
@@ -654,8 +659,8 @@ class TestObjectFlags:
         SUT = Flags(d)
 
         assert (
-                SUT.parse({"hello": [{"world": "I have arrived"}]})
-                == '{"hello":[{"world":"I have arrived"}]}'
+            SUT.parse({"hello": [{"world": "I have arrived"}]})
+            == '{"hello":[{"world":"I have arrived"}]}'
         )
         with pytest.raises(ValidationError):
             SUT.parse({"hello": "world"})

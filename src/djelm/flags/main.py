@@ -1,13 +1,14 @@
 import typing
 from dataclasses import dataclass
 
-from pydantic import BaseModel, Strict, TypeAdapter
+from pydantic import BaseModel, Field, Strict, TypeAdapter, validate_call
 from typing_extensions import Annotated
 
 _annotated_string = Annotated[str, Strict()]
 _annotated_int = Annotated[int, Strict()]
 _annotated_float = Annotated[float, Strict()]
 _annotated_bool = Annotated[bool, Strict()]
+_annotated_alias_key = Annotated[str, Field(pattern=r"^[a-z][A-Za-z0-9_]*$")]
 
 _StringAdapter = TypeAdapter(_annotated_string)
 _IntAdapter = TypeAdapter(_annotated_int)
@@ -15,6 +16,11 @@ _FloatAdapter = TypeAdapter(_annotated_float)
 _BoolAdapter = TypeAdapter(_annotated_bool)
 
 PreparedElm = typing.TypedDict("PreparedElm", {"alias_type": str, "decoder_body": str})
+
+
+@validate_call
+def valid_alias_key(k: _annotated_alias_key):
+    return k
 
 
 @dataclass(slots=True)
@@ -407,6 +413,7 @@ def _prepare_pipeline_flags(
     alias_extra: str = ""
     for idx, (k, v) in enumerate(d.obj.items()):
         try:
+            valid_alias_key(k)
             match v:
                 case ObjectFlag(obj=obj):
                     prepared_object_recursive = _prepare_pipeline_flags(
