@@ -413,6 +413,7 @@ def _prepare_pipeline_flags(
     alias_extra: str = ""
     for idx, (k, v) in enumerate(d.obj.items()):
         try:
+            k = k.replace("\n", "")
             valid_alias_key(k)
             match v:
                 case ObjectFlag(obj=obj):

@@ -551,6 +551,12 @@ class TestObjectFlags:
         with pytest.raises(ValidationError):
             Flags(d)
 
+    def test_with_newline(self):
+        d = ObjectFlag({"hello\n": StringFlag()})
+        SUT = Flags(d)
+
+        assert SUT.parse({"hello": "world"}) == '{"hello":"world"}'
+
     def test_with_mix_parser(self):
         d = ObjectFlag(
             {
