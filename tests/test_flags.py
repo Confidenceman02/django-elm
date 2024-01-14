@@ -1,6 +1,10 @@
+import os
+
 import pytest
+from django.core.management.base import LabelCommand
 from pydantic import ValidationError
 
+from djelm.elm import Elm
 from djelm.flags.main import (
     BoolFlag,
     Flags,
@@ -11,6 +15,124 @@ from djelm.flags.main import (
     ObjectFlag,
     StringFlag,
 )
+from src.djelm.strategy import GenerateModelStrategy
+from src.djelm.utils import get_app_src_path
+from tests.fuzz_flags import fuzz_flag
+
+
+def test_fuzz_flags(settings):
+    app_name = "test_programs"
+    settings.INSTALLED_APPS += [app_name]
+    src_path = get_app_src_path(app_name).value  # type:ignore
+    os.mkdir(os.path.join(src_path, "elm-stuff"))
+
+    programs = []
+
+    for i in range(1, 11):
+        flags = fuzz_flag()
+
+        class MockGenerateModel(GenerateModelStrategy):
+            def __init__(self, app_name, prog_name) -> None:
+                super().__init__(app_name, prog_name)
+
+            def flags(self) -> Flags:
+                f = Flags(flags)
+                return f  # type:ignore
+
+            def generate(self):
+                self.run(LabelCommand().stdout, LabelCommand().style)
+
+        MockGenerateModel(app_name, f"Main{i}").generate()
+        programs.append(f"src/Main{i}.elm")
+
+    try:
+        Elm().command(["make", *programs, "--output=/dev/null"], src_path)
+    except Exception:
+        # Remove the app because it borks other tests
+        settings.INSTALLED_APPS.remove(app_name)
+        pytest.fail("An elm program did not compile")
+
+    assert True
+
+    settings.INSTALLED_APPS.remove(app_name)
+
+
+class TestFuzzExamplesGenerated:
+    """This example was generated with a fuzz generator"""
+
+    def test_fuzz_example_01(self):
+        d = ObjectFlag(
+            {
+                "yh": ObjectFlag(
+                    {
+                        "dFE3": NullableFlag(
+                            NullableFlag(
+                                ObjectFlag(
+                                    {
+                                        "k69xy": NullableFlag(NullableFlag(IntFlag())),
+                                    }
+                                )
+                            )
+                        ),
+                    }
+                )
+            }
+        )
+        SUT = Flags(d)
+        assert SUT.to_elm_parser_data()["alias_type"] == (
+            """{ yh : Yh_
+    }
+
+type alias Yh_ =
+    { dFE3 : Maybe (Maybe DFE3__)
+    }
+
+type alias DFE3__ =
+    { k69xy : Maybe (Maybe Int)
+    }"""
+        )
+        assert SUT.to_elm_parser_data()["decoder_body"] == (
+            """Decode.succeed ToModel
+        |>  required "yh" yh_Decoder
+
+yh_Decoder : Decode.Decoder Yh_
+yh_Decoder =
+    Decode.succeed Yh_
+        |>  required "dFE3" (Decode.nullable (Decode.nullable dFE3__Decoder))
+
+dFE3__Decoder : Decode.Decoder DFE3__
+dFE3__Decoder =
+    Decode.succeed DFE3__
+        |>  required "k69xy" (Decode.nullable (Decode.nullable Decode.int))"""
+        )
+
+    def test_fuzz_example_02(self):
+        d = ObjectFlag(
+            {
+                "zJc": BoolFlag(),
+                "dEB": ListFlag(
+                    ListFlag(
+                        NullableFlag(
+                            ObjectFlag({"z": NullableFlag(ListFlag(BoolFlag()))})
+                        )
+                    )
+                ),
+                "dKfU": ListFlag(NullableFlag(BoolFlag())),
+            }
+        )
+        SUT = Flags(d)
+
+        assert SUT.to_elm_parser_data()["decoder_body"] == (
+            """Decode.succeed ToModel
+        |>  required "zJc" Decode.bool
+        |>  required "dEB" (Decode.list (Decode.list (Decode.nullable dEB_Decoder)))
+        |>  required "dKfU" (Decode.list (Decode.nullable Decode.bool))
+
+dEB_Decoder : Decode.Decoder DEB_
+dEB_Decoder =
+    Decode.succeed DEB_
+        |>  required "z" (Decode.nullable (Decode.list Decode.bool))"""
+        )
 
 
 class TestStringFlags:
@@ -546,6 +668,17 @@ class TestBoolFlags:
 
 
 class TestObjectFlags:
+    def test_with_illegal_alias_key(self):
+        d = ObjectFlag({"hello$": StringFlag()})
+        with pytest.raises(ValidationError):
+            Flags(d)
+
+    def test_with_newline(self):
+        d = ObjectFlag({"hello\n": StringFlag()})
+        SUT = Flags(d)
+
+        assert SUT.parse({"hello": "world"}) == '{"hello":"world"}'
+
     def test_with_mix_parser(self):
         d = ObjectFlag(
             {
@@ -556,8 +689,8 @@ class TestObjectFlags:
         SUT = Flags(d)
 
         assert (
-                SUT.parse({"hello": {"world": "I'm here"}, "someList": ["hello", "world"]})
-                == '{"hello":{"world":"I\'m here"},"someList":["hello","world"]}'
+            SUT.parse({"hello": {"world": "I'm here"}, "someList": ["hello", "world"]})
+            == '{"hello":{"world":"I\'m here"},"someList":["hello","world"]}'
         )
         with pytest.raises(ValidationError):
             SUT.parse({"hello": 22})
@@ -575,8 +708,8 @@ class TestObjectFlags:
         SUT = Flags(d)
 
         assert (
-                SUT.parse({"hello": {"world": "I have arrived"}})
-                == '{"hello":{"world":"I have arrived"}}'
+            SUT.parse({"hello": {"world": "I have arrived"}})
+            == '{"hello":{"world":"I have arrived"}}'
         )
         with pytest.raises(ValidationError):
             SUT.parse({"hello": 22})
@@ -654,8 +787,8 @@ class TestObjectFlags:
         SUT = Flags(d)
 
         assert (
-                SUT.parse({"hello": [{"world": "I have arrived"}]})
-                == '{"hello":[{"world":"I have arrived"}]}'
+            SUT.parse({"hello": [{"world": "I have arrived"}]})
+            == '{"hello":[{"world":"I have arrived"}]}'
         )
         with pytest.raises(ValidationError):
             SUT.parse({"hello": "world"})

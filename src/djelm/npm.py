@@ -1,11 +1,10 @@
-import os
-import signal
 import subprocess
 import sys
 from dataclasses import dataclass
 
 from djelm import get_config
 from djelm.effect import ExitFailure, ExitSuccess
+from djelm.subprocess import SubProcess
 
 
 class NPMError(Exception):
@@ -21,24 +20,8 @@ class NPM:
     ) -> ExitSuccess[None] | ExitFailure[None, NPMError]:
         npm_bin_path = get_config("NODE_PACKAGE_MANAGER")
         try:
-            process = subprocess.Popen(
-                [npm_bin_path, *args],
-                cwd=cwd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            if process.stdout is None:
-                raise Exception("stdout not available")
-            for c in iter(lambda: process.stdout.read(1), ""):  # type:ignore
-                sys.stdout.write(c.decode("utf-8", "ignore"))
-                if process.poll() is not None:
-                    break
-            for c in iter(lambda: process.stderr.read(), ""):  # type:ignore
-                if c.decode("utf-8", "ignore") != "" and self.raise_err:
-                    raise Exception(c.decode("utf-8", "ignore"))
-                break
-
-            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            process = SubProcess([npm_bin_path, *args], cwd, self.raise_err)
+            process.open()
             return ExitSuccess(None)
         except subprocess.CalledProcessError:
             sys.exit(1)

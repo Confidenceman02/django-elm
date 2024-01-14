@@ -19,6 +19,7 @@
 - [Your first Elm program](#your-first-elm-program)
   - [create Command](#create-command)
   - [addprogram Command](#addprogram-command)
+  - [npm Command](#npm-command)
   - [watch Command](#watch-command)
   - [compile Command](#compile-command)
   - [compilebuild Command](#compilebuild-command)
@@ -256,6 +257,12 @@ alternatively you could do the following:
 
 ```bash
 cd elm_programs/static_src/ && pnpm install
+```
+
+More generally, you can use any arguments you want for the `npm` command after the `elm_programs` argument:
+
+```bash
+python manage.py djelm npm elm_programs install -D some-cool-npm-package
 ```
 
 ## `watch` Command

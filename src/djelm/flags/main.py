@@ -1,13 +1,14 @@
 import typing
 from dataclasses import dataclass
 
-from pydantic import BaseModel, Strict, TypeAdapter
+from pydantic import BaseModel, Field, Strict, TypeAdapter, validate_call
 from typing_extensions import Annotated
 
 _annotated_string = Annotated[str, Strict()]
 _annotated_int = Annotated[int, Strict()]
 _annotated_float = Annotated[float, Strict()]
 _annotated_bool = Annotated[bool, Strict()]
+_annotated_alias_key = Annotated[str, Field(pattern=r"^[a-z][A-Za-z0-9_]*$")]
 
 _StringAdapter = TypeAdapter(_annotated_string)
 _IntAdapter = TypeAdapter(_annotated_int)
@@ -15,6 +16,11 @@ _FloatAdapter = TypeAdapter(_annotated_float)
 _BoolAdapter = TypeAdapter(_annotated_bool)
 
 PreparedElm = typing.TypedDict("PreparedElm", {"alias_type": str, "decoder_body": str})
+
+
+@validate_call
+def valid_alias_key(k: _annotated_alias_key):
+    return k
 
 
 @dataclass(slots=True)
@@ -271,6 +277,8 @@ ObjHelperReturn = typing.TypedDict(
         "adapter": TypeAdapter,
         "anno": typing.Dict[str, PrimitiveObjectFlagType],
         "elm_values": PreparedElm,
+        "alias_extra": str,
+        "decoder_extra": str,
     },
 )
 SingleHelperReturn = typing.TypedDict(
@@ -308,7 +316,15 @@ class BaseFlag(metaclass=FlagMetaClass):
 
             @staticmethod
             def to_elm_parser_data() -> PreparedElm:
-                return prepared_flags["elm_values"]
+                if isinstance(d, ObjectFlag):
+                    return prepared_flags["elm_values"]
+                else:
+                    return {
+                        "alias_type": prepared_flags["elm_values"]["alias_type"]
+                        + prepared_flags["alias_extra"],
+                        "decoder_body": prepared_flags["elm_values"]["decoder_body"]
+                        + prepared_flags["decoder_extra"],
+                    }
 
         return Prepared
 
@@ -351,22 +367,22 @@ def _prepare_inline_flags(
             alias_type = NullableDecoder._raw_type(
                 single_flag["elm_values"]["alias_type"]
             )
-            alias_type += single_flag["alias_extra"]
+            alias_extra += single_flag["alias_extra"]
             decoder_body = NullableDecoder._raw_decoder(
                 single_flag["elm_values"]["decoder_body"]
             )
-            decoder_body += single_flag["decoder_extra"]
+            decoder_extra += single_flag["decoder_extra"]
         case ListFlag(obj=obj):
             single_flag = _prepare_inline_flags(obj, object_decoder)
             t = single_flag["anno"]
             adapter = TypeAdapter(Annotated[list[t], None])
             anno = list[t]  # type:ignore
             alias_type = ListDecoder._raw_type(single_flag["elm_values"]["alias_type"])
-            alias_type += single_flag["alias_extra"]
+            alias_extra += single_flag["alias_extra"]
             decoder_body = ListDecoder._raw_decoder(
                 single_flag["elm_values"]["decoder_body"]
             )
-            decoder_body += single_flag["decoder_extra"]
+            decoder_extra += single_flag["decoder_extra"]
         case ObjectFlag(obj=obj):
             if object_decoder is None:
                 raise Exception(f"Missing an ObjectDecoder argument for {obj}")
@@ -407,6 +423,8 @@ def _prepare_pipeline_flags(
     alias_extra: str = ""
     for idx, (k, v) in enumerate(d.obj.items()):
         try:
+            k = k.replace("\n", "")
+            valid_alias_key(k)
             match v:
                 case ObjectFlag(obj=obj):
                     prepared_object_recursive = _prepare_pipeline_flags(
@@ -528,6 +546,8 @@ def _prepare_pipeline_flags(
             "alias_type": "{" + alias_values + "\n    }" + alias_extra,
             "decoder_body": pipeline_decoder + decoder_extra,
         },
+        "alias_extra": alias_extra,
+        "decoder_extra": decoder_extra,
     }
 
 
