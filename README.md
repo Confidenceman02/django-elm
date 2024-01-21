@@ -180,7 +180,8 @@ elm_programs
 │   └── src
 │       └── Models
 ├── templates
-│   └── include.html
+│   ├── include.html
+│   └── elm_programs
 └── templatetags
     └── __init__.py
 ```
@@ -228,7 +229,8 @@ elm_programs
 │           └── Main.elm *
 ├── templates
 │   ├── include.html
-│   └── main.html *
+│   └── elm_programs
+│       └── main.html *
 └── templatetags
     ├── __init__.py
     └── main_tags.py *
@@ -315,7 +317,8 @@ elm_programs
 │           └── Main.elm
 ├── templates
 │   ├── include.html
-│   └── main.html
+│   └── elm_programs
+│       └── main.html
 └── templatetags
     ├── __init__.py
     └── main_tags.py

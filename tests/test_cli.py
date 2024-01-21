@@ -46,6 +46,10 @@ def test_elm_create_directory(settings):
     ), "The elm templates directory has been created"
 
     assert os.path.isdir(
+        os.path.join(get_app_path(app_name).value, "templates", app_name)  # type:ignore
+    ), "The elm templates namespaced directory has been created"
+
+    assert os.path.isdir(
         os.path.join(get_app_path(app_name).value, "static")  # type:ignore
     ), "The elm templates static directory has been created"
 
@@ -121,6 +125,7 @@ def test_elm_addprogram(settings):
         os.path.join(
             get_app_path(app_name).value,  # type:ignore
             "templates",
+            app_name,
             "main.html",
         )
     ), "The elm program template has been created"

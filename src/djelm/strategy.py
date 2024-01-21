@@ -45,6 +45,7 @@ AddProgramCookieExtra = TypedDict(
         "scope": str,
         "alias_type": str,
         "decoder_body": str,
+        "app_name": str,
     },
 )
 
@@ -345,6 +346,7 @@ class AddProgramStrategy:
                         "scope": scope_name(self.app_name, self.prog_name),
                         "alias_type": "Int",
                         "decoder_body": "Decode.int",
+                        "app_name": self.app_name,
                     },
                 )
                 temp_dir_path = ck.cut(logger)
@@ -394,7 +396,7 @@ class AddProgramStrategy:
                         os.path.join(
                             temp_dir_path.value, tag_file_name(self.prog_name) + ".html"
                         ),
-                        os.path.join(app_path.value, "templates"),
+                        os.path.join(app_path.value, "templates", self.app_name),
                     )
 
                     # Move typescript
