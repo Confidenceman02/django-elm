@@ -27,31 +27,38 @@
   - [Flags](#flags)
   - [Flag classes](#flag-builders)
   - [generatemodel Command](#generating-elm-decoders)
+- [Elm resources](#elm-resources)
 
 # The why
 
-Elm is a static, strongly typed language with an approachable syntax that provides exceptional programming ergonomics to build highly reactive UI's
-that are robust, reliable, and famously, delightful to write and maintain.
+Django is an awesome framework for rapidly building web apps, but it can be tricky to build UI's that require a level of reactivity unable to
+be expressed via templates alone.
+
+Elm is a statically and strongly typed language with an approachable syntax that provides exceptional programming ergonomics to build highly reactive UI's.
+Elm programs are robust, reliable, and famously, delightful to write and maintain!
+
+Djelm provides the bridge for both of these wonderful technologies to converge allowing you to seamlessly build the dynamic parts of your UI whilst
+working with the Django conventions you know and love.
 
 # The when
 
-Djelm is intended to used as a specialised framework for you to build the highly dynamic pieces of your UI.
-
-Because Djelm is not intended to be the primary UI solution for your project, the following guidelines serve as an initial checklist
+Because Djelm is **not intended** to be the primary UI solution for your Django project, the following guidelines serve as an initial checklist
 that will ensure your use of Djelm is fit for purpose.
 
-1. Push the Django template conventions to their limit.
+1. Use the Django conventions and tools.
 
-   - Django has a truly enormous amount of packages that can help you organise tricky UI for forms, tables, pagination,
-     and search. You get the benefit of these tools being tightly integrated with the Django framework, so explore them in depth.
+   - The Django ecosystem has many great libraries that can help you organise tricky UI for forms, tables, pagination,
+     and search. You get the benefit of these tools not needing a UI framework.
 
 2. Try out a killer combo such as [HTMX](https://htmx.org/) and [Alpine JS](https://alpinejs.dev/).
 
-   - This combo being able to handle the vast majority of your UI reactivity is entirely conceivable and usually a more straightforward approach.
+   - This combo being able to handle a huge of amount of your UI reactivity is entirely conceivable.
 
 # Requirements
 
-Python 3.11 or newer with Django >= 4.2 or newer.
+- Elm 0.19.1
+- Python >=3.11
+- Django >= 4.2
 
 # Elm setup
 
@@ -79,6 +86,9 @@ mkdir django_djelm && cd django_djelm
 ```
 
 Let's get the Django package with pip:
+
+> [!TIP]
+> It is best practice to use a virtual environment when working with python packages. Check out the [official python docs](https://docs.python.org/3/library/venv.html) to learn how.
 
 ```bash
 pip install django
@@ -128,13 +138,12 @@ Optionally set your package manager of choice.
 > [!NOTE]
 > If you don't set this variable then Djelm will try to use [pnpm](https://pnpm.io/). Use
 > the [install guide](https://pnpm.io/installation) if you would like to use this default and you don't currently
-> have [pnpm](https://pnpm.io/)
-> installed.
+> have [pnpm](https://pnpm.io/) installed.
 
 ```python
 # settings.py
 
-NODE_PACKAGE_MANAGER = "yarn"
+NODE_PACKAGE_MANAGER = "yarn" # npm, pnpm (default)
 ```
 
 # Your first Elm program
@@ -503,7 +512,7 @@ init f =
             ( Error, Cmd.none )
 ```
 
-The runtime guarantees as a result of this is what makes Elm programs incredibly robust and nearly impossible to produce runtime exceptions.
+We get delicious runtime guarantees that our program will behave as we expect. This is what makes Elm programs incredibly robust and nearly impossible to produce a runtime exception.
 
 ## `generatemodel` Command
 
@@ -587,5 +596,32 @@ someObject_Decoder =
         |>  required "elm" Decode.string
 
 ```
+
+## Elm resources
+
+- [Official Elm site](https://elm-lang.org/)
+
+  You can find a wonderful introduction to Elm, as well as all the information required to start writing elm programs.
+  There is also an [online editor](https://elm-lang.org/try) to try out writing your own programs from scratch or from example programs.
+
+- [Elm community Slack](https://elm-lang.org/community/slack)
+
+  The official place for Elm news, jobs, and genreal chit chat.
+
+- [Elm in action](https://www.manning.com/books/elm-in-action)
+
+  By far the most comprehensive book on Elm that exists, written by the mighty Richard Feldman, he will take you from beginner to expert.
+
+- [Front end Masters course](https://frontendmasters.com/courses/intro-elm/)
+
+  Here's that Richard Feldman guy again! Richard explores all the juicy bits of Elm in a very high quality presentation.
+
+- [Elm discourse](https://discourse.elm-lang.org/)
+
+  Join our wonderful and friendly Elm forum community! Ask questions, check out what people are working on, or just just say hi!
+
+- [Incremental Elm](https://incrementalelm.com/chat/)
+
+  The most experienced and smartest of our community tend to hang in here. Extremely welcoming, and lots of great channels to join.
 
 2023 © [Confidenceman02 - A Full Stack Django Developer and Elm shill](#)
