@@ -1,10 +1,4 @@
-<a href="https://test.pypi.org/project/djelm/0.1.1/" style="display: none;">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/confidenceman02/django-elm/main/assets/icon.png" width="140">
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/confidenceman02/django-elm/main/assets/icon.png" width="140">
-    <img src="https://raw.githubusercontent.com/confidenceman02/django-elm/main/assets/icon.png" alt="Logo">
-  </picture>
-</a>
+<img alt="ContourPy" src="https://raw.githubusercontent.com/confidenceman02/django-elm/main/assets/icon.png" width="140">
 
 # Djelm
 
