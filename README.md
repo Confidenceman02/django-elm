@@ -417,7 +417,7 @@ as a flag value.
 Check out the `elm_programs/templatetags/main_tags.py` file that was generated for you:
 
 ```python
-@register.inclusion_tag("main.html", takes_context=True)
+@register.inclusion_tag("elm_programs/main.html", takes_context=True)
 def render_main(context):
     return {"flags": MainFlags.parse(0)}
 ```
