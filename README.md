@@ -1,6 +1,13 @@
+<a href="https://test.pypi.org/project/djelm/0.1.1/" style="display: none;">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/confidenceman02/django-elm/main/assets/icon.png" width="140">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/confidenceman02/django-elm/main/assets/icon.png" width="140">
+    <img src="https://raw.githubusercontent.com/confidenceman02/django-elm/main/assets/icon.png" alt="Logo">
+  </picture>
+</a>
+
 # Djelm
 
-[![Djelm](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Confidenceman02/django-elm/main/assets/badge/v0.json)](https://github.com/Confidenceman02/django-elm)
 [![Actions status](https://Confidenceman02.github.io/djelm/workflows/CI/badge.svg)](https://github.com/Confidenceman02/django-elm/actions)
 [![](https://img.shields.io/badge/license-MIT-blue)](https://github.com/Confidenceman02/django-elm/blob/main/LICENSE)
 
