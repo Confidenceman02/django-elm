@@ -38,18 +38,22 @@
 
 # The why
 
-Django is an awesome framework for rapidly building web apps, but it can be tricky to build UI's that require a level of reactivity unable to
+Django is an awesome framework for rapidly building web apps, but it can be tricky to build UI's that require a level of
+reactivity unable to
 be expressed via templates alone.
 
-Elm is a statically and strongly typed language with an approachable syntax that provides exceptional programming ergonomics to build highly reactive UI's.
+Elm is a statically and strongly typed language with an approachable syntax that provides exceptional programming
+ergonomics to build highly reactive UI's.
 Elm programs are robust, reliable, and famously, delightful to write and maintain!
 
-Djelm provides the bridge for both of these wonderful technologies to converge allowing you to seamlessly build the dynamic parts of your UI whilst
+Djelm provides the bridge for both of these wonderful technologies to converge allowing you to seamlessly build the
+dynamic parts of your UI whilst
 working with the Django conventions you know and love.
 
 # The when
 
-Because Djelm is **not intended** to be the primary UI solution for your Django project, the following guidelines serve as an initial checklist
+Because Djelm is **not intended** to be the primary UI solution for your Django project, the following guidelines serve
+as an initial checklist
 that will ensure your use of Djelm is fit for purpose.
 
 1. Use the Django conventions and tools.
@@ -59,13 +63,17 @@ that will ensure your use of Djelm is fit for purpose.
 
 2. Try out a killer combo such as [HTMX](https://htmx.org/) and [Alpine JS](https://alpinejs.dev/).
 
-   - This combo being able to handle a huge of amount of your UI reactivity is entirely conceivable.
+   - This combo being able to handle a huge of amount of your UI reactivity is entirely conceivable, however, consider
+     the following.
+     - HTMX: Ensure your UI/UX won't suffer as a result of a roundtrip to the server.
+     - Alpine JS: If you find yourself writing app logic akin to that of a framework, Djelm is likely a far better option.
 
 # Requirements
 
 - Elm 0.19.1
 - Python >=3.11
 - Django >= 4.2
+- Node >= 16.4
 
 # Elm setup
 
@@ -86,10 +94,19 @@ You should see a friendly welcome message and some other helpful Elm info.
 
 If you don't have a Django project ready to go, we will need to take care of some initial setup.
 
-Let's get the Django package with pip:
+It's best practice to create a python virtual environment:
 
-> [!TIP]
-> It is best practice to use a virtual environment when working with python packages. Check out the [official python docs](https://docs.python.org/3/library/venv.html) to learn how.
+```bash
+python -m venv venv
+```
+
+Then let's start the virtual environment:
+
+```bash
+source venv/bin/activate
+```
+
+Let's get the Django package with pip:
 
 ```bash
 pip install django
@@ -140,11 +157,13 @@ Optionally set your package manager of choice.
 > If you don't set this variable then Djelm will try to use [pnpm](https://pnpm.io/). Use
 > the [install guide](https://pnpm.io/installation) if you would like to use this default and you don't currently
 > have [pnpm](https://pnpm.io/) installed.
+>
+> We **highly** recommend you use `pnpm` as it doesn't install node package peer dependencies, and usually provides a hassle free performant experience.
 
 ```python
 # settings.py
 
-NODE_PACKAGE_MANAGER = "yarn" # npm, pnpm (default)
+NODE_PACKAGE_MANAGER = "yarn"  # npm, pnpm (default)
 ```
 
 # Your first Elm program
@@ -201,7 +220,8 @@ python manage.py djelm addprogram elm_programs Main
 ```
 
 > [!TIP]
-> You can change the `Main` argument to whatever makes the most sense for your program. e.g. `Map`, `TodoApp`, `UserProfile`.
+> You can change the `Main` argument to whatever makes the most sense for your program.
+> e.g. `Map`, `TodoApp`, `UserProfile`.
 > For the most predictable results when running the `addprogram` command, ensure you use the
 > Elm module naming conventions which you can find [here](https://guide.elm-lang.org/webapps/modules).
 
@@ -237,7 +257,8 @@ elm_programs
     └── main_tags.py *
 ```
 
-Jump in to the `static_src/src/Main.elm` file in the `elm_programs` directory and what you will see is a simple Elm program. You
+Jump in to the `static_src/src/Main.elm` file in the `elm_programs` directory and what you will see is a simple Elm
+program. You
 might be able to work out what this program does just by looking at the `Msg` type!
 
 ```elm
@@ -274,6 +295,12 @@ cd elm_programs/static_src/ && pnpm install
 More generally, you can use any arguments you want for the `npm` command after the `elm_programs` argument:
 
 ```bash
+# pnpm, yarn
+
+python manage.py djelm npm elm_programs add -D some-cool-npm-package
+
+# npm
+
 python manage.py djelm npm elm_programs install -D some-cool-npm-package
 ```
 
@@ -357,12 +384,13 @@ Let's now actually render something in the browser by adding our `Main` programs
 
 > [!NOTE]
 > I have added the following `base.html` template to the `elm_programs/templates` directory for demonstration purposes.
-> If you already have a Django project you can just add the tags in whatever templates you want to render the Elm program.
+> If you already have a Django project you can just add the tags in whatever templates you want to render the Elm
+> program.
 
 ```html
 <!-- base.html -->
 {% load static %}{% load static main_tags %}
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <title>Djelm</title>
@@ -412,7 +440,8 @@ You will notice if we look at the running program in the browser that it starts 
 not hardcoded anywhere in the Elm program.
 So where does it come from?
 
-This value actually comes bound to our render tag when we server render the template, and is passed to the Elm program when it is initialized on the client,
+This value actually comes bound to our render tag when we server render the template, and is passed to the Elm program
+when it is initialized on the client,
 as a flag value.
 
 Check out the `elm_programs/templatetags/main_tags.py` file that was generated for you:
@@ -440,7 +469,8 @@ def counter_view(request: AuthedHttpRequest):
     return render(request, "base.html", context)
 ```
 
-The context that was set in the view is available to us from the `render_main` tag function which we can call `MainFlags` with:
+The context that was set in the view is available to us from the `render_main` tag function which we can
+call `MainFlags` with:
 
 ```python
 # main_tags.py
@@ -450,14 +480,16 @@ def render_main(context):
     return {"flags": MainFlags.parse(context["counter_start"])}
 ```
 
-Whilst in this example we are hardcoding a value of `0`, you really can pass it any `int` you want, perhaps an ID from a database
+Whilst in this example we are hardcoding a value of `0`, you really can pass it any `int` you want, perhaps an ID from a
+database
 model or some other computed value.
 
 The one constraint you have is that it must be an `int`, which is perfect for our default Elm
 program, but not very flexible for other types of Elm programs you might like to build.
 
 > [!NOTE]
-> If you are not sure what Django tags are check out the docs [here](https://docs.djangoproject.com/en/5.0/howto/custom-template-tags/).
+> If you are not sure what Django tags are check out the
+> docs [here](https://docs.djangoproject.com/en/5.0/howto/custom-template-tags/).
 
 Let's try passing something that isn't an `int` and see what happens:
 
@@ -466,7 +498,7 @@ Let's try passing something that isn't an `int` and see what happens:
 
 @register.inclusion_tag("elm_programs/main.html", takes_context=True)
 def render_main(context):
-    return {"flags": MainFlags.parse("hello Elm!")}
+    return {"flags": MainFlags.parse("Hello Elm!")}
 ```
 
 What you should be seeing is a server error, but why? Let's find out!
@@ -482,10 +514,13 @@ MainFlags = Flags(IntFlag())
 The `Flags` class takes as it's argument the flags shape that you want to pass to the `Main.elm` program
 when it initializes.
 
-We are using the `IntFlag` class which enforces that the type of value that can be passed to our `Main.elm` program is an `int`.
-If we pass anything other than an `int` to `MainFlags` an error will be raised just like the one we saw when we used the value `MainFlags.parse("hello Elm!")`.
+We are using the `IntFlag` class which enforces that the type of value that can be passed to our `Main.elm` program is
+an `int`.
+If we pass anything other than an `int` to `MainFlags` an error will be raised just like the one we saw when we used the
+value `MainFlags.parse("hello Elm!")`.
 
-The `IntFlag` class is also directly related to the contract that exists in our Elm program as seen in `elm_programs/static_src/src/Models/Main.elm`:
+The `IntFlag` class is also directly related to the contract that exists in our Elm program as seen
+in `elm_programs/static_src/src/Models/Main.elm`:
 
 ```elm
 type alias ToModel =
@@ -497,30 +532,37 @@ toModel =
     Decode.int
 ```
 
-What this code reveals is that our `Main.elm` program on initialization will only accept flags that are of type `Int`. A successful
-decoding of the flag to an `Int` will thus produce a model of `Int` which agrees perfectly with the python flag definitions.
+What this code reveals is that our `Main.elm` program on initialization will only accept flags that are of type `Int`. A
+successful decoding of the flag to an `Int` will thus produce a model of `Int` which agrees perfectly with the python flag
+definitions.
 
-What we end up with is a very strong contract for both the Django server and the Elm program. This workflow ensures that data is being
-validated on both sides.
+You can think about `IntFlag` as a schema for your Elm program.
 
-Elm takes this to the next level by forcing you to handle the possibility of the flag not being an `Int` on initialization as seen in `elm_programs/static_src/src/Main.elm`:
+What we end up with is a very strong contract for both the Django server and the Elm program. This workflow ensures that
+data is being validated on both sides.
+
+The default program we generated takes this to the next level by forcing you to handle the possibility of the flag not being an `Int` on
+initialization as seen in `elm_programs/static_src/src/Main.elm`:
 
 ```elm
 init : Value -> ( Model, Cmd Msg )
 init f =
     case decodeValue toModel f of
+        -- Flag decoded to an Int, Success!
         Ok m ->
             ( Ready m, Cmd.none )
-
+        -- Flag failed to decode to an Int, Error!
         Err _ ->
             ( Error, Cmd.none )
 ```
 
-We get delicious runtime guarantees that our program will behave as we expect. This is what makes Elm programs incredibly robust and nearly impossible to produce a runtime exception.
+We get delicious runtime guarantees that our program will behave as we expect. This is what makes Elm programs
+incredibly robust and nearly impossible to produce a runtime exception.
 
 ## `generatemodel` Command
 
-Our python flag classes have a little trick up their sleeve that makes keeping both our python and Elm flag contracts in sync for us.
+Our python flag classes have a little trick up their sleeve that makes keeping both our python and Elm flag contracts in
+sync for us.
 
 We can see that in the `elm_programs/static_src/src/Models/Main.elm` module we have the following comment:
 
@@ -530,8 +572,9 @@ We can see that in the `elm_programs/static_src/src/Models/Main.elm` module we h
 -}
 ```
 
-That's right! Djelm makes it uneccessary to ever need to write your own flag decoders, which can be a hefty task if the shape of your flags is
-complicated. Whatever we define as our flag shape in Python will determine the decoders we find in our Elm program.
+That's right! Djelm makes it uneccessary to ever need to write your own flag decoders, which can be a hefty task if the
+shape of your flags is complicated.
+Whatever we define as our flags shape in Python will determine the decoders we find in our Elm program.
 
 Let's put this to the test and change the `IntFlag` class to something else for our default program:
 
@@ -545,7 +588,11 @@ Then in the console run:
 python manage.py djelm generatemodel elm_programs Main
 ```
 
-Looking in `elm_programs/static_src/src/Models/Main.elm` you can see our decoders have changed to handle a `String` value:
+> [!NOTE]
+> If you have run the `watch` command, Djelm will automatically detect flag changes and generate the models for you.
+
+Looking in `elm_programs/static_src/src/Models/Main.elm` you can see our decoders have changed to handle a `String`
+value:
 
 ```elm
 type alias ToModel =
@@ -601,12 +648,18 @@ someObject_Decoder =
 
 ```
 
+> [!TIP]
+> The default Elm program we generated will fail to compile when performing the model changes above.
+> To help you understand why it failed you can run the `compile` command and experience first hand
+> the beauty that is an Elm compiler message.
+
 ## Elm resources
 
 - [Official Elm site](https://elm-lang.org/)
 
   You can find a wonderful introduction to Elm, as well as all the information required to start writing elm programs.
-  There is also an [online editor](https://elm-lang.org/try) to try out writing your own programs from scratch or from example programs.
+  There is also an [online editor](https://elm-lang.org/try) to try out writing your own programs from scratch or from
+  example programs.
 
 - [Elm community Slack](https://elm-lang.org/community/slack)
 
@@ -614,7 +667,8 @@ someObject_Decoder =
 
 - [Elm in action](https://www.manning.com/books/elm-in-action)
 
-  By far the most comprehensive book on Elm that exists, written by the mighty Richard Feldman, he will take you from beginner to expert.
+  By far the most comprehensive book on Elm that exists, written by the mighty Richard Feldman, he will take you from
+  beginner to expert.
 
 - [Front end Masters course](https://frontendmasters.com/courses/intro-elm/)
 
@@ -622,10 +676,12 @@ someObject_Decoder =
 
 - [Elm discourse](https://discourse.elm-lang.org/)
 
-  Join our wonderful and friendly Elm forum community! Ask questions, check out what people are working on, or just just say hi!
+  Join our wonderful and friendly Elm forum community! Ask questions, check out what people are working on, or just just
+  say hi!
 
 - [Incremental Elm](https://incrementalelm.com/chat/)
 
-  The most experienced and smartest of our community tend to hang in here. Extremely welcoming, and lots of great channels to join.
+  The most experienced and smartest of our community tend to hang in here. Extremely welcoming, and lots of great
+  channels to join.
 
 2023 © [Confidenceman02 - A Full Stack Django Developer and Elm shill](#)
