@@ -4,13 +4,13 @@ import shutil
 import subprocess
 import sys
 import types
-import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from itertools import filterfalse
 from typing import Iterable, cast
 
 from django.conf import settings
+from importlib.metadata import version
 from typing_extensions import TypedDict
 from watchfiles import awatch
 
@@ -43,9 +43,17 @@ AddProgramCookieExtra = TypedDict(
         "tmp_dir": str,
         "tag_file": str,
         "scope": str,
+        "app_name": str,
+    },
+)
+
+FlagsCookieExtra = TypedDict(
+    "FlagsCookieExtra",
+    {
+        "program_name": str,
         "alias_type": str,
         "decoder_body": str,
-        "app_name": str,
+        "tmp_dir": str,
     },
 )
 
@@ -118,6 +126,8 @@ class WatchStrategy:
     """
     Sets up the file watcher for the given djelm app.
     When changes occur it will re-compile the elm programs.
+
+    Modules in the flags directory are also monitored and models generated.
     """
 
     app_name: str
@@ -127,37 +137,60 @@ class WatchStrategy:
     ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
         compile = CompileStrategy(self.app_name, raise_error=False)
         src_path = get_app_src_path(self.app_name)
-        if src_path.tag == "Success":
-            shutil.rmtree(
-                os.path.join(src_path.value, ".parcel-cache"), ignore_errors=True
-            )
-            try:
-                # first pass compile on start of watch
-                compile.run(logger, style)
-                return asyncio.run(
-                    self.watch(
-                        compile,
-                        [
-                            os.path.join(src_path.value, "src"),
-                            os.path.join(src_path.value, "djelm_src"),
-                        ],
-                        logger,
-                        style,
-                    )
+        app_path = get_app_path(self.app_name)
+
+        if src_path.tag != "Success":
+            raise src_path.err
+
+        if app_path.tag != "Success":
+            raise app_path.err
+
+        shutil.rmtree(os.path.join(src_path.value, ".parcel-cache"), ignore_errors=True)
+        try:
+            # first pass compile on start of watch
+            compile.run(logger, style)
+            return asyncio.run(
+                self.watch(
+                    app_path.value,
+                    src_path.value,
+                    [
+                        os.path.join(src_path.value, "src"),
+                        os.path.join(src_path.value, "djelm_src"),
+                        os.path.join(app_path.value, "flags"),
+                    ],
+                    logger,
+                    style,
                 )
-            except KeyboardInterrupt:
-                return ExitSuccess(None)
-        return ExitFailure(None, StrategyError("Error"))
+            )
+        except KeyboardInterrupt:
+            return ExitSuccess(None)
 
     async def watch(
         self,
-        compile: CompileStrategy,
+        app_path: str,
+        src_path: str,
         dir: list[str],
         logger,
         style,
     ):
+        compile = CompileStrategy(self.app_name, raise_error=False)
         async for changes in awatch(*dir):
             for change, f in changes:
+                # If flags change generate models
+                # TODO Don't generate a model when a flags module is deleted
+                # TODO Only geerate a model when the flags output is different to what has already been generated.
+                if os.path.join(app_path, "flags") in f:
+                    filename = os.path.basename(f).split(".")[0]
+                    program_name = program_file(filename)
+                    is_program = os.path.isfile(
+                        os.path.join(src_path, "src", program_name)
+                    )
+                    if is_program:
+                        logger.write(f"FLAGS CHANGED: {f}")
+                        GenerateModelStrategy(self.app_name, module_name(filename)).run(
+                            logger, style
+                        )
+                    continue
                 # VIM creates a file to check it can create a file, we want to ignore it
                 if f.endswith("4913"):
                     continue
@@ -269,43 +302,89 @@ class GenerateModelStrategy(BaseGenerateModelStrategy):
         app_path_exit = get_app_path(self.app_name)
         src_path = get_app_src_path(self.app_name)
 
-        if app_path_exit.tag == "Success" and src_path.tag == "Success":
+        djelm_version = version("djelm")
+        stuff_namespace = ("elm-stuff", f"djelm_{djelm_version}")
+
+        if app_path_exit.tag != "Success":
+            raise app_path_exit.err
+        if src_path.tag != "Success":
+            raise src_path.err
+        try:
             flags = self.flags()
-            temp_dir_name = f'temp_program_djelm_{str(uuid.uuid1()).replace("-", "_")}'
-            ck = CookieCutter[AddProgramCookieExtra](
+        except Exception as err:
+            logger.write(
+                f"""
+\033[91m-- FLAG MODULE ERROR ----------------------------------------------------------------------------------------------------- command/generatemodel\033[0m
+
+I was trying to generate a model from this flags module:
+
+    \033[93m{os.path.join(app_path_exit.value, "flags", tag_file_name(self.prog_name) + ".py")}\033[0m
+
+But got the following error type:
+
+    \033[93m{err.args[0]}\033[0m
+
+Make sure you fix the errors in \033[1m{os.path.join(app_path_exit.value, "flags", tag_file_name(self.prog_name) + ".py")}\033[0m.
+
+\033[4m\033[1mNote\033[0m: I'll keep watching this module and will generate the model once the errors are fixed.
+
+"""
+            )
+            return ExitFailure(None, err=StrategyError(err))
+
+        try:
+            os.makedirs(os.path.join(src_path.value, *stuff_namespace))
+        except FileExistsError:
+            pass
+        except FileNotFoundError as err:
+            raise err
+        try:
+            ck = CookieCutter[FlagsCookieExtra](
                 file_dir=os.path.dirname(__file__),
-                output_dir=os.path.join(src_path.value, "elm-stuff"),
-                cookie_dir_name="program_template",
+                output_dir=os.path.join(src_path.value, stuff_namespace[0]),
+                cookie_dir_name="flags_template",
                 extra={
                     "program_name": module_name(self.prog_name),
-                    "tmp_dir": temp_dir_name,
-                    "view_name": "",
-                    "tag_file": "",
-                    "scope": "",
+                    "tmp_dir": stuff_namespace[1],
                     "alias_type": flags.to_elm_parser_data()["alias_type"],
                     "decoder_body": flags.to_elm_parser_data()["decoder_body"],
                 },
+                overwrite=True,
             )
             temp_dir_path = ck.cut(logger)
 
-            if temp_dir_path.tag == "Success":
-                # Move elm program flags
-                shutil.copy(
+            if temp_dir_path.tag != "Success":
+                raise temp_dir_path.err
+
+            # Move elm program flags
+            shutil.copy(
+                os.path.join(
+                    temp_dir_path.value, module_name(self.prog_name) + ".elmf"
+                ),
+                os.path.join(
+                    src_path.value,
+                    "src",
+                    "Models",
+                    module_name(self.prog_name) + ".elm",
+                ),
+            )
+            logger.write(
+                self._log(
                     os.path.join(
-                        temp_dir_path.value, module_name(self.prog_name) + ".elmf"
-                    ),
-                    os.path.join(
-                        src_path.value,
-                        "src",
-                        "Models",
-                        module_name(self.prog_name) + ".elm",
-                    ),
+                        src_path.value, "src", "Models", program_file(self.prog_name)
+                    )
                 )
-                return ExitSuccess(None)
-        return ExitFailure(
-            None,
-            err=StrategyError(f"Couldn't resolve the path for {self.app_name} app."),
-        )
+            )
+            return ExitSuccess(None)
+        except OSError as err:
+            raise err
+
+    def _log(self, model_path):
+        return f"""
+Model generated for:
+
+    \033[93m{model_path}\033[0m
+    """
 
 
 @dataclass(slots=True)
@@ -323,113 +402,128 @@ class AddProgramStrategy:
     ):
         src_path = get_app_src_path(self.app_name)
         app_path = get_app_path(self.app_name)
-        if src_path.tag == "Success" and app_path.tag == "Success":
-            try:
-                os.mkdir(os.path.join(src_path.value, "elm-stuff"))
-            except FileExistsError:
-                pass
-            except FileNotFoundError as err:
-                return ExitFailure(meta="Path to 'elm-stuff invalid'", err=err)
-            try:
-                temp_dir_name = (
-                    f'temp_program_djelm_{str(uuid.uuid1()).replace("-", "_")}'
-                )
-                ck = CookieCutter[AddProgramCookieExtra](
-                    file_dir=os.path.dirname(__file__),
-                    output_dir=os.path.join(src_path.value, "elm-stuff"),
-                    cookie_dir_name="program_template",
-                    extra={
-                        "program_name": module_name(self.prog_name),
-                        "view_name": view_name(self.prog_name),
-                        "tmp_dir": temp_dir_name,
-                        "tag_file": tag_file_name(self.prog_name),
-                        "scope": scope_name(self.app_name, self.prog_name),
-                        "alias_type": "Int",
-                        "decoder_body": "Decode.int",
-                        "app_name": self.app_name,
-                    },
-                )
-                temp_dir_path = ck.cut(logger)
+        djelm_version = version("djelm")
+        stuff_namespace = ("elm-stuff", f"djelm_{djelm_version}")
+        tag_file = tag_file_name(self.prog_name)
 
-                if temp_dir_path.tag == "Success":
-                    # Move elm program
-                    shutil.copy(
-                        os.path.join(
-                            temp_dir_path.value, module_name(self.prog_name) + ".elm"
-                        ),
-                        os.path.join(src_path.value, "src"),
-                    )
-                    # Move elm program flags
-                    shutil.copy(
-                        os.path.join(
-                            temp_dir_path.value, module_name(self.prog_name) + ".elmf"
-                        ),
-                        os.path.join(
-                            src_path.value,
-                            "src",
-                            "Models",
-                            module_name(self.prog_name) + ".elm",
-                        ),
-                    )
-                    # Move template tag
-                    shutil.copy(
-                        os.path.join(
-                            temp_dir_path.value,
-                            tag_file_name(self.prog_name) + "_tags.py",
-                        ),
-                        os.path.join(app_path.value, "templatetags"),
-                    )
-                    # Move flag file
-                    shutil.copy(
-                        os.path.join(
-                            temp_dir_path.value,
-                            tag_file_name(self.prog_name) + ".pyf",
-                        ),
-                        os.path.join(
-                            app_path.value,
-                            "flags",
-                            tag_file_name(self.prog_name) + ".py",
-                        ),
-                    )
-                    # Move template html
-                    shutil.copy(
-                        os.path.join(
-                            temp_dir_path.value, tag_file_name(self.prog_name) + ".html"
-                        ),
-                        os.path.join(app_path.value, "templates", self.app_name),
-                    )
+        if src_path.tag != "Success":
+            raise src_path.err
 
-                    # Move typescript
-                    shutil.copy(
-                        os.path.join(
-                            temp_dir_path.value, module_name(self.prog_name) + ".ts"
-                        ),
-                        os.path.join(src_path.value, "djelm_src"),
-                    )
+        if app_path.tag != "Success":
+            raise app_path.err
 
-                    logger.write(
-                        f"""
+        try:
+            os.makedirs(os.path.join(src_path.value, *stuff_namespace))
+        except FileExistsError:
+            pass
+        except FileNotFoundError as err:
+            raise err
+        try:
+            ck = CookieCutter[AddProgramCookieExtra](
+                file_dir=os.path.dirname(__file__),
+                output_dir=os.path.join(src_path.value, "elm-stuff"),
+                cookie_dir_name="program_template",
+                extra={
+                    "program_name": module_name(self.prog_name),
+                    "view_name": view_name(self.prog_name),
+                    "tmp_dir": stuff_namespace[1],
+                    "tag_file": tag_file,
+                    "scope": scope_name(self.app_name, self.prog_name),
+                    "app_name": self.app_name,
+                },
+                overwrite=True,
+            )
+            temp_dir_path = ck.cut(logger)
+
+            ck_flags_path = CookieCutter[FlagsCookieExtra](
+                file_dir=os.path.dirname(__file__),
+                output_dir=os.path.join(src_path.value, "elm-stuff"),
+                cookie_dir_name="flags_template",
+                extra={
+                    "program_name": module_name(self.prog_name),
+                    "alias_type": "Int",
+                    "decoder_body": "Decode.int",
+                    "tmp_dir": stuff_namespace[1],
+                },
+                overwrite=True,
+            ).cut(logger)
+            if temp_dir_path.tag != "Success":
+                raise temp_dir_path.err
+            if ck_flags_path.tag != "Success":
+                raise ck_flags_path.err
+
+            # Move elm program
+            shutil.copy(
+                os.path.join(temp_dir_path.value, module_name(self.prog_name) + ".elm"),
+                os.path.join(src_path.value, "src"),
+            )
+            # Move elm program flags
+            shutil.copy(
+                os.path.join(
+                    ck_flags_path.value,
+                    module_name(self.prog_name) + ".elmf",
+                ),
+                os.path.join(
+                    src_path.value,
+                    "src",
+                    "Models",
+                    module_name(self.prog_name) + ".elm",
+                ),
+            )
+            # Move template tag
+            shutil.copy(
+                os.path.join(
+                    temp_dir_path.value,
+                    tag_file_name(self.prog_name) + "_tags.py",
+                ),
+                os.path.join(app_path.value, "templatetags"),
+            )
+            # Move flag file
+            shutil.copy(
+                os.path.join(
+                    temp_dir_path.value,
+                    tag_file_name(self.prog_name) + ".pyf",
+                ),
+                os.path.join(
+                    app_path.value,
+                    "flags",
+                    tag_file_name(self.prog_name) + ".py",
+                ),
+            )
+            # Move template html
+            shutil.copy(
+                os.path.join(
+                    temp_dir_path.value, tag_file_name(self.prog_name) + ".html"
+                ),
+                os.path.join(app_path.value, "templates", self.app_name),
+            )
+
+            # Move typescript
+            shutil.copy(
+                os.path.join(temp_dir_path.value, module_name(self.prog_name) + ".ts"),
+                os.path.join(src_path.value, "djelm_src"),
+            )
+
+            logger.write(
+                f"""
 I created the \033[92m{self.prog_name}.elm\033[0m program for you!
 
 Right now it's just a default little program that you can change to your hearts content.
 
 You can find it here:
 
-        \033[92m{os.path.join(src_path.value, 'src', program_file(self.prog_name))}\033[0m
+\033[92m{os.path.join(src_path.value, 'src', program_file(self.prog_name))}\033[0m
 
 Check out <https://github.com/Confidenceman02/django-elm/blob/main/README.md> to find out how to compile it and see it in the browser.
+
 """
-                    )
-                    return ExitSuccess(None)
-                return ExitFailure(None, err=temp_dir_path.err)
-            except OSError as err:
-                return ExitFailure(None, err=StrategyError(err))
+            )
+            return ExitSuccess(None)
+        except OSError as err:
+            raise err
         else:
-            return ExitFailure(
-                None,
-                Exception(
-                    f"Something went wrong: Make sure the app exists and you have run 'python manage.py elm init {self.app_name}'"
-                ),
+            raise Exception(
+                f"Something went wrong: Make sure the app exists and you have run 'python manage.py elm init {self.app_name}'"
             )
 
 
@@ -444,7 +538,8 @@ class ListStrategy:
         )
 
         dir_data: Iterable[tuple[str, list[str], list[str]]] = map(
-            next, map(lambda p: walk_level(p.value), app_path_exits)  # type:ignore
+            next,
+            map(lambda p: walk_level(p.value), app_path_exits),  # type:ignore
         )
 
         django_elm_apps = [os.path.basename(r) for r, _, f in dir_data if is_djelm(f)]

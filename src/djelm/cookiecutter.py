@@ -14,6 +14,7 @@ class CookieCutter(Generic[T]):
     output_dir: str
     cookie_dir_name: str
     extra: T
+    overwrite: bool = False
 
     def cut(self, logger) -> ExitSuccess[str] | ExitFailure[None, Exception]:
         try:
@@ -28,7 +29,7 @@ class CookieCutter(Generic[T]):
                 output_dir=self.output_dir,
                 directory=self.cookie_dir_name,
                 no_input=True,
-                overwrite_if_exists=False,
+                overwrite_if_exists=self.overwrite,
                 extra_context=self.extra,
             )
             return ExitSuccess(app_path)
