@@ -24,13 +24,17 @@ class NPM:
         except OSError as err:
             return ExitFailure(
                 None,
-                NPMError(
-                    f"""
+                NPMError(_to_npm_error(err, " ".join([npm_bin_path, *args]))),
+            )
+
+
+def _to_npm_error(err: Exception, command: str):
+    return f"""
 \033[91m-- PACKAGE MANAGER ERROR ---------------------------------------------------------------------------------------------------------- command/npm\033[0m
 
 Im trying to run this command:
 
-    \033[93m{" ".join([npm_bin_path, *args])}\033[0m
+    \033[93m{command}\033[0m
 
 But it raised this error:
 
@@ -39,5 +43,3 @@ But it raised this error:
 \033[4m\033[1mHint\033[0m: If I don't see a \033[1mNODE_PACKAGE_MANAGER\033[0m variable in \033[1msettings.py\033[0m I will try to use \033[1mpnpm\033[0m by default.
 
 Check out <https://github.com/Confidenceman02/django-elm?tab=readme-ov-file#npm-command> for more information."""
-                ),
-            )

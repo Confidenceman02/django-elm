@@ -63,11 +63,10 @@ that will ensure your use of Djelm is fit for purpose.
 
 2. Try out a killer combo such as [HTMX](https://htmx.org/) and [Alpine JS](https://alpinejs.dev/).
 
-   - This combo being able to handle a huge of amount of your UI reactivity is entirely conceivable, however, consider the
+   - This combo being able to handle a huge of amount of your UI reactivity is entirely conceivable, however, consider
      the following.
      - HTMX: Ensure your UI/UX won't suffer as a result of a roundtrip to the server.
-     - Alpine JS: Great for simple dynamic behaviour, but If you find yourself writing app logic akin to that of a
-       framework, Djelm is likely a far better option.
+     - Alpine JS: If you find yourself writing app logic akin to that of a framework, Djelm is likely a far better option.
 
 # Requirements
 
@@ -159,7 +158,7 @@ Optionally set your package manager of choice.
 > the [install guide](https://pnpm.io/installation) if you would like to use this default and you don't currently
 > have [pnpm](https://pnpm.io/) installed.
 >
-> We **highly** recommend you use `pnpm` as it doesn't install node package peer dependencies, and usually provides a hassle free fast experience.
+> We **highly** recommend you use `pnpm` as it doesn't install node package peer dependencies, and usually provides a hassle free performant experience.
 
 ```python
 # settings.py

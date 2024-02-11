@@ -1,5 +1,3 @@
-import os
-import signal
 import subprocess
 import sys
 from dataclasses import dataclass
