@@ -1,5 +1,3 @@
-import subprocess
-import sys
 from dataclasses import dataclass
 
 from djelm import get_config
@@ -23,17 +21,23 @@ class NPM:
             process = SubProcess([npm_bin_path, *args], cwd, self.raise_err)
             process.open()
             return ExitSuccess(None)
-        except subprocess.CalledProcessError:
-            sys.exit(1)
-        except OSError:
+        except OSError as err:
             return ExitFailure(
                 None,
                 NPMError(
-                    f"\nIt looks like node.js and/or {npm_bin_path} is not installed or cannot be found.\n\n"
-                    "Visit https://nodejs.org to download and install node.js for your system.\n\n"
-                    "If you have npm installed and are still getting this error message, "
-                    "set NODE_PACKAGE_MANAGER variable in settings.py to match the path of a node package manager executable in your system.\n\n"
-                    "Example:\n"
-                    'NODE_PACKAGE_MANAGER = "/usr/local/bin/pnpm"'
+                    f"""
+\033[91m-- PACKAGE MANAGER ERROR ---------------------------------------------------------------------------------------------------------- command/npm\033[0m
+
+Im trying to run this command:
+
+    \033[93m{" ".join([npm_bin_path, *args])}\033[0m
+
+But it raised this error:
+
+    \033[93m{err}\033[0m
+
+\033[4m\033[1mHint\033[0m: If I don't see a \033[1mNODE_PACKAGE_MANAGER\033[0m variable in \033[1msettings.py\033[0m I will try to use \033[1mpnpm\033[0m by default.
+
+Check out <https://github.com/Confidenceman02/django-elm?tab=readme-ov-file#npm-command> for more information."""
                 ),
             )

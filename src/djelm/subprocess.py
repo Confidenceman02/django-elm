@@ -32,5 +32,3 @@ class SubProcess:
                 else:
                     sys.stdout.write(c.decode("utf-8", "ignore"))
             break
-
-        os.killpg(os.getpgid(process.pid), signal.SIGTERM)

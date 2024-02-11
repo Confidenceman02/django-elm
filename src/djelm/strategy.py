@@ -176,10 +176,13 @@ class WatchStrategy:
         compile = CompileStrategy(self.app_name, raise_error=False)
         async for changes in awatch(*dir):
             for change, f in changes:
+                # VIM creates a file to check it can create a file, we want to ignore it
+                if f.endswith("4913"):
+                    continue
                 # If flags change generate models
                 # TODO Don't generate a model when a flags module is deleted
-                # TODO Only geerate a model when the flags output is different to what has already been generated.
-                if os.path.join(app_path, "flags") in f:
+                # TODO Only generate a model when the flags output is different to what has already been generated.
+                if os.path.join(app_path, "flags") in f and f.endswith(".py"):
                     filename = os.path.basename(f).split(".")[0]
                     program_name = program_file(filename)
                     is_program = os.path.isfile(
@@ -190,9 +193,6 @@ class WatchStrategy:
                         GenerateModelStrategy(self.app_name, module_name(filename)).run(
                             logger, style
                         )
-                    continue
-                # VIM creates a file to check it can create a file, we want to ignore it
-                if f.endswith("4913"):
                     continue
                 # VIM for some reason triggers an ADDED(2) event when saving a buffer
                 if change == 1:
@@ -224,14 +224,18 @@ class NpmStrategy:
         npm = NPM()
         src_path = get_app_src_path(self.app_name)
 
-        if src_path.tag == "Success":
-            npm_exit = npm.command(src_path.value, self.args)
+        if src_path.tag != "Success":
+            # TODO Better error
+            raise src_path.err
 
-            if npm_exit.tag == "Success":
-                logger.write(style.SUCCESS("Npm strategy completed successfully."))
-                return ExitSuccess(None)
-            return ExitFailure(None, StrategyError(npm_exit.err))
-        return ExitFailure(None, err=StrategyError(src_path.err))
+        npm_exit = npm.command(src_path.value, self.args)
+
+        if npm_exit.tag != "Success":
+            # TODO Better error
+            raise npm_exit.err
+
+        logger.write(style.SUCCESS("Completed successfully."))
+        return ExitSuccess(None)
 
 
 @dataclass(slots=True)
