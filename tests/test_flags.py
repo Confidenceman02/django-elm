@@ -1,5 +1,4 @@
 import os
-
 import pytest
 from django.core.management.base import LabelCommand
 from pydantic import ValidationError
@@ -17,6 +16,7 @@ from djelm.flags.main import (
 )
 from src.djelm.strategy import GenerateModelStrategy
 from src.djelm.utils import get_app_src_path
+from tests.conftest import cleanup_models
 from tests.fuzz_flags import fuzz_flag
 
 
@@ -24,7 +24,6 @@ def test_fuzz_flags(settings):
     app_name = "test_programs"
     settings.INSTALLED_APPS += [app_name]
     src_path = get_app_src_path(app_name).value  # type:ignore
-    os.mkdir(os.path.join(src_path, "elm-stuff"))
 
     programs = []
 
@@ -42,6 +41,8 @@ def test_fuzz_flags(settings):
             def generate(self):
                 self.run(LabelCommand().stdout, LabelCommand().style)
 
+        file = open(os.path.join(src_path, "src", "Models", f"Main{i}.elm"), "w")
+        file.close()
         MockGenerateModel(app_name, f"Main{i}").generate()
         programs.append(f"src/Main{i}.elm")
 
@@ -54,6 +55,7 @@ def test_fuzz_flags(settings):
 
     assert True
 
+    cleanup_models(app_name)
     settings.INSTALLED_APPS.remove(app_name)
 
 
