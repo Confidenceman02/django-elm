@@ -2,8 +2,10 @@ name: Publish
 
 on:
   push:
-    branches: [main]
-    tags: '0.*.*'
+    branches: 
+      - main
+    tags:
+      - 0.*.*
 
 jobs:
   build:
