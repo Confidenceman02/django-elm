@@ -1,9 +1,11 @@
 from dataclasses import dataclass
+from django.conf import settings
+import sys
 from typing import Generic, TypeVar
 
 from djelm.effect import ExitFailure, ExitSuccess
+from djelm.subprocess import SubProcess
 
-from .utils import install_pip_package
 
 T = TypeVar("T")
 
@@ -21,7 +23,10 @@ class CookieCutter(Generic[T]):
             from cookiecutter.main import cookiecutter
         except (ImportError, ModuleNotFoundError):
             logger.write("Couldn't find cookie cutter, installing...")
-            install_pip_package("cookiecutter")
+            SubProcess(
+                [sys.executable, "-m", "pip", "install", "cookiecutter"],
+                settings.BASE_DIR,
+            ).open()
             from cookiecutter.main import cookiecutter
         try:
             app_path = cookiecutter(
