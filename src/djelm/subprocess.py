@@ -21,6 +21,7 @@ class SubProcess:
             raise Exception("stdout not available")
         for c in iter(lambda: process.stdout.read(1), ""):  # type:ignore
             sys.stdout.write(c.decode("utf-8", "ignore"))
+            sys.stdout.flush()
             if process.poll() is not None:
                 break
         for c in iter(lambda: process.stderr.read(), ""):  # type:ignore

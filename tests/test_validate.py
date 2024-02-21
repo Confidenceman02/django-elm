@@ -83,12 +83,6 @@ def test_validate_failure_when_not_enough_args_with_create_sequence(settings):
         Validations().acceptable_command(["generatemodel", app_name]), ExitFailure
     )
 
-    TestCase().assertIsInstance(
-        Validations().acceptable_command(["npm", app_name]), ExitFailure
-    )
-    TestCase().assertIsInstance(
-        Validations().acceptable_command(["elm", app_name]), ExitFailure
-    )
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
 
@@ -103,11 +97,17 @@ def test_validate_success_when_create_sequence(settings):
         Validations().acceptable_command(["npm", app_name, "install"]), ExitSuccess
     )
     TestCase().assertIsInstance(
+        Validations().acceptable_command(["npm", app_name]), ExitSuccess
+    )
+    TestCase().assertIsInstance(
         Validations().acceptable_command(["npm", app_name, "install", "-D", "elm"]),
         ExitSuccess,
     )
     TestCase().assertIsInstance(
         Validations().acceptable_command(["elm", app_name, "init"]), ExitSuccess
+    )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["elm", app_name]), ExitSuccess
     )
     TestCase().assertIsInstance(
         Validations().acceptable_command(["elm", app_name, "install", "elm/json"]),
@@ -177,13 +177,6 @@ def test_validate_failure_when_create_sequence(settings):
     TestCase().assertIsInstance(
         Validations().acceptable_command(["generatemodel", app_name, "Main"]),
         ExitFailure,
-    )
-
-    TestCase().assertIsInstance(
-        Validations().acceptable_command(["npm", app_name]), ExitFailure
-    )
-    TestCase().assertIsInstance(
-        Validations().acceptable_command(["elm", app_name]), ExitFailure
     )
 
     settings.INSTALLED_APPS.remove(app_name)
