@@ -50,7 +50,7 @@ Usage example:
     def add_arguments(self, parser):
         _, unknown = parser.parse_known_args()
 
-        if 1 < len(unknown) and unknown[1] in ["npm"]:
+        if 1 < len(unknown) and unknown[1] in ["npm", "elm"]:
             parser.add_argument("strategy")
             parser.add_argument("app")
             parser.add_argument("rest", nargs=argparse.REMAINDER)
