@@ -229,22 +229,6 @@ But according to your \033[1mINSTALLED_APPS\033[0m variable \033[1m{app_name}\03
                 )
             case [
                 "npm",
-                _,
-            ]:
-                # TODO remove constraint
-                raise ValidationError(
-                    "I was expecting some arguments for the 'npm' command. run 'manage.py djelm to see examples.'\n"
-                )
-            case [
-                "elm",
-                _,
-            ]:
-                # TODO remove constraint
-                raise ValidationError(
-                    "I was expecting some arguments for the 'elm' command. run 'manage.py djelm to see examples.'\n"
-                )
-            case [
-                "npm",
             ]:
                 raise ValidationError(Validations.__missing_app_name("npm"))
             case [
