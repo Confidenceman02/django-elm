@@ -1,3 +1,9 @@
+## [0.4.0] - 2024-02-22
+
+### Fixed
+
+- Extra arg constraints removed from elm strategy
+
 ## [0.3.0] - 2024-02-19
 
 ### Fixed
@@ -19,6 +25,7 @@
 
 - First version to pyPI
 
+[0.4.0]: https://github.com/Confidenceman02/django-elm/releases/0.3.0...0.4.0
 [0.3.0]: https://github.com/Confidenceman02/django-elm/releases/0.2.0...0.3.0
 [0.2.0]: https://github.com/Confidenceman02/django-elm/releases/0.1.0...0.2.0
 [0.1.0]: https://github.com/Confidenceman02/django-elm/releases/0.1.0
