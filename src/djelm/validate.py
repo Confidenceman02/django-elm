@@ -3,11 +3,14 @@ from typing import Literal
 from django.conf import settings
 from typing_extensions import TypedDict
 
+from djelm.forms.widgets.main import WIDGET_NAMES
+
 from .effect import ExitFailure, ExitSuccess
 from .utils import get_app_path, is_create, is_djelm, is_init, is_program, walk_level
 
 Create = TypedDict("Create", {"command": Literal["create"], "app_name": str})
 List = TypedDict("List", {"command": Literal["list"]})
+ListWidgets = TypedDict("ListWidgets", {"command": Literal["listwidgets"]})
 AddProgram = TypedDict(
     "AddProgram",
     {"command": Literal["addprogram"], "app_name": str, "program_name": str},
@@ -33,6 +36,11 @@ Compile = TypedDict(
     {"command": Literal["compile"], "app_name": str, "build": bool},
 )
 
+AddWidget = TypedDict(
+    "AddWidget",
+    {"command": Literal["addwidget"], "app_name": str, "widget": str},
+)
+
 
 class ValidationError(Exception):
     pass
@@ -43,7 +51,16 @@ class Validations:
         self, labels: list[str], *_
     ) -> (
         ExitSuccess[
-            Create | List | AddProgram | Npm | Elm | Watch | GenerateModel | Compile
+            Create
+            | List
+            | ListWidgets
+            | AddProgram
+            | Npm
+            | Elm
+            | Watch
+            | GenerateModel
+            | Compile
+            | AddWidget
         ]
         | ExitFailure[list[str], ValidationError]
     ):
@@ -63,20 +80,7 @@ class Validations:
                 if app_path_exit.tag == "Success" and is_djelm(
                     next(walk_level(app_path_exit.value))[2]
                 ):
-                    raise ValidationError(
-                        f"""
-\033[91m-- APP ALREADY EXISTS ------------------------------------------------------------------------------------------------------------------------- command/create\033[0m
-
-It looks like you are trying to run the command: 
-
-    \033[93mcreate\033[0m
-
-The app you are targeting is:
-
-    \033[93m{app_name}\033[0m 
-
-But according to your \033[1mINSTALLED_APPS\033[0m variable \033[1m{app_name}\033[0m already exists and I can't \033[1m'create'\033[0m an app that has already been created."""
-                    )
+                    raise ValidationError(self.__app_exists("create", app_name))
 
                 if app_name in settings.INSTALLED_APPS:
                     raise ValidationError(
@@ -85,53 +89,49 @@ But according to your \033[1mINSTALLED_APPS\033[0m variable \033[1m{app_name}\03
             case ["npm", app_name, *_]:
                 app_path_exit = get_app_path(app_name)
 
-                if not app_path_exit.tag == "Success":
-                    raise ValidationError(
-                        Validations.__not_in_settings("npm", app_name)
-                    )
-                if not is_djelm(next(walk_level(app_path_exit.value))[2]):
+                validated_app_path = self._validate_app_path(
+                    app_name, self.__not_in_settings("npm", app_name)
+                )
+
+                if not is_djelm(next(walk_level(validated_app_path))[2]):
                     raise ValidationError(
                         Validations.__not_a_djelm_app("npm", app_name)
                     )
             case ["elm", app_name, *_]:
                 app_path_exit = get_app_path(app_name)
 
-                if not app_path_exit.tag == "Success":
-                    raise ValidationError(
-                        Validations.__not_in_settings("elm", app_name)
-                    )
-                if not is_djelm(next(walk_level(app_path_exit.value))[2]):
+                validated_app_path = self._validate_app_path(
+                    app_name, self.__not_in_settings("elm", app_name)
+                )
+                if not is_djelm(next(walk_level(validated_app_path))[2]):
                     raise ValidationError(
                         Validations.__not_a_djelm_app("elm", app_name)
                     )
             case ["watch", app_name]:
                 app_path_exit = get_app_path(app_name)
 
-                if not app_path_exit.tag == "Success":
-                    raise ValidationError(self.__not_in_settings("watch", app_name))
-                if not is_djelm(next(walk_level(app_path_exit.value))[2]):
-                    raise ValidationError(
-                        f'{Validations.__not_a_djelm_app("watch", app_name)}\n'
-                    )
+                validated_app_path = self._validate_app_path(
+                    app_name, self.__not_in_settings("watch", app_name)
+                )
+                if not is_djelm(next(walk_level(validated_app_path))[2]):
+                    raise ValidationError(self.__not_a_djelm_app("watch", app_name))
             case ["compile", app_name]:
                 app_path_exit = get_app_path(app_name)
 
-                if not app_path_exit.tag == "Success":
-                    raise ValidationError(self.__not_in_settings("compile", app_name))
-                if not is_djelm(next(walk_level(app_path_exit.value))[2]):
-                    raise ValidationError(
-                        f'{Validations.__not_a_djelm_app("compile", app_name)}\n'
-                    )
+                validated_app_path = self._validate_app_path(
+                    app_name, self.__not_in_settings("compile", app_name)
+                )
+                if not is_djelm(next(walk_level(validated_app_path))[2]):
+                    raise ValidationError(self.__not_a_djelm_app("compile", app_name))
             case ["compilebuild", app_name]:
                 app_path_exit = get_app_path(app_name)
 
-                if not app_path_exit.tag == "Success":
+                validated_app_path = self._validate_app_path(
+                    app_name, self.__not_in_settings("compilebuild", app_name)
+                )
+                if not is_djelm(next(walk_level(validated_app_path))[2]):
                     raise ValidationError(
-                        self.__not_in_settings("compilebuild", app_name)
-                    )
-                if not is_djelm(next(walk_level(app_path_exit.value))[2]):
-                    raise ValidationError(
-                        f'{Validations.__not_a_djelm_app("compilebuild", app_name)}\n'
+                        self.__not_a_djelm_app("compilebuild", app_name)
                     )
             case ["addprogram", app_name]:
                 raise ValidationError(
@@ -153,11 +153,10 @@ But according to your \033[1mINSTALLED_APPS\033[0m variable \033[1m{app_name}\03
             case ["addprogram", app_name, _]:
                 app_path_exit = get_app_path(app_name)
 
-                if not app_path_exit.tag == "Success":
-                    raise ValidationError(
-                        self.__not_in_settings("addprogram", app_name)
-                    )
-                if not is_djelm(next(walk_level(app_path_exit.value))[2]):
+                validated_app_path = self._validate_app_path(
+                    app_name, self.__not_in_settings("addprogram", app_name)
+                )
+                if not is_djelm(next(walk_level(validated_app_path))[2]):
                     raise ValidationError(
                         f'{Validations.__not_a_djelm_app("addprogram", app_name)}\n'
                     )
@@ -179,11 +178,10 @@ But according to your \033[1mINSTALLED_APPS\033[0m variable \033[1m{app_name}\03
             case ["generatemodel", app_name, p]:
                 app_path_exit = get_app_path(app_name)
 
-                if not app_path_exit.tag == "Success":
-                    raise ValidationError(
-                        self.__not_in_settings("generatemodel", app_name)
-                    )
-                if not is_djelm(next(walk_level(app_path_exit.value))[2]):
+                validated_app_path = self._validate_app_path(
+                    app_name, self.__not_in_settings("generatemodel", app_name)
+                )
+                if not is_djelm(next(walk_level(validated_app_path))[2]):
                     raise ValidationError(
                         Validations.__not_a_djelm_app("generatemodel", app_name)
                     )
@@ -206,6 +204,14 @@ But according to your \033[1mINSTALLED_APPS\033[0m variable \033[1m{app_name}\03
                         )}
 \033[4m\033[1mHint\033[0m: These files are usually automatically generated for you when you run the \033[1mcreate\033[0m and \033[1maddprogram\033[0m commands."""
                     )
+            case ["addwidget", app_name, _]:
+                validated_app_path = self._validate_app_path(
+                    app_name, self.__not_in_settings("addwidget", app_name)
+                )
+                if not is_djelm(next(walk_level(validated_app_path))[2]):
+                    raise ValidationError(
+                        Validations.__not_a_djelm_app("addwidget", app_name)
+                    )
 
     def __check_command_combos(self, xs: list[str]) -> None:
         match xs:
@@ -215,9 +221,17 @@ But according to your \033[1mINSTALLED_APPS\033[0m variable \033[1m{app_name}\03
                 return
             case ["addprogram", _, _]:
                 return
+            case ["addwidget", _, widget_type]:
+                if widget_type not in WIDGET_NAMES:
+                    raise ValidationError(
+                        Validations.__unknown_widget("addwidget", widget_type)
+                    )
+                return
             case ["generatemodel", _, _]:
                 return
             case ["list"]:
+                return
+            case ["listwidgets"]:
                 return
             case ["compile", _]:
                 return
@@ -226,6 +240,10 @@ But according to your \033[1mINSTALLED_APPS\033[0m variable \033[1m{app_name}\03
             case ["list", *rest]:
                 raise ValidationError(
                     Validations.__too_many_command_args("list", list(rest))
+                )
+            case ["listwidgets", *rest]:
+                raise ValidationError(
+                    Validations.__too_many_command_args("listwidgets", list(rest))
                 )
             case [
                 "npm",
@@ -264,6 +282,71 @@ But according to your \033[1mINSTALLED_APPS\033[0m variable \033[1m{app_name}\03
 
             case ["create"] as command_verb:
                 raise ValidationError(Validations.__missing_app_name(command_verb[0]))
+            case ["addwidget", app_name]:
+                raise ValidationError(
+                    Validations.__missing_argument(
+                        "addwidget",
+                        app_name,
+                        "You need to include the name of the widget you want me to add.\n\nRun \033[1mpython manage.py djelm listwidgets\033[0m to find out what type of widget programs I can add for you.",
+                    )
+                )
+            case [
+                "addwidget",
+            ]:
+                raise ValidationError(Validations.__missing_app_name("addwidget"))
+            case ["addwidget", app_name, widget_name, *rest]:
+                raise ValidationError(
+                    Validations.__too_many_command_args(
+                        f"addwidget {app_name} {widget_name}", list(rest)
+                    )
+                )
+
+    @staticmethod
+    def __app_exists(cmd_verb: str, app_name: str) -> str:
+        return f"""
+\033[91m-- APP ALREADY EXISTS ------------------------------------------------------------------------------------------------------------------------- command/{cmd_verb}\033[0m
+
+It looks like you are trying to run the command:
+
+    \033[93m{cmd_verb}\033[0m
+
+The app you are targeting is:
+
+    \033[93m{app_name}\033[0m
+
+But according to your \033[1mINSTALLED_APPS\033[0m variable \033[1m{app_name}\033[0m already exists and I can't \033[1m'{cmd_verb}'\033[0m an app that has already been created."""
+
+    @staticmethod
+    def __missing_argument(cmd_verb: str, app_name: str, hint: str) -> str:
+        return f"""
+
+\033[91m-- MISSING ARGUMENT ------------------------------------------------------------------------------------------------------------------------- command/{cmd_verb}\033[0m
+
+It looks like you are trying to run the command:
+
+    \033[93m{cmd_verb}\033[0m
+
+The app you are targeting is:
+
+    \033[93m{app_name}\033[0m
+
+But I was expecting another argument.
+
+\033[4m\033[1mHint\033[0m: {hint}"""
+
+    @staticmethod
+    def __unknown_widget(cmd_verb: str, widget_name: str) -> str:
+        return f"""
+
+\033[91m-- UNKNOWN WIDGET ------------------------------------------------------------------------------------------------------------------------- command/{cmd_verb}\033[0m
+
+It looks like you are trying to add this widget:
+
+    \033[93m{widget_name}\033[0m
+
+But I don't recognize the \033[1m{widget_name}\033[0m widget name.
+
+\033[4m\033[1mHint\033[0m: Run \033[1mpython manage.py djelm listwidgets\033[0m to find out what type of widget programs I can add for you."""
 
     @staticmethod
     def __too_many_command_args(cmd_verb: str, args: list[str]) -> str:
@@ -404,7 +487,9 @@ But \033[1m{app_name}\033[0m doesn't look like a djelm app and I can't run comma
             "npm",
             "elm",
             "list",
+            "listwidgets",
             "addprogram",
+            "addwidget",
             "watch",
             "generatemodel",
             "compile",
@@ -417,7 +502,16 @@ But \033[1m{app_name}\033[0m doesn't look like a djelm app and I can't run comma
         xs: list[str],
     ) -> (
         ExitSuccess[
-            Create | List | AddProgram | Npm | Elm | Watch | GenerateModel | Compile
+            Create
+            | List
+            | ListWidgets
+            | AddProgram
+            | Npm
+            | Elm
+            | Watch
+            | GenerateModel
+            | Compile
+            | AddWidget
         ]
         | ExitFailure[list[str], ValidationError]
     ):
@@ -446,11 +540,25 @@ But \033[1m{app_name}\033[0m doesn't look like a djelm app and I can't run comma
                 return ExitSuccess({"command": "elm", "app_name": v, "args": rest})
             case ["list"]:
                 return ExitSuccess({"command": "list"})
+            case ["listwidgets"]:
+                return ExitSuccess({"command": "listwidgets"})
+            case ["addwidget", v, widget_name]:
+                return ExitSuccess(
+                    {"command": "addwidget", "app_name": v, "widget": widget_name}
+                )
             case _ as cmds:
                 return ExitFailure(
                     cmds,
                     ValidationError(f"\nI can't handle the command arguments {cmds!s}"),
                 )
+
+    @staticmethod
+    def _validate_app_path(app_name: str, error_string: str) -> str:
+        app_path_exit = get_app_path(app_name)
+
+        if not app_path_exit.tag == "Success":
+            raise ValidationError(error_string)
+        return app_path_exit.value
 
 
 # class bcolors:

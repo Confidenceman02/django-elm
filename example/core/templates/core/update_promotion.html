@@ -1,0 +1,16 @@
+{% extends "core/base.html" %}
+{% load modelChoiceField_widget_tags %}
+{% block head %}
+    {% include_ModelChoiceFieldWidget %}
+{% endblock %}
+{% block content %}
+  <h1>Choose a course!</h1>
+  <form method="POST">
+      {% csrf_token %}
+
+      {{ form.as_div }}
+
+      <button type="submit">Submit</button>
+    
+  </form>
+{% endblock %}

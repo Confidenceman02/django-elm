@@ -22,7 +22,8 @@ exclude = [
     "node_modules",
     "venv",
     "src/djelm/program_template",
-    "src/djelm/project_template"
+    "src/djelm/project_template",
+    "src/djelm/widget_templates"
 ]
 
 # Same as Black.

@@ -1,0 +1,12 @@
+"""
+djelm expects the {{cookiecutter.program_name}}Flags variable to be present
+when running 'manage.py djelm generatemodel <app-name>'.
+
+For the best developer experience, Make sure you don't rename the variable or
+change the return type to anything that isn't a valid Flag.
+"""
+
+from djelm.flags import Flags
+from djelm.flags.form import ModelChoiceFieldFlag
+
+{{cookiecutter.program_name}}Flags = Flags(ModelChoiceFieldFlag())

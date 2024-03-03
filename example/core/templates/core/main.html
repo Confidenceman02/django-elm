@@ -1,0 +1,9 @@
+{% extends "core/base.html" %}
+{% load static %}{% load static main_tags %}
+{% block head %}
+    {% include_main %}
+{% endblock %}
+{% block content %}
+  <h1>Django + Elm = ❤️</h1>
+  {% render_main %}
+{% endblock %}

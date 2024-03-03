@@ -5,11 +5,11 @@
 [![Actions status](https://Confidenceman02.github.io/djelm/workflows/CI/badge.svg)](https://github.com/Confidenceman02/django-elm/actions)
 [![](https://img.shields.io/badge/license-MIT-blue)](https://github.com/Confidenceman02/django-elm/blob/main/LICENSE)
 
-# Elm integration for Django a.k.a. Django + Elm = 💚 Djelm
+# Elm integration for Django a.k.a. Django + Elm = 💚
 
 ---
 
-## Table Of Content
+## Table of Content
 
 - [The why](#the-why)
 - [The when](#the-when)
@@ -26,8 +26,11 @@
   - [compilebuild Command](#compilebuild-command)
   - [Template tags](#template-tags)
   - [Flags](#flags)
-  - [Flag classes](#flag-builders)
-  - [generatemodel Command](#generating-elm-decoders)
+  - [Flag classes](#flag-classes)
+  - [generatemodel Command](#generatemodel-command)
+- [Widgets](#widgets)
+  - [addwidget Command](#addwidget-command)
+  - [listwidgets Command](#addwidget-command)
 - [Elm resources](#elm-resources)
 
 # The why
@@ -44,11 +47,13 @@ Djelm provides the bridge for both of these wonderful technologies to converge a
 dynamic parts of your UI whilst
 working with the Django conventions you know and love.
 
+[Back to top](#table-of-content)
+
 # The when
 
-Because Djelm is **not intended** to be the primary UI solution for your Django project, the following guidelines serve
+Because djelm is **not intended** to be the primary UI solution for your Django project, the following guidelines serve
 as an initial checklist
-that will ensure your use of Djelm is fit for purpose.
+that will ensure your use of djelm is fit for purpose.
 
 1. Use the Django conventions and tools.
 
@@ -60,7 +65,9 @@ that will ensure your use of Djelm is fit for purpose.
    - This combo being able to handle a huge of amount of your UI reactivity is entirely conceivable, however, consider
      the following.
      - HTMX: Ensure your UI/UX won't suffer as a result of a roundtrip to the server.
-     - Alpine JS: If you find yourself writing app logic akin to that of a framework, Djelm is likely a far better option.
+     - Alpine JS: If you find yourself writing app logic akin to that of a framework, djelm is likely a far better option.
+
+[Back to top](#table-of-content)
 
 # Requirements
 
@@ -68,6 +75,8 @@ that will ensure your use of Djelm is fit for purpose.
 - Python >=3.11
 - Django >= 4.2
 - Node >= 16.4
+
+[Back to top](#table-of-content)
 
 # Elm setup
 
@@ -83,6 +92,8 @@ elm
 ```
 
 You should see a friendly welcome message and some other helpful Elm info.
+
+[Back to top](#table-of-content)
 
 # Django setup
 
@@ -125,15 +136,17 @@ djelmproject
 │   └── wsgi.py
 ```
 
+[Back to top](#table-of-content)
+
 # Djelm setup
 
-You will need the `djelm` package, let's get it with `pip`.
+You will need the djelm package, let's get it with `pip`.
 
 ```bash
 pip install djelm
 ```
 
-Add the `djelm` app to your `INSTALLED_APPS` in `settings.py`
+Add the djelm app to your `INSTALLED_APPS` in `settings.py`
 
 ```python
 # settings.py
@@ -148,7 +161,7 @@ INSTALLED_APPS = [
 Optionally set your package manager of choice.
 
 > [!NOTE]
-> If you don't set this variable then Djelm will try to use [pnpm](https://pnpm.io/). Use
+> If you don't set this variable then djelm will try to use [pnpm](https://pnpm.io/). Use
 > the [install guide](https://pnpm.io/installation) if you would like to use this default and you don't currently
 > have [pnpm](https://pnpm.io/) installed.
 >
@@ -160,11 +173,13 @@ Optionally set your package manager of choice.
 NODE_PACKAGE_MANAGER = "yarn"  # npm, pnpm (default)
 ```
 
+[Back to top](#table-of-content)
+
 # Your first Elm program
 
 ## `create` Command
 
-The first thing we will need to do is create a directory where all your Elm programs will live. Djelm is fairly
+The first thing we will need to do is create a directory where all our Elm programs will live. Djelm is fairly
 opinionated about what lives inside this directory so for the best experience let's use the `create` command.
 
 From your Django project root:
@@ -200,7 +215,7 @@ elm_programs
     └── __init__.py
 ```
 
-What you are seeing is the directory structure required for Djelm to seamlessly work with both Django and Elm.
+What you are seeing is the directory structure required for djelm to seamlessly work with both Django and Elm.
 
 Everything outside of the `static_src` directory should look like a typical Django app, and everything inside
 of `static_src` should look like a conventional Elm project, with some extra bits.
@@ -214,8 +229,8 @@ python manage.py djelm addprogram elm_programs Main
 ```
 
 > [!TIP]
-> You can change the `Main` argument to whatever makes the most sense for your program.
-> e.g. `Map`, `TodoApp`, `UserProfile`.
+> You can change the `Main` argument to whatever makes the most sense for your program, like `Map`, `TodoApp`, `UserProfile`.
+>
 > For the most predictable results when running the `addprogram` command, ensure you use the
 > Elm module naming conventions which you can find [here](https://guide.elm-lang.org/webapps/modules).
 
@@ -267,7 +282,7 @@ To actually run this Elm program with Django we will need to compile it, for tha
 packages defined in the `elm_programs` `package.json` file.
 
 > [!NOTE]
-> Elm doesn't actually need node to compile programs. However, Djelm optimzes Elm programs to work with Django templates
+> Elm doesn't actually need node to compile programs. However, djelm optimzes Elm programs to work with Django templates
 > so a tiny amount of DOM binding code is bundled in.
 
 We can install all node packages with the following command:
@@ -300,7 +315,7 @@ python manage.py djelm npm elm_programs install -D some-cool-npm-package
 
 ## `watch` Command
 
-After all node packages have installed we can use the Djelm `watch` strategy to compile our Elm programs and watch for
+After all node packages have installed we can use the djelm `watch` strategy to compile our Elm programs and watch for
 changes.
 
 ```bash
@@ -374,38 +389,54 @@ python manage.py djelm compilebuild elm_programs
 
 ## Template tags
 
-Let's now actually render something in the browser by adding our `Main` programs tags in a Django template.
+Let's now actually render something in the browser by adding our `Main` programs tags to a Django template.
 
 > [!NOTE]
-> I have added the following `base.html` template to the `elm_programs/templates` directory for demonstration purposes.
-> If you already have a Django project you can just add the tags in whatever templates you want to render the Elm
-> program.
+> I have added the following `base.html` and `main.html` templates to the `elm_programs/templates` directory for demonstration purposes.
+>
+> if you already have a django project you can just add the tags into whatever templates you want to render the elm program.
 
 ```html
 <!-- base.html -->
-{% load static %}{% load static main_tags %}
-<!DOCTYPE html>
+
+<!doctype html>
 <html lang="en">
   <head>
     <title>Djelm</title>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    {% include_main %}
+    {% block head %}{% endblock %}
   </head>
-
   <body>
-    <h1>Django + Elm = ❤️</h1>
-    {% render_main %}
+    {% block content %}{% endblock %}
   </body>
 </html>
 ```
 
-Then we can point a url to the template file we just created.
+```djangohtml
+<!-- main.html -->
+
+{% extends "base.html" %}
+{% load static %}
+{% load static main_tags %}
+{% block head %}
+    {% include_main %}
+{% endblock %}
+{% block content %}
+    <h1>Django + Elm = ❤️</h1>
+    {% render_main %}
+{% endblock %}
+```
+
+Then we can point a url to the `main.html` template file.
 
 ```python
 # urls.py
+from django.urls import path
+from django.views.generic import TemplateView
+
 urlpatterns = [
-    path("", TemplateView.as_view(template_name="base.html")),
+    path("", TemplateView.as_view(template_name="main.html")),
 ]
 ```
 
@@ -510,10 +541,10 @@ when it initializes.
 
 We are using the `IntFlag` class which enforces that the type of value that can be passed to our `Main.elm` program is
 an `int`.
-If we pass anything other than an `int` to `MainFlags` an error will be raised just like the one we saw when we used the
+If we pass anything other than an `int` to `MainFlags.parse` an error will be raised just like the one we saw when we used the
 value `MainFlags.parse("hello Elm!")`.
 
-The `IntFlag` class is also directly related to the contract that exists in our Elm program as seen
+The `IntFlag` class is intrinsic to the model that exists in our `Main.elm` program as seen
 in `elm_programs/static_src/src/Models/Main.elm`:
 
 ```elm
@@ -526,32 +557,21 @@ toModel =
     Decode.int
 ```
 
-What this code reveals is that our `Main.elm` program on initialization will only accept flags that are of type `Int`. A
-successful decoding of the flag to an `Int` will thus produce a model of `Int` which agrees perfectly with the python flag
-definitions.
-
-You can think about `IntFlag` as a schema for your Elm program.
-
-What we end up with is a very strong contract for both the Django server and the Elm program. This workflow ensures that
-data is being validated on both sides.
-
-The default program we generated takes this to the next level by forcing you to handle the possibility of the flag not being an `Int` on
-initialization as seen in `elm_programs/static_src/src/Main.elm`:
+The `Main.elm` program uses this model to protect us from any uninvited flags that might show up at runtime as seen in `elm_programs/static_src/src/Main.elm`:
 
 ```elm
 init : Value -> ( Model, Cmd Msg )
 init f =
     case decodeValue toModel f of
-        -- Flag decoded to an Int, Success!
-        Ok m ->
+        Ok m -> -- Flag decoded to an Int, Success!
             ( Ready m, Cmd.none )
-        -- Flag failed to decode to an Int, Error!
-        Err _ ->
+
+        Err _ -> -- Flag failed to decode to an Int, Error!
             ( Error, Cmd.none )
 ```
 
-We get delicious runtime guarantees that our program will behave as we expect. This is what makes Elm programs
-incredibly robust and nearly impossible to produce a runtime exception.
+To summarize, we get compile and runtime guarantees that our program will behave as we expect. This is what makes Elm programs
+incredibly robust and nearly impossible to produce a runtime exception with.
 
 ## `generatemodel` Command
 
@@ -583,7 +603,7 @@ python manage.py djelm generatemodel elm_programs Main
 ```
 
 > [!NOTE]
-> If you have run the `watch` command, Djelm will automatically detect flag changes and generate the models for you.
+> If you have run the `watch` command, djelm will automatically detect flag changes and generate the models for you.
 
 Looking in `elm_programs/static_src/src/Models/Main.elm` you can see our decoders have changed to handle a `String`
 value:
@@ -598,7 +618,7 @@ toModel =
     Decode.string
 ```
 
-We can get more adventurous to really see the heavy lifting Djelm is doing for us:
+We can get more adventurous to really see the heavy lifting djelm is doing for us:
 
 ```python
 MainFlags = Flags(
@@ -644,8 +664,131 @@ someObject_Decoder =
 
 > [!TIP]
 > The default Elm program we generated will fail to compile when performing the model changes above.
-> To help you understand why it failed you can run the `compile` command and experience first hand
+>
+> To help you understand why it failed you can run the [compile](#compile-command) command and experience first hand
 > the beauty that is an Elm compiler message.
+
+# Widgets
+
+Djelm widgets are feature rich, highly dynamic and customizable programs we can use to supercharge our UI's.
+
+The widgets are added and live inside your app similar to that of a regular program that was added with the [addprogram](#addprogram-command) command.
+The key difference being that they are purpose built, handsomely styled, and ready to be used straight out of the box.
+
+Let's consider this simple model and form.
+
+```python
+# models.py
+from django.db import models
+
+class Course(models.Model):
+    name = models.CharField(max_length=100)
+    instructor = models.CharField(max_length=100)
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class Promotion(models.Model):
+    courses = models.ForeignKey(Course, on_delete=models.SET_NULL, null=True)
+
+# forms.py
+from django import forms
+
+class PromotionForm(forms.ModelForm):
+    courses = forms.ModelChoiceField(
+        queryset=Course.objects.all(),
+    )
+
+    class Meta:
+        model = Promotion
+        fields = ["courses"]
+```
+
+Django will conveniently render a completely usable UI with very little effort from us.
+
+![example](https://Confidenceman02.github.io/djelm/static/dj-mcf.gif)
+
+It's a great start but we want something more customizable, and a fair bit fancier. It's widget time!
+
+## `listwidgets` Command
+
+Let's see a list of all the djelm widgets
+
+```bash
+python manage.py djelm listwidgets
+```
+
+The `ModelChoiceField` widget from this list seems like the one we want.
+
+## `addwidget` Command
+
+Let's add the widget to our `elm_programs` app.
+
+```bash
+python manage.py djelm addwidget elm_programs ModelChoiceField
+```
+
+We will also need to compile the widget program before we can use it.
+
+```bash
+python manage.py djelm compile elm_programs
+```
+
+> [!NOTE]
+> If you have run the [watch](#watch-command) command, djelm will automatically compile the program for you.
+
+Now that we have a widget program to render let's set a custom template for our form field.
+
+```python
+# forms.py
+from django import forms
+
+class PromotionForm(forms.ModelForm):
+    courses = forms.ModelChoiceField(
+        queryset=Course.objects.all(),
+        template_name="modelChoiceFieldWidget.html", # <--- Added
+    )
+
+    class Meta:
+        model = Promotion
+        fields = ["courses"]
+```
+
+Let's now create that custom template.
+
+```djangohtml
+<!-- modelChoiceField.html -->
+
+{% extends "base.html" %}
+{% load modelChoiceField_widget_tags %}
+{% block head %}
+    {% include_ModelChoiceFieldWidget %}
+{% endblock %}
+{% block content %}
+    {{ field.label_tag }}
+    {% render_ModelChoiceFieldWidget %}
+{% endblock %}
+```
+
+Now that's pretty handsome!
+
+![example](https://Confidenceman02.github.io/djelm/static/djelm-mcf.gif)
+
+We get a nice style and feature improvement over the default input Django gives us, but can we do better?
+
+Yes we can!
+
+Because widget programs are just normal Elm programs that live inside your djelm app, you have complete control
+to customize them as you see fit should they not quite fit your branding or presentational requirements.
+
+Let's delight our users by giving them more information about their choices.
+
+![example](https://Confidenceman02.github.io/djelm/static/djelm-cs-mcf.gif)
+
+That's a good looking widget!
+
+[Back to top](#table-of-content)
 
 ## Elm resources
 
@@ -677,5 +820,7 @@ someObject_Decoder =
 
   The most experienced and smartest of our community tend to hang in here. Extremely welcoming, and lots of great
   channels to join.
+
+[Back to top](#table-of-content)
 
 2023 © [Confidenceman02 - A Full Stack Django Developer and Elm shill](#)

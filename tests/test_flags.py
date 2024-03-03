@@ -1,12 +1,14 @@
 import os
+from django import forms
+from djelm.effect import ExitSuccess
 import pytest
 from django.core.management.base import LabelCommand
 from pydantic import ValidationError
 
 from djelm.elm import Elm
-from djelm.flags.main import (
+from djelm.flags.form.primitives import ModelChoiceFieldFlag
+from djelm.flags.primitives import (
     BoolFlag,
-    Flags,
     FloatFlag,
     IntFlag,
     ListFlag,
@@ -14,55 +16,140 @@ from djelm.flags.main import (
     ObjectFlag,
     StringFlag,
 )
-from src.djelm.strategy import GenerateModelStrategy
-from src.djelm.utils import get_app_src_path
+from djelm.flags.main import Flags
+from djelm.generators import ModelGenerator
+from djelm.strategy import GenerateModelStrategy
+from djelm.utils import get_app_src_path
+from test_programs.models import Car, Enthusiast
 from tests.conftest import cleanup_models
 from tests.fuzz_flags import fuzz_flag
 
 
-def test_fuzz_flags(settings):
+def elm_module_content(name: str) -> str:
+    return f"""module {name} exposing (..)
+
+import Browser
+import Html exposing (Html, div, text)
+import Json.Decode exposing (decodeValue)
+import Json.Encode exposing (Value)
+import Models.{name} exposing (ToModel, toModel)
+
+
+type Msg
+    = Increment
+    | Decrement
+
+
+type Model
+    = Ready ToModel
+    | Error
+
+
+init : Value -> ( Model, Cmd Msg )
+init f =
+    case decodeValue toModel f of
+        Ok m ->
+            ( Ready m, Cmd.none )
+
+        Err _ ->
+            ( Error, Cmd.none )
+
+
+main : Program Value Model Msg
+main =
+    Browser.element
+        {{ init = init
+        , update = update
+        , view = view
+        , subscriptions = subscriptions
+        }}
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    Sub.none
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update _ model =
+    ( model, Cmd.none )
+
+
+view : Model -> Html Msg
+view model =
+    case model of
+        Ready _ ->
+            div []
+                [ text "{name} test"
+                ]
+
+        _ ->
+            text ""
+"""
+
+
+@pytest.fixture()
+def basic_form():
+    class UserForm(forms.ModelForm):
+        car = forms.ModelChoiceField(
+            queryset=Car.objects.all(),
+            help_text="Do I detect.. Elm?",
+        )
+
+        class Meta:
+            model = Enthusiast
+            fields = ("username",)
+
+    return UserForm
+
+
+def test_fuzz_flags():
     app_name = "test_programs"
-    settings.INSTALLED_APPS += [app_name]
     src_path = get_app_src_path(app_name).value  # type:ignore
 
     programs = []
 
-    for i in range(1, 11):
+    for i in range(1, 12):
         flags = fuzz_flag()
+
+        class MockHandler(ModelGenerator):
+            def load_flags(  # type:ignore
+                self, app_path: str, program_name: str, watch_mode: bool, logger
+            ):
+                f = Flags(flags)
+                return ExitSuccess(f)
 
         class MockGenerateModel(GenerateModelStrategy):
             def __init__(self, app_name, prog_name) -> None:
-                super().__init__(app_name, prog_name)
-
-            def flags(self) -> Flags:
-                f = Flags(flags)
-                return f  # type:ignore
+                super().__init__(app_name, prog_name, MockHandler())
 
             def generate(self):
-                self.run(LabelCommand().stdout, LabelCommand().style)
+                self.run(LabelCommand().stdout)
 
+        # Create files
         file = open(os.path.join(src_path, "src", "Models", f"Main{i}.elm"), "w")
+        module = open(os.path.join(src_path, "src", f"Main{i}.elm"), "w")
+        module.write(elm_module_content(f"Main{i}"))
         file.close()
+        module.close()
+
         MockGenerateModel(app_name, f"Main{i}").generate()
         programs.append(f"src/Main{i}.elm")
 
     try:
         Elm().command(["make", *programs, "--output=/dev/null"], src_path)
     except Exception:
-        # Remove the app because it borks other tests
-        settings.INSTALLED_APPS.remove(app_name)
         pytest.fail("An elm program did not compile")
 
     assert True
 
     cleanup_models(app_name)
-    settings.INSTALLED_APPS.remove(app_name)
 
 
 class TestFuzzExamplesGenerated:
     """This example was generated with a fuzz generator"""
 
-    def test_fuzz_example_01(self):
+    def test_fuzz_failure_01(self):
         d = ObjectFlag(
             {
                 "yh": ObjectFlag(
@@ -86,10 +173,10 @@ class TestFuzzExamplesGenerated:
     }
 
 type alias Yh_ =
-    { dFE3 : Maybe (Maybe DFE3__)
+    { dFE3 : Maybe (Maybe Yh_DFE3__)
     }
 
-type alias DFE3__ =
+type alias Yh_DFE3__ =
     { k69xy : Maybe (Maybe Int)
     }"""
         )
@@ -100,15 +187,15 @@ type alias DFE3__ =
 yh_Decoder : Decode.Decoder Yh_
 yh_Decoder =
     Decode.succeed Yh_
-        |>  required "dFE3" (Decode.nullable (Decode.nullable dFE3__Decoder))
+        |>  required "dFE3" (Decode.nullable (Decode.nullable yh_dFE3__Decoder))
 
-dFE3__Decoder : Decode.Decoder DFE3__
-dFE3__Decoder =
-    Decode.succeed DFE3__
+yh_dFE3__Decoder : Decode.Decoder Yh_DFE3__
+yh_dFE3__Decoder =
+    Decode.succeed Yh_DFE3__
         |>  required "k69xy" (Decode.nullable (Decode.nullable Decode.int))"""
         )
 
-    def test_fuzz_example_02(self):
+    def test_fuzz_failure_02(self):
         d = ObjectFlag(
             {
                 "zJc": BoolFlag(),
@@ -134,6 +221,69 @@ dEB_Decoder : Decode.Decoder DEB_
 dEB_Decoder =
     Decode.succeed DEB_
         |>  required "z" (Decode.nullable (Decode.list Decode.bool))"""
+        )
+
+    def test_fuzz_failure_03(self):
+        """Compiler error: NAME CLASH - This file defines multiple `Options__` types."""
+        d = ObjectFlag(
+            {
+                "a": ObjectFlag({"options": ObjectFlag({"name": StringFlag()})}),
+                "b": ListFlag(
+                    ObjectFlag({"options": ObjectFlag({"name": StringFlag()})})
+                ),
+            }
+        )
+        SUT = Flags(d)
+
+        # Alias type
+        assert (
+            SUT.to_elm_parser_data()["alias_type"]
+            == """{ a : A_
+    , b : List B_
+    }
+
+type alias A_ =
+    { options : A_Options__
+    }
+
+type alias A_Options__ =
+    { name : String
+    }
+
+type alias B_ =
+    { options : B_Options__
+    }
+
+type alias B_Options__ =
+    { name : String
+    }"""
+        )
+
+        assert (
+            SUT.to_elm_parser_data()["decoder_body"]
+            == """Decode.succeed ToModel
+        |>  required "a" a_Decoder
+        |>  required "b" (Decode.list b_Decoder)
+
+a_Decoder : Decode.Decoder A_
+a_Decoder =
+    Decode.succeed A_
+        |>  required "options" a_options__Decoder
+
+a_options__Decoder : Decode.Decoder A_Options__
+a_options__Decoder =
+    Decode.succeed A_Options__
+        |>  required "name" Decode.string
+
+b_Decoder : Decode.Decoder B_
+b_Decoder =
+    Decode.succeed B_
+        |>  required "options" b_options__Decoder
+
+b_options__Decoder : Decode.Decoder B_Options__
+b_options__Decoder =
+    Decode.succeed B_Options__
+        |>  required "name" Decode.string"""
         )
 
 
@@ -286,6 +436,25 @@ class TestNullableFlags:
         with pytest.raises(ValidationError):
             SUT.parse("True")
 
+    @pytest.mark.django_db
+    def test_with_model_choice_field_parser(self, basic_form):
+        prepared = basic_form()
+        d = NullableFlag(ModelChoiceFieldFlag())
+        SUT = Flags(d)
+
+        assert SUT.parse(None) == "null"
+        assert (
+            SUT.parse(prepared["car"])
+            == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}'
+        )
+
+        try:
+            SUT.parse({})
+        except Exception:
+            assert True
+            return
+        pytest.fail("Illegal input should raise error")
+
     def test_with_object_parser(self):
         d = NullableFlag(ObjectFlag({"hello": StringFlag()}))
         SUT = Flags(d)
@@ -388,6 +557,7 @@ inlineToModel_Decoder =
         }
 
     def test_with_object_with_object_to_elm_parser(self):
+        # TODO Fix this failing test
         d = NullableFlag(ObjectFlag({"hello": ObjectFlag({"world": StringFlag()})}))
         SUT = Flags(d)
 
@@ -504,6 +674,25 @@ class TestListFlags:
         assert SUT.parse([True]) == "[true]"
         with pytest.raises(ValidationError):
             SUT.parse(["True"])
+
+    @pytest.mark.django_db
+    def test_with_model_choice_field_parser(self, basic_form):
+        prepared = basic_form()
+        d = ListFlag(ModelChoiceFieldFlag())
+        SUT = Flags(d)
+
+        assert SUT.parse([]) == "[]"
+        assert (
+            SUT.parse([prepared["car"]])
+            == '[{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}]'
+        )
+
+        try:
+            SUT.parse({})
+        except Exception:
+            assert True
+            return
+        pytest.fail("Illegal input should raise error")
 
     def test_with_nullable_with_string_parser(self):
         d = ListFlag(NullableFlag(StringFlag()))
@@ -737,7 +926,7 @@ class TestObjectFlags:
         SUT = Flags(d)
 
         assert SUT.parse({"hello": 22.22}) == '{"hello":22.22}'
-        assert SUT.parse({"hello": 22}) == '{"hello":22}'
+        assert SUT.parse({"hello": 22}) == '{"hello":22.0}'
         with pytest.raises(ValidationError):
             SUT.parse({"hello": "22.22"})
 
@@ -746,7 +935,7 @@ class TestObjectFlags:
         SUT = Flags(d)
 
         assert SUT.parse({"hello": {"world": 22.22}}) == '{"hello":{"world":22.22}}'
-        assert SUT.parse({"hello": {"world": 22}}) == '{"hello":{"world":22}}'
+        assert SUT.parse({"hello": {"world": 22}}) == '{"hello":{"world":22.0}}'
         with pytest.raises(ValidationError):
             SUT.parse({"hello": {"world": "22.22"}})
 
@@ -969,4 +1158,75 @@ hello_Decoder =
     }""",
             "decoder_body": """Decode.succeed ToModel
         |>  required "hello" (Decode.nullable (Decode.list Decode.string))""",
+        }
+
+
+class TestModelChoiceFieldFlags:
+    @pytest.mark.django_db
+    def test_root_model_choice_field_parser(self, basic_form):
+        prepare_form = basic_form()
+        d = ModelChoiceFieldFlag()
+
+        SUT = Flags(d)
+
+        assert (
+            SUT.parse(prepare_form["car"])
+            == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}'
+        )
+
+        try:
+            SUT.parse({"something": "wrong"})
+        except Exception:
+            assert True
+            return
+
+        pytest.fail("Passing wrong shape should fail validation")
+
+    @pytest.mark.django_db
+    def test_root_value_model_choice_field_parser(self, basic_form):
+        prepare_form = basic_form()
+        d = ObjectFlag({"mcf": ModelChoiceFieldFlag()})
+
+        SUT = Flags(d)
+
+        assert (
+            SUT.parse({"mcf": prepare_form["car"]})
+            == '{"mcf":{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}}'
+        )
+
+    def test_root_model_choice_field_flag(self):
+        """The ModelChoiceFieldFlag is the root flag for the Elm program"""
+        d = ModelChoiceFieldFlag()
+        SUT = Flags(d)
+
+        assert SUT.to_elm_parser_data() == {
+            "alias_type": """{ help_text : String
+    , auto_id : String
+    , id_for_label : String
+    , label : Maybe String
+    , name : String
+    , widget_type : String
+    , options : List Options_
+    }
+
+type alias Options_ =
+    { choice_label : String
+    , value : String
+    , selected : Bool
+    }""",
+            "decoder_body": """Decode.succeed ToModel
+        |>  required "help_text" Decode.string
+        |>  required "auto_id" Decode.string
+        |>  required "id_for_label" Decode.string
+        |>  required "label" (Decode.nullable Decode.string)
+        |>  required "name" Decode.string
+        |>  required "widget_type" Decode.string
+        |>  required "options" (Decode.list options_Decoder)
+
+options_Decoder : Decode.Decoder Options_
+options_Decoder =
+    Decode.succeed Options_
+        |>  required "choice_label" Decode.string
+        |>  required "value" Decode.string
+        |>  required "selected" Decode.bool""",
         }
