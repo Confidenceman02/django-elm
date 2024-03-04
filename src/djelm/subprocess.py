@@ -6,7 +6,7 @@ from dataclasses import dataclass
 @dataclass(slots=True)
 class SubProcess:
     command: list[str]
-    cwd: str
+    cwd: str | None = None
     raise_error: bool = False
 
     def open(self):
