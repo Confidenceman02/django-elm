@@ -36,11 +36,17 @@ def test_validate_failure_when_single_command():
     TestCase().assertIsInstance(
         Validations().acceptable_command(["compilebuild"]), ExitFailure
     )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["addwidget"]), ExitFailure
+    )
 
 
-def test_validate_failure_when_combo_command():
+def test_validate_failure_when_too_many_args():
     TestCase().assertIsInstance(
         Validations().acceptable_command(["list", "nonsense"]), ExitFailure
+    )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["listwidgets", "nonsense"]), ExitFailure
     )
 
 
@@ -67,27 +73,75 @@ def test_validate_failure_when_not_app():
     TestCase().assertIsInstance(
         Validations().acceptable_command(["compilebuild", "my_app"]), ExitFailure
     )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["addwidget", "my_app", "ModelChoiceField"]),
+        ExitFailure,
+    )
 
 
-def test_validate_failure_when_not_enough_args_with_create_sequence(settings):
+def test_after_create_validate_failure(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
     call_command("djelm", "create", app_name)
 
     settings.INSTALLED_APPS += [app_name]
 
+    # Too few args
     TestCase().assertIsInstance(
         Validations().acceptable_command(["addprogram", app_name]), ExitFailure
     )
 
+    # Too few args
     TestCase().assertIsInstance(
         Validations().acceptable_command(["generatemodel", app_name]), ExitFailure
     )
 
+    # App doesn't exist
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["generatemodel", "random", "Main"]),
+        ExitFailure,
+    )
+
+    # Too few args
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["addwidget", app_name]), ExitFailure
+    )
+
+    # Unsuppoerted widget name
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["addwidget", "SomeWidget"]), ExitFailure
+    )
+
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["create", app_name]), ExitFailure
+    )
+
+    # App already exists
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["create", "djelm"]), ExitFailure
+    )
+
+    # App doesn't exists
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["npm", "random", "install"]), ExitFailure
+    )
+
+    # App doesn't exists
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["elm", "random", "install", "elm/json"]),
+        ExitFailure,
+    )
+
+    # App doesn't exists
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["watch", "random"]), ExitFailure
+    )
+
+    # App doesn't exists
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
 
 
-def test_validate_success_when_create_sequence(settings):
+def test_after_create_validate_success(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
     call_command("djelm", "create", app_name)
 
@@ -125,6 +179,10 @@ def test_validate_success_when_create_sequence(settings):
     TestCase().assertIsInstance(
         Validations().acceptable_command(["compilebuild", app_name]), ExitSuccess
     )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["addwidget", app_name, "ModelChoiceField"]),
+        ExitSuccess,
+    )
 
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
@@ -160,48 +218,6 @@ def test_validate_failure_when_app_external():
 
 def test_validate_single_command_verb_succeeds():
     TestCase().assertIsInstance(Validations().acceptable_command(["list"]), ExitSuccess)
-
-
-def test_validate_failure_when_create_sequence(settings):
-    app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
-    call_command("djelm", "create", app_name)
-    settings.INSTALLED_APPS += [app_name]
-
     TestCase().assertIsInstance(
-        Validations().acceptable_command(["create", app_name]), ExitFailure
+        Validations().acceptable_command(["listwidgets"]), ExitSuccess
     )
-
-    TestCase().assertIsInstance(
-        Validations().acceptable_command(["create", "djelm"]), ExitFailure
-    )
-    TestCase().assertIsInstance(
-        Validations().acceptable_command(["generatemodel", app_name, "Main"]),
-        ExitFailure,
-    )
-
-    settings.INSTALLED_APPS.remove(app_name)
-    cleanup_theme_app_dir(app_name)
-
-
-def test_validate_failure_when_create_sequence_app_not_in_settings(settings):
-    app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
-    call_command("djelm", "create", app_name)
-
-    TestCase().assertIsInstance(
-        Validations().acceptable_command(["npm", app_name, "install"]), ExitFailure
-    )
-    TestCase().assertIsInstance(
-        Validations().acceptable_command(["elm", app_name, "install", "elm/json"]),
-        ExitFailure,
-    )
-    TestCase().assertIsInstance(
-        Validations().acceptable_command(["generatemodel", app_name, "Main"]),
-        ExitFailure,
-    )
-    TestCase().assertIsInstance(
-        Validations().acceptable_command(["watch", app_name]), ExitFailure
-    )
-
-    # Hack to remove generated directory
-    settings.INSTALLED_APPS += [app_name]
-    cleanup_theme_app_dir(app_name)

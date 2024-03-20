@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Djelm</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        overflow: hidden;
+        font-family: Inter var, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+        font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+      }
+      label {
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+      }
+      .form_body {
+        display: grid;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+        row-gap: 2rem;
+        column-gap: 1.5rem;
+      }
+      .form-parent {
+        max-width: 42rem;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .field_group {
+        grid-column: span 4 / span 4;
+      }
+      .widget {
+        margin-top: 0.7rem;
+      }
+      .submit {
+        margin-top: 0.7rem;
+      }
+    </style>
+    {% block head %}{% endblock %}
+  </head>
+
+  <body>
+    {% block content %}{% endblock %}
+  </body>
+</html>

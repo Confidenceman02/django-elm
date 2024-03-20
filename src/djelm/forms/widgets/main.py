@@ -1,0 +1,1 @@
+WIDGET_NAMES = ["ModelChoiceField"]

@@ -3,7 +3,8 @@ root/
 *.py[cod]
 **/__pycache__/
 .idea
+example/db.sqlite3
 .hypothesis/
 venv
-.doit.db.db
+.doit.db
 **/*.DS_Store

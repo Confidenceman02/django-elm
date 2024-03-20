@@ -3,6 +3,10 @@ import os
 from django.apps import apps
 
 from djelm.effect import ExitFailure, ExitSuccess
+from importlib.metadata import version
+
+DJELM_VERSION = version("djelm")
+STUFF_NAMESPACE = ("elm-stuff", f"djelm_{DJELM_VERSION}")
 
 
 def get_app_path(app_name) -> ExitSuccess[str] | ExitFailure[None, Exception]:
@@ -120,3 +124,9 @@ def program_file(app_name: str):
 
 def scope_name(app_name: str, prog_name: str) -> str:
     return (app_name.lower() + prog_name.lower().replace("_", "")).replace("_", "")
+
+
+def widget_scope_name(app_name: str, prog_name: str) -> str:
+    return ("widgets" + app_name.lower() + prog_name.lower().replace("_", "")).replace(
+        "_", ""
+    )

@@ -17,7 +17,16 @@ Including another URLconf
 from django.urls import include, path
 from django.views.generic import TemplateView
 
+from core.views import promotion_view, update_promotion_view
+
+
 urlpatterns = [
-    path("", TemplateView.as_view(template_name="base.html")),
+    path("main", TemplateView.as_view(template_name="core/main.html")),
+    path("promotion", promotion_view, name="promotion"),
+    path(
+        "promotion_update/<int:promotion_id>",
+        update_promotion_view,
+        name="update_promotion",
+    ),
     path("__reload__/", include("django_browser_reload.urls")),
 ]
