@@ -38,11 +38,10 @@ jobs:
   publish-to-pypi:
     runs-on: ubuntu-latest
 
-    name: >-
-    Publish Python 🐍 distribution 📦 to PyPI
+    name: Publish Python 🐍 distribution 📦 to PyPI
 
     needs:
-    - build
+      - build
 
     environment:
       name: release

@@ -1,3 +1,61 @@
+## [0.5.0] - 2024-03-20
+
+### Added
+
+- Widget strategy for ModelChoiceField
+- listwidgets command
+- ModelChoiceFieldFlag class
+- Browser tests with Playwright
+- Example django project setup
+- README widget section
+
+### Fixed
+
+- Name clash compiler error
+
+### Breaking
+
+- Top flag module imports
+
+previous
+
+```python
+from djelm.flags.main import Flags, IntFlag
+```
+
+current
+
+```python
+from djelm.flags import Flags, IntFlag
+```
+
+- Model alias types now consist of their parent alias name as a prefix
+  to avoid name clashes.
+
+previous
+
+```elm
+type alias A_
+    { b : B_
+    }
+
+type alias B_
+    { c : String
+    }
+```
+
+current
+
+```elm
+type alias A_
+    { b : A_B__
+    }
+
+type alias A_B__
+    { c : String
+    }
+```
+
 ## [0.4.0] - 2024-02-22
 
 ### Fixed
@@ -25,6 +83,7 @@
 
 - First version to pyPI
 
+[0.5.0]: https://github.com/Confidenceman02/django-elm/releases/0.4.0...0.5.0
 [0.4.0]: https://github.com/Confidenceman02/django-elm/releases/0.3.0...0.4.0
 [0.3.0]: https://github.com/Confidenceman02/django-elm/releases/0.2.0...0.3.0
 [0.2.0]: https://github.com/Confidenceman02/django-elm/releases/0.1.0...0.2.0

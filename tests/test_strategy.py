@@ -3,10 +3,12 @@ from unittest import TestCase
 
 from django.core.management import call_command
 from django.core.management.base import LabelCommand
+from djelm.generators import ProgramGenerator
 
 from src.djelm.effect import ExitSuccess
 from src.djelm.strategy import (
     AddProgramStrategy,
+    AddWidgetStrategy,
     CreateStrategy,
     GenerateModelStrategy,
     ListStrategy,
@@ -19,47 +21,57 @@ from .conftest import cleanup_theme_app_dir
 
 
 def test_strategy_create_when_no_create():
-    TestCase().assertIsInstance(Strategy().create("create", "my_app"), CreateStrategy)
+    TestCase().assertIsInstance(
+        Strategy().create(["create", "my_app"], {}), CreateStrategy
+    )
 
 
-def test_strategy_success_after_create(settings):
+def test_after_create_strategy_success(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
     call_command("djelm", "create", app_name)
     settings.INSTALLED_APPS += [app_name]
 
-    TestCase().assertIsInstance(Strategy().create("watch", app_name), WatchStrategy)
     TestCase().assertIsInstance(
-        ListStrategy().run(LabelCommand().stdout, LabelCommand().style), ExitSuccess
+        Strategy().create(["watch", app_name], {}), WatchStrategy
     )
+    TestCase().assertIsInstance(ListStrategy().run(LabelCommand().stdout), ExitSuccess)
     TestCase().assertEqual(
-        ListStrategy().run(LabelCommand().stdout, LabelCommand().style).value, [app_name]  # type: ignore
+        ListStrategy().run(LabelCommand().stdout).value,  # type: ignore
+        ["test_programs", app_name],
     )
     TestCase().assertIsInstance(
-        Strategy().create("npm", app_name, "install"), NpmStrategy
+        Strategy().create(["npm", app_name, "install"], {}), NpmStrategy
     )
     TestCase().assertIsInstance(
-        AddProgramStrategy(app_name, "Main").run(
-            LabelCommand().stdout, LabelCommand().style
+        AddProgramStrategy(app_name, "Main", ProgramGenerator()).run(
+            LabelCommand().stdout
         ),
         ExitSuccess,
     )
-    TestCase().assertIsInstance(Strategy().create("watch", app_name), WatchStrategy)
     TestCase().assertIsInstance(
-        Strategy().create("addprogram", app_name, "Main"), AddProgramStrategy
+        Strategy().create(["watch", app_name], {}), WatchStrategy
+    )
+    TestCase().assertIsInstance(
+        Strategy().create(["addprogram", app_name, "Main"], {}), AddProgramStrategy
+    )
+    TestCase().assertIsInstance(
+        Strategy().create(["addwidget", app_name, "ModelChoiceField"], {}),
+        AddWidgetStrategy,
     )
 
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
 
 
-def test_strategy_success_after_addprogram(settings):
+def test_after_addprogram_strategy_success(settings):
     app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
     call_command("djelm", "create", app_name)
     settings.INSTALLED_APPS += [app_name]
     call_command("djelm", "addprogram", app_name, "Main")
 
     TestCase().assertIsInstance(
-        Strategy().create("generatemodel", app_name, "Main"), GenerateModelStrategy
+        Strategy().create(["generatemodel", app_name, "Main"], {}),
+        GenerateModelStrategy,
     )
 
     settings.INSTALLED_APPS.remove(app_name)

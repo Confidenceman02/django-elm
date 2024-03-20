@@ -1,25 +1,43 @@
 import typing
 from dataclasses import dataclass
 
-from pydantic import BaseModel, Field, Strict, TypeAdapter, validate_call
+from pydantic import BaseModel, TypeAdapter, validate_call
 from typing_extensions import Annotated
+from djelm.flags.form.adapters import ModelChoiceFieldAdapter
 
-_annotated_string = Annotated[str, Strict()]
-_annotated_int = Annotated[int, Strict()]
-_annotated_float = Annotated[float, Strict()]
-_annotated_bool = Annotated[bool, Strict()]
-_annotated_alias_key = Annotated[str, Field(pattern=r"^[a-z][A-Za-z0-9_]*$")]
+from djelm.flags.form.primitives import ModelChoiceFieldFlag
 
-_StringAdapter = TypeAdapter(_annotated_string)
-_IntAdapter = TypeAdapter(_annotated_int)
-_FloatAdapter = TypeAdapter(_annotated_float)
-_BoolAdapter = TypeAdapter(_annotated_bool)
+from .primitives import (
+    BoolFlag,
+    Flag,
+    FloatFlag,
+    IntFlag,
+    ListFlag,
+    NullableFlag,
+    ObjectFlag,
+    PrimitiveFlag,
+    PrimitiveObjectFlagType,
+    StringFlag,
+)
+
+from .adapters import (
+    BoolAdapter,
+    FloatAdapter,
+    IntAdapter,
+    StringAdapter,
+    annotated_alias_key,
+    annotated_string,
+    annotated_int,
+    annotated_bool,
+    annotated_float,
+)
+
 
 PreparedElm = typing.TypedDict("PreparedElm", {"alias_type": str, "decoder_body": str})
 
 
 @validate_call
-def valid_alias_key(k: _annotated_alias_key):
+def valid_alias_key(k: annotated_alias_key):
     return k
 
 
@@ -177,6 +195,7 @@ class ObjectDecoder:
 
     value: str
     depth: int
+    parent_alias: str | None = None
 
     def pipeline(self):
         return f"""|>  required "{self.value}" {self._to_decoder_name()}"""
@@ -191,13 +210,15 @@ class ObjectDecoder:
         return f""", {self.value} : {self._to_alias()}"""
 
     def _to_alias(self) -> str:
-        return self.value[0].upper() + self.value[1:] + self._depth_markers()
+        p = self.parent_alias if self.parent_alias else ""
+        return f"{p}{self.value[0].upper()}{self.value[1:]}{self._depth_markers()}"
 
     def _to_decoder_annotation(self):
-        return f"""{self.value + self._depth_markers()}Decoder : Decode.Decoder {self._to_alias()}\n{self._to_decoder_name()} ="""
+        return f"""{self._to_decoder_name()} : Decode.Decoder {self._to_alias()}\n{self._to_decoder_name()} ="""
 
     def _to_decoder_name(self):
-        return f"""{self.value + self._depth_markers()}Decoder"""
+        p = self.parent_alias if self.parent_alias else ""
+        return f"""{p.lower() + self.value + self._depth_markers()}Decoder"""
 
     def _to_alias_definition(self, body: str):
         return f"""\n\ntype alias {self._to_alias()} =\n    {body}"""
@@ -212,65 +233,6 @@ class ObjectDecoder:
         return marker
 
 
-@dataclass(slots=True)
-class StringFlag:
-    """Flag for the Elm String primitive"""
-
-
-@dataclass(slots=True)
-class IntFlag:
-    """Flag for the Elm Int primitive"""
-
-
-@dataclass(slots=True)
-class FloatFlag:
-    """Flag for the Elm Float primitive"""
-
-
-@dataclass(slots=True)
-class BoolFlag:
-    """Flag for the Elm Bool primitive"""
-
-
-@dataclass(slots=True)
-class NullableFlag:
-    """Flag for the Elm Maybe monad"""
-
-    obj: "Primitive"
-
-
-@dataclass(slots=True)
-class ListFlag:
-    """Flag for the Elm List primitive"""
-
-    obj: "Primitive"
-
-
-@dataclass(slots=True)
-class ObjectFlag:
-    """Flag for the Elm {} primitive"""
-
-    obj: typing.Dict[str, "Primitive"]
-
-
-Primitive = (
-    StringFlag | IntFlag | FloatFlag | BoolFlag | ListFlag | ObjectFlag | NullableFlag
-)
-FlagsObject = dict[str, "PrimitiveFlag"]
-FlagsList = list["PrimitiveFlag"]
-FlagsNullable = typing.Union[type[str], type[int], type[float], type[bool], type[None]]
-PrimitiveObjectFlagType = (
-    type[str]
-    | type[int]
-    | type[float]
-    | type[bool]
-    | type[BaseModel]
-    | type[list]
-    | FlagsNullable
-)
-PrimitiveFlag = (
-    str | int | float | bool | FlagsObject | FlagsList | FlagsNullable | None
-)
 ObjHelperReturn = typing.TypedDict(
     "ObjHelperReturn",
     {
@@ -300,23 +262,49 @@ class FlagMetaClass(type):
 
 class BaseFlag(metaclass=FlagMetaClass):
     def __new__(cls, d):
-        prepared_flags = (
-            _prepare_pipeline_flags(d, "Decode.succeed ToModel")
-            if isinstance(d, ObjectFlag)
-            else _prepare_inline_flags(d, ObjectDecoder("inlineToModel", 1))
-        )
+        assert isinstance(d, Flag)
+
+        prepared_flags: ObjHelperReturn | SingleHelperReturn | None = None
+
+        match d:
+            case ObjectFlag(obj=_):
+                prepared_flags = _prepare_pipeline_flags(d, "Decode.succeed ToModel")
+            case ModelChoiceFieldFlag() as mcf:
+                prepared_flags = _prepare_pipeline_flags(
+                    mcf.obj(), "Decode.succeed ToModel"
+                )
+                prepared_flags["adapter"] = ModelChoiceFieldAdapter
+            case _:
+                prepared_flags = _prepare_inline_flags(
+                    d, ObjectDecoder("inlineToModel", 1)
+                )
+
+        assert prepared_flags is not None
 
         class Prepared:
             """Validator and Elm values builder"""
 
             @staticmethod
             def parse(input) -> str:
-                prepared_flags["adapter"].validate_python(input)
-                return prepared_flags["adapter"].dump_json(input).decode("utf-8")
+                match d:
+                    case ObjectFlag(obj=_):
+                        return (
+                            prepared_flags["adapter"]
+                            .validate_python(input)
+                            .model_dump_json()
+                        )
+                    case ModelChoiceFieldFlag():
+                        adapter = prepared_flags["adapter"]
+                        validated = adapter.validate_python(input)
+                        return adapter.dump_json(validated).decode("utf-8")
+                    case _:
+                        adapter = prepared_flags["adapter"]
+                        validated = adapter.validate_python(input)
+                        return adapter.dump_json(validated).decode("utf-8")
 
             @staticmethod
             def to_elm_parser_data() -> PreparedElm:
-                if isinstance(d, ObjectFlag):
+                if isinstance(d, ObjectFlag) or isinstance(d, ModelChoiceFieldFlag):
                     return prepared_flags["elm_values"]
                 else:
                     return {
@@ -330,7 +318,7 @@ class BaseFlag(metaclass=FlagMetaClass):
 
 
 def _prepare_inline_flags(
-    d: Primitive, object_decoder: ObjectDecoder | None = None, depth: int = 1
+    d: Flag, object_decoder: ObjectDecoder | None = None, depth: int = 1
 ) -> SingleHelperReturn:
     adapter: TypeAdapter
     anno: PrimitiveObjectFlagType
@@ -340,23 +328,23 @@ def _prepare_inline_flags(
     alias_extra: str = ""
     match d:
         case StringFlag():
-            adapter = _StringAdapter
-            anno = _annotated_string
+            adapter = StringAdapter
+            anno = annotated_string  # type:ignore
             alias_type = StringDecoder._raw_type()
             decoder_body = StringDecoder._raw_decoder()
         case IntFlag():
-            adapter = _IntAdapter
-            anno = _annotated_int
+            adapter = IntAdapter
+            anno = annotated_int  # type:ignore
             alias_type = IntDecoder._raw_type()
             decoder_body = IntDecoder._raw_decoder()
         case FloatFlag():
-            adapter = _FloatAdapter
-            anno = _annotated_float
+            adapter = FloatAdapter
+            anno = annotated_float  # type:ignore
             alias_type = FloatDecoder._raw_type()
             decoder_body = FloatDecoder._raw_decoder()
         case BoolFlag():
-            adapter = _BoolAdapter
-            anno = _annotated_bool
+            adapter = BoolAdapter
+            anno = annotated_bool  # type:ignore
             alias_type = BoolDecoder._raw_type()
             decoder_body = BoolDecoder._raw_decoder()
         case NullableFlag(obj=obj):
@@ -375,7 +363,7 @@ def _prepare_inline_flags(
         case ListFlag(obj=obj):
             single_flag = _prepare_inline_flags(obj, object_decoder)
             t = single_flag["anno"]
-            adapter = TypeAdapter(Annotated[list[t], None])
+            adapter = TypeAdapter(Annotated[list[t], None])  # type:ignore
             anno = list[t]  # type:ignore
             alias_type = ListDecoder._raw_type(single_flag["elm_values"]["alias_type"])
             alias_extra += single_flag["alias_extra"]
@@ -383,11 +371,58 @@ def _prepare_inline_flags(
                 single_flag["elm_values"]["decoder_body"]
             )
             decoder_extra += single_flag["decoder_extra"]
+        case ModelChoiceFieldFlag() as mcf:
+            if object_decoder is None:
+                raise Exception(f"Missing an ObjectDecoder argument for {mcf.obj()}")
+            parent_key = None
+            """
+            We want to make sure we don't mangle the alias name for the first ObjectFlag
+            that is exists in an inline flag. i.e. InlineToModel_InlineToModel_
+
+            InlineToModel_ is an alias that only exists as a root alias name, it never gets reproduced
+            in deeper objects so if we see it, we can safely assume we are in the first level of an inline flag.
+
+            Subsequent alias's will have their parent added to the start. i.e. type alias InlineToModel_A__
+            """
+            if object_decoder._to_alias() != "InlineToModel_":
+                parent_key = object_decoder._to_alias()
+
+            object_flag = _prepare_pipeline_flags(
+                mcf.obj(),
+                object_decoder.pipeline_starter(),
+                depth + 1,
+                parent_key,
+            )
+            adapter = ModelChoiceFieldAdapter
+            # Use internal annotation
+            anno = mcf.anno()
+
+            alias_type = object_decoder._to_alias()
+            alias_extra = object_decoder._to_alias_definition(
+                object_flag["elm_values"]["alias_type"]
+            )
+            decoder_body = object_decoder._to_decoder_name()
+            decoder_extra = f"\n\n{object_flag['elm_values']['decoder_body']}"
         case ObjectFlag(obj=obj):
             if object_decoder is None:
                 raise Exception(f"Missing an ObjectDecoder argument for {obj}")
+            parent_key = None
+            """
+            We want to make sure we don't mangle the alias name for the first ObjectFlag
+            that is exists in an inline flag. i.e. InlineToModel_InlineToModel_
+
+            InlineToModel_ is an alias that only exists as a root alias name, it never gets reproduced
+            in deeper objects so if we see it, we can safely assume we are in the first level of an inline flag.
+
+            Subsequent alias's will have their parent added to the start. i.e. type alias InlineToModel_A__
+            """
+            if object_decoder._to_alias() != "InlineToModel_":
+                parent_key = object_decoder._to_alias()
             object_flag = _prepare_pipeline_flags(
-                d, object_decoder.pipeline_starter(), depth + 1
+                d,
+                object_decoder.pipeline_starter(),
+                depth + 1,
+                parent_key,
             )
             t = object_flag["anno"]  # type:ignore
 
@@ -414,23 +449,52 @@ def _prepare_inline_flags(
 
 
 def _prepare_pipeline_flags(
-    d: ObjectFlag, decoder_start: str, depth: int = 1
+    d: Flag, decoder_start: str, depth: int = 1, parent_key: str | None = None
 ) -> ObjHelperReturn:
     anno: typing.Dict[str, PrimitiveObjectFlagType] = {}
     pipeline_decoder: str = decoder_start
     alias_values: str = ""
     decoder_extra: str = ""
     alias_extra: str = ""
+
+    assert isinstance(d, ObjectFlag)
+
     for idx, (k, v) in enumerate(d.obj.items()):
         try:
             k = k.replace("\n", "")
             valid_alias_key(k)
             match v:
+                case ModelChoiceFieldFlag() as mcf:
+                    decoder = ObjectDecoder(k, depth, parent_key)
+                    prepared_object_recursive = _prepare_pipeline_flags(
+                        # Use built in flags
+                        mcf.obj(),
+                        decoder.pipeline_starter(),
+                        depth + 1,
+                        decoder._to_alias(),
+                    )
+
+                    # Use built in annotations
+                    anno[k] = mcf.anno()
+                    decoder_extra += (
+                        f"\n\n{prepared_object_recursive['elm_values']['decoder_body']}"
+                    )
+                    alias_extra += decoder._to_alias_definition(
+                        prepared_object_recursive["elm_values"]["alias_type"]
+                    )
+                    pipeline_decoder += f"""\n        {decoder.pipeline()}"""
+                    if idx == 0:
+                        alias_values += f" {decoder.alias()}"
+                    else:
+                        alias_values += f"\n    {decoder.nested_alias()}"
+
                 case ObjectFlag(obj=obj):
+                    decoder = ObjectDecoder(k, depth, parent_key)
                     prepared_object_recursive = _prepare_pipeline_flags(
                         ObjectFlag(obj),
-                        ObjectDecoder(k, depth).pipeline_starter(),
+                        decoder.pipeline_starter(),
                         depth + 1,
+                        decoder._to_alias(),
                     )
                     anno[k] = type(
                         "K",
@@ -445,21 +509,18 @@ def _prepare_pipeline_flags(
                     decoder_extra += (
                         f"\n\n{prepared_object_recursive['elm_values']['decoder_body']}"
                     )
-                    alias_extra += ObjectDecoder(k, depth)._to_alias_definition(
+                    alias_extra += decoder._to_alias_definition(
                         prepared_object_recursive["elm_values"]["alias_type"]
                     )
-                    pipeline_decoder += (
-                        f"""\n        {ObjectDecoder(k, depth).pipeline()}"""
-                    )
+                    pipeline_decoder += f"""\n        {decoder.pipeline()}"""
                     if idx == 0:
-                        alias_values += f" {ObjectDecoder(k, depth).alias()}"
+                        alias_values += f" {decoder.alias()}"
                     else:
-                        alias_values += (
-                            f"\n    {ObjectDecoder(k, depth).nested_alias()}"
-                        )
+                        alias_values += f"\n    {decoder.nested_alias()}"
 
                 case ListFlag(obj=obj):
-                    single_flag = _prepare_inline_flags(obj, ObjectDecoder(k, depth))
+                    decoder = ObjectDecoder(k, depth, parent_key)
+                    single_flag = _prepare_inline_flags(obj, decoder)
                     list_decoder = ListDecoder(
                         k,
                         single_flag["elm_values"]["decoder_body"],
@@ -476,7 +537,9 @@ def _prepare_pipeline_flags(
                     else:
                         alias_values += f"\n    {list_decoder.nested_alias()}"
                 case NullableFlag(obj=obj1):
-                    single_flag = _prepare_inline_flags(obj1, ObjectDecoder(k, depth))
+                    single_flag = _prepare_inline_flags(
+                        obj1, ObjectDecoder(k, depth, parent_key)
+                    )
                     nullable_decoder = NullableDecoder(
                         k,
                         single_flag["elm_values"]["decoder_body"],
@@ -538,10 +601,8 @@ def _prepare_pipeline_flags(
     return {
         "adapter": TypeAdapter(
             Annotated[type("K", (BaseModel,), {"__annotations__": anno}), None]
-        ),
-        "anno": Annotated[  # type:ignore
-            type("K", (BaseModel,), {"__annotations__": anno}), None
-        ],
+        ),  # type:ignore
+        "anno": Annotated[type("K", (BaseModel,), {"__annotations__": anno}), None],  # type:ignore
         "elm_values": {
             "alias_type": "{" + alias_values + "\n    }" + alias_extra,
             "decoder_body": pipeline_decoder + decoder_extra,

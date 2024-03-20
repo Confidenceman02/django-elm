@@ -3,8 +3,6 @@ import os
 import shutil
 import subprocess
 import sys
-import types
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from itertools import filterfalse
 from typing import Iterable, cast
@@ -12,24 +10,29 @@ from typing import Iterable, cast
 from django.conf import settings
 from importlib.metadata import version
 from typing_extensions import TypedDict
+from djelm.generators import (
+    ModelGenerator,
+    ModelBuilder,
+    ModelChoiceFieldWidgetGenerator,
+    ProgramBuilder,
+    ProgramGenerator,
+    WidgetModelGenerator,
+)
 from watchfiles import awatch
 
 from djelm.cookiecutter import CookieCutter
-from djelm.flags.main import Flags
 from djelm.subprocess import SubProcess
 
 from .effect import ExitFailure, ExitSuccess
 from .elm import Elm
 from .npm import NPM
 from .utils import (
+    STUFF_NAMESPACE,
     get_app_path,
     get_app_src_path,
     is_djelm,
     module_name,
     program_file,
-    scope_name,
-    tag_file_name,
-    view_name,
     walk_level,
 )
 from .validate import Validations
@@ -47,6 +50,7 @@ AddProgramCookieExtra = TypedDict(
     },
 )
 
+
 FlagsCookieExtra = TypedDict(
     "FlagsCookieExtra",
     {
@@ -63,6 +67,93 @@ class StrategyError(Exception):
 
 
 @dataclass(slots=True)
+class AddWidgetStrategy:
+    """Add a djelm widget"""
+
+    app_name: str
+    widget_name: str
+    handler: ProgramBuilder
+    no_deps: bool
+
+    def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+        src_path = get_app_src_path(self.app_name)
+        app_path = get_app_path(self.app_name)
+
+        if src_path.tag != "Success":
+            raise src_path.err
+
+        if app_path.tag != "Success":
+            raise app_path.err
+
+        if not self.no_deps:
+            install_deps_effect = self.handler.install_elm_deps(src_path.value, logger)
+            if install_deps_effect.tag != "Success":
+                raise install_deps_effect.err
+
+        # Make widgets dir in elm-stuff
+        try:
+            os.makedirs(os.path.join(src_path.value, *STUFF_NAMESPACE, "widgets"))
+        except FileExistsError:
+            pass
+
+        # Make flags dirs
+        try:
+            os.makedirs(os.path.join(app_path.value, "flags", "widgets"))
+        except FileExistsError:
+            pass
+
+        # Make templates.{self.app_name}.widgets dirs
+        try:
+            os.makedirs(
+                os.path.join(app_path.value, "templates", self.app_name, "widgets")
+            )
+        except FileExistsError:
+            pass
+
+        # Make Widgets dirs
+        try:
+            os.makedirs(os.path.join(src_path.value, "src", "Widgets", "Models"))
+        except FileExistsError:
+            pass
+
+        cookie = self.handler.cookie_cutter(
+            self.app_name, self.widget_name, src_path.value
+        )
+
+        # Cut cookie
+        ck_result = cookie.cut(logger)
+
+        if ck_result.tag != "Success":
+            raise ck_result.err
+
+        # Apply template applicators
+        try:
+            for applicator in self.handler.applicators(
+                ck_result.value,
+                src_path.value,
+                app_path.value,
+                self.widget_name,
+                self.app_name,
+                logger,
+            ):
+                applicator.apply(logger)
+
+        except OSError as err:
+            raise err
+
+        # Generate model
+        model_strat = GenerateModelStrategy(
+            self.app_name, self.widget_name, WidgetModelGenerator(), False
+        )
+        model_strat_effect = model_strat.run(logger)
+
+        if model_strat_effect.tag != "Success":
+            raise model_strat_effect.err
+
+        return ExitSuccess(None)
+
+
+@dataclass(slots=True)
 class CompileStrategy:
     """
     Compiles all elm programs inside of a djelm app
@@ -72,9 +163,7 @@ class CompileStrategy:
     build: bool = False
     raise_error: bool = True
 
-    def run(
-        self, logger, style
-    ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+    def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
         src_path = get_app_src_path(self.app_name)
 
         if src_path.tag == "Success":
@@ -132,9 +221,7 @@ class WatchStrategy:
 
     app_name: str
 
-    def run(
-        self, logger, style
-    ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+    def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
         compile = CompileStrategy(self.app_name, raise_error=False)
         src_path = get_app_src_path(self.app_name)
         app_path = get_app_path(self.app_name)
@@ -148,7 +235,7 @@ class WatchStrategy:
         shutil.rmtree(os.path.join(src_path.value, ".parcel-cache"), ignore_errors=True)
         try:
             # first pass compile on start of watch
-            compile.run(logger, style)
+            compile.run(logger)
             return asyncio.run(
                 self.watch(
                     app_path.value,
@@ -159,7 +246,6 @@ class WatchStrategy:
                         os.path.join(app_path.value, "flags"),
                     ],
                     logger,
-                    style,
                 )
             )
         except KeyboardInterrupt:
@@ -171,7 +257,6 @@ class WatchStrategy:
         src_path: str,
         dir: list[str],
         logger,
-        style,
     ):
         compile = CompileStrategy(self.app_name, raise_error=False)
         async for changes in awatch(*dir):
@@ -190,19 +275,25 @@ class WatchStrategy:
                     )
                     if is_program:
                         logger.write(f"FLAGS CHANGED: {f}")
-                        GenerateModelStrategy(self.app_name, module_name(filename)).run(
-                            logger, style
-                        )
+                        try:
+                            GenerateModelStrategy(
+                                self.app_name,
+                                module_name(filename),
+                                ModelGenerator(),
+                                watch_mode=True,
+                            ).run(logger)
+                        except Exception:
+                            pass
                     continue
                 # VIM for some reason triggers an ADDED(2) event when saving a buffer
                 if change == 1:
                     logger.write(f"FILE ADDED: {f}")
                     # recompile
-                    compile.run(logger, style)
+                    compile.run(logger)
                 if change == 2:
                     logger.write(f"FILE MODIFIED: {f}")
                     # recompile
-                    compile.run(logger, style)
+                    compile.run(logger)
 
         return ExitSuccess(None)
 
@@ -218,9 +309,7 @@ class NpmStrategy:
     app_name: str
     args: list[str]
 
-    def run(
-        self, logger, style
-    ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+    def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
         npm = NPM()
         src_path = get_app_src_path(self.app_name)
 
@@ -234,7 +323,7 @@ class NpmStrategy:
             # TODO Better error
             raise npm_exit.err
 
-        logger.write(style.SUCCESS("Completed successfully."))
+        logger.write("\033[92mCompleted successfully.\033[0m")
         return ExitSuccess(None)
 
 
@@ -249,157 +338,90 @@ class ElmStrategy:
     app_name: str
     args: list[str]
 
-    def run(
-        self, logger, style
-    ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+    def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
         elm: Elm = Elm()
         src_path = get_app_src_path(self.app_name)
         if src_path.tag == "Success":
             elm_exit = elm.command(self.args, target_dir=src_path.value)
 
             if elm_exit.tag == "Success":
-                logger.write(elm_exit.value)
                 return ExitSuccess(None)
             else:
                 return ExitFailure(None, err=StrategyError(elm_exit.err))
         return ExitFailure(None, err=StrategyError())
 
 
-class BaseGenerateModelStrategy(ABC):
-    @abstractmethod
-    def flags(self) -> Flags:
-        pass
-
-
-class GenerateModelStrategy(BaseGenerateModelStrategy):
+class GenerateModelStrategy:
     """Generate a model and decoders for an Elm program"""
 
-    def __init__(self, app_name, prog_name) -> None:
+    def __init__(
+        self, app_name, prog_name, handler: ModelBuilder, watch_mode: bool = False
+    ) -> None:
         self.app_name = app_name
         self.prog_name = prog_name
+        self.handler = handler
+        self.watch_mode = watch_mode
 
-    def flags(self) -> Flags:
-        app_path_exit = get_app_path(self.app_name)
+    def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+        app_path = get_app_path(self.app_name)
         src_path = get_app_src_path(self.app_name)
-        if app_path_exit.tag == "Success" and src_path.tag == "Success":
-            import importlib.machinery
+        handler = self.handler
 
-            loader = importlib.machinery.SourceFileLoader(
-                tag_file_name(self.prog_name),
-                os.path.join(
-                    app_path_exit.value, "flags", tag_file_name(self.prog_name) + ".py"
-                ),
-            )
-            mod = types.ModuleType(loader.name)
-
-            try:
-                loader.exec_module(mod)
-            except Exception as err:
-                raise err
-
-            return getattr(mod, self.prog_name + "Flags")
-        raise StrategyError("Unable to resolve app_path or src_path")
-
-    def run(
-        self, logger, style
-    ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
-        app_path_exit = get_app_path(self.app_name)
-        src_path = get_app_src_path(self.app_name)
-
-        djelm_version = version("djelm")
-        stuff_namespace = ("elm-stuff", f"djelm_{djelm_version}")
-
-        if app_path_exit.tag != "Success":
-            raise app_path_exit.err
+        if app_path.tag != "Success":
+            raise app_path.err
         if src_path.tag != "Success":
             raise src_path.err
-        try:
-            flags = self.flags()
-        except Exception as err:
-            logger.write(
-                f"""
-\033[91m-- FLAG MODULE ERROR ----------------------------------------------------------------------------------------------------- command/generatemodel\033[0m
 
-I was trying to generate a model from this flags module:
+        flags_effect = handler.load_flags(
+            app_path.value, self.prog_name, self.watch_mode, logger
+        )
 
-    \033[93m{os.path.join(app_path_exit.value, "flags", tag_file_name(self.prog_name) + ".py")}\033[0m
-
-But got the following error type:
-
-    \033[93m{err.args[0]}\033[0m
-
-Make sure you fix the errors in \033[1m{os.path.join(app_path_exit.value, "flags", tag_file_name(self.prog_name) + ".py")}\033[0m.
-
-\033[4m\033[1mNote\033[0m: I'll keep watching this module and will generate the model once the errors are fixed.
-
-"""
-            )
-            return ExitFailure(None, err=StrategyError(err))
+        if flags_effect.tag != "Success":
+            raise flags_effect.err
 
         try:
-            os.makedirs(os.path.join(src_path.value, *stuff_namespace))
+            os.makedirs(os.path.join(src_path.value, *STUFF_NAMESPACE))
         except FileExistsError:
             pass
         except FileNotFoundError as err:
             raise err
+        ck = handler.cookie_cutter(
+            flags_effect.value, self.app_name, self.prog_name, src_path.value
+        )
         try:
-            ck = CookieCutter[FlagsCookieExtra](
-                file_dir=os.path.dirname(__file__),
-                output_dir=os.path.join(src_path.value, stuff_namespace[0]),
-                cookie_dir_name="flags_template",
-                extra={
-                    "program_name": module_name(self.prog_name),
-                    "tmp_dir": stuff_namespace[1],
-                    "alias_type": flags.to_elm_parser_data()["alias_type"],
-                    "decoder_body": flags.to_elm_parser_data()["decoder_body"],
-                },
-                overwrite=True,
-            )
-            temp_dir_path = ck.cut(logger)
+            cookie_effect = ck.cut(logger)
 
-            if temp_dir_path.tag != "Success":
-                raise temp_dir_path.err
+            if cookie_effect.tag != "Success":
+                raise cookie_effect.err
 
-            # Move elm program flags
-            shutil.copy(
-                os.path.join(
-                    temp_dir_path.value, module_name(self.prog_name) + ".elmf"
-                ),
-                os.path.join(
-                    src_path.value,
-                    "src",
-                    "Models",
-                    module_name(self.prog_name) + ".elm",
-                ),
-            )
-            logger.write(
-                self._log(
-                    os.path.join(
-                        src_path.value, "src", "Models", program_file(self.prog_name)
-                    )
-                )
-            )
+            for applicator in handler.applicators(
+                cookie_effect.value,
+                src_path.value,
+                app_path.value,
+                self.prog_name,
+                self.app_name,
+                logger,
+            ):
+                applicator.apply(logger)
+
             return ExitSuccess(None)
         except OSError as err:
             raise err
 
-    def _log(self, model_path):
-        return f"""
-Model generated for:
-
-    \033[93m{model_path}\033[0m
-    """
-
 
 @dataclass(slots=True)
 class AddProgramStrategy:
-    """Create an elm program like SomeProgram.elm"""
+    """Create a default elm program.
+
+    The program model is static and get's generated from the ProgramBuilder.
+    """
 
     app_name: str
     prog_name: str
+    handler: ProgramBuilder
 
     def run(
-        self, logger, style
+        self, logger
     ) -> (
         ExitSuccess[None]
         | ExitFailure[None | str, StrategyError | FileNotFoundError | Exception]
@@ -408,7 +430,6 @@ class AddProgramStrategy:
         app_path = get_app_path(self.app_name)
         djelm_version = version("djelm")
         stuff_namespace = ("elm-stuff", f"djelm_{djelm_version}")
-        tag_file = tag_file_name(self.prog_name)
 
         if src_path.tag != "Success":
             raise src_path.err
@@ -422,94 +443,42 @@ class AddProgramStrategy:
             pass
         except FileNotFoundError as err:
             raise err
+
+        program_ck = self.handler.cookie_cutter(
+            self.app_name, self.prog_name, src_path.value
+        )
+
+        program_ck_effect = program_ck.cut(logger)
+
+        if program_ck_effect.tag != "Success":
+            raise program_ck_effect.err
+
+        # Apply program applicators
         try:
-            ck = CookieCutter[AddProgramCookieExtra](
-                file_dir=os.path.dirname(__file__),
-                output_dir=os.path.join(src_path.value, "elm-stuff"),
-                cookie_dir_name="program_template",
-                extra={
-                    "program_name": module_name(self.prog_name),
-                    "view_name": view_name(self.prog_name),
-                    "tmp_dir": stuff_namespace[1],
-                    "tag_file": tag_file,
-                    "scope": scope_name(self.app_name, self.prog_name),
-                    "app_name": self.app_name,
-                },
-                overwrite=True,
-            )
-            temp_dir_path = ck.cut(logger)
+            for applicator in self.handler.applicators(
+                program_ck_effect.value,
+                src_path.value,
+                app_path.value,
+                self.prog_name,
+                self.app_name,
+                logger,
+            ):
+                applicator.apply(logger)
+        except OSError as err:
+            raise err
 
-            ck_flags_path = CookieCutter[FlagsCookieExtra](
-                file_dir=os.path.dirname(__file__),
-                output_dir=os.path.join(src_path.value, "elm-stuff"),
-                cookie_dir_name="flags_template",
-                extra={
-                    "program_name": module_name(self.prog_name),
-                    "alias_type": "Int",
-                    "decoder_body": "Decode.int",
-                    "tmp_dir": stuff_namespace[1],
-                },
-                overwrite=True,
-            ).cut(logger)
-            if temp_dir_path.tag != "Success":
-                raise temp_dir_path.err
-            if ck_flags_path.tag != "Success":
-                raise ck_flags_path.err
+        # Generate model
+        model_strat = GenerateModelStrategy(
+            self.app_name, self.prog_name, ModelGenerator(), watch_mode=False
+        )
 
-            # Move elm program
-            shutil.copy(
-                os.path.join(temp_dir_path.value, module_name(self.prog_name) + ".elm"),
-                os.path.join(src_path.value, "src"),
-            )
-            # Move elm program flags
-            shutil.copy(
-                os.path.join(
-                    ck_flags_path.value,
-                    module_name(self.prog_name) + ".elmf",
-                ),
-                os.path.join(
-                    src_path.value,
-                    "src",
-                    "Models",
-                    module_name(self.prog_name) + ".elm",
-                ),
-            )
-            # Move template tag
-            shutil.copy(
-                os.path.join(
-                    temp_dir_path.value,
-                    tag_file_name(self.prog_name) + "_tags.py",
-                ),
-                os.path.join(app_path.value, "templatetags"),
-            )
-            # Move flag file
-            shutil.copy(
-                os.path.join(
-                    temp_dir_path.value,
-                    tag_file_name(self.prog_name) + ".pyf",
-                ),
-                os.path.join(
-                    app_path.value,
-                    "flags",
-                    tag_file_name(self.prog_name) + ".py",
-                ),
-            )
-            # Move template html
-            shutil.copy(
-                os.path.join(
-                    temp_dir_path.value, tag_file_name(self.prog_name) + ".html"
-                ),
-                os.path.join(app_path.value, "templates", self.app_name),
-            )
+        model_strat_effect = model_strat.run(logger)
 
-            # Move typescript
-            shutil.copy(
-                os.path.join(temp_dir_path.value, module_name(self.prog_name) + ".ts"),
-                os.path.join(src_path.value, "djelm_src"),
-            )
+        if model_strat_effect.tag != "Success":
+            raise model_strat_effect.err
 
-            logger.write(
-                f"""
+        logger.write(
+            f"""
 I created the \033[92m{self.prog_name}.elm\033[0m program for you!
 
 Right now it's just a default little program that you can change to your hearts content.
@@ -521,22 +490,14 @@ You can find it here:
 Check out <https://github.com/Confidenceman02/django-elm/blob/main/README.md> to find out how to compile it and see it in the browser.
 
 """
-            )
-            return ExitSuccess(None)
-        except OSError as err:
-            raise err
-        else:
-            raise Exception(
-                f"Something went wrong: Make sure the app exists and you have run 'python manage.py elm init {self.app_name}'"
-            )
+        )
+        return ExitSuccess(None)
 
 
 class ListStrategy:
     _apps: list[str] = settings.INSTALLED_APPS
 
-    def run(
-        self, logger, style
-    ) -> ExitSuccess[list[str]] | ExitFailure[None, StrategyError]:
+    def run(self, logger) -> ExitSuccess[list[str]] | ExitFailure[None, StrategyError]:
         app_path_exits = filterfalse(
             lambda x: x.tag == "Failure", map(get_app_path, self._apps)
         )
@@ -562,13 +523,28 @@ Here are all the djelm apps I found:
         return ExitSuccess(django_elm_apps)
 
 
+class ListWidgetsStrategy:
+    widgets = ["ModelChoiceField"]
+
+    def run(self, logger) -> ExitSuccess[list[str]] | ExitFailure[None, StrategyError]:
+        widgets = ""
+        for w in self.widgets:
+            widgets += f"\033[93m{w}\033[0m\n\t"
+
+        logger.write(
+            f"""
+Here are all the widgets I support:
+
+        {widgets}"""
+        )
+        return ExitSuccess(self.widgets)
+
+
 @dataclass(slots=True)
 class CreateStrategy:
     app_name: str
 
-    def run(
-        self, logger, style
-    ) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+    def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
         ck = CookieCutter[CreateCookieExtra](
             file_dir=os.path.dirname(__file__),
             output_dir=os.getcwd(),
@@ -603,18 +579,20 @@ For now, make sure you add \033[92m"{f"{app_name}"}"\033[0m to the \033[1mINSTAL
 @dataclass(slots=True)
 class Strategy:
     def create(
-        self, *labels
+        self, labels, options: dict[str, bool]
     ) -> (
         ElmStrategy
         | CreateStrategy
         | ListStrategy
+        | ListWidgetsStrategy
         | AddProgramStrategy
         | NpmStrategy
         | WatchStrategy
         | GenerateModelStrategy
         | CompileStrategy
+        | AddWidgetStrategy
     ):
-        e = Validations().acceptable_command(list(labels))
+        e = Validations().acceptable_command(labels)
         match e:
             case ExitFailure(err=err):
                 raise err
@@ -629,7 +607,9 @@ class Strategy:
                     "program_name": pn,
                 }
             ):
-                return AddProgramStrategy(cast(str, app_name), cast(str, pn))
+                return AddProgramStrategy(
+                    cast(str, app_name), cast(str, pn), handler=ProgramGenerator()
+                )
             case ExitSuccess(
                 value={
                     "command": "generatemodel",
@@ -637,9 +617,13 @@ class Strategy:
                     "program_name": pn,
                 }
             ):
-                return GenerateModelStrategy(cast(str, app_name), cast(str, pn))
+                return GenerateModelStrategy(
+                    cast(str, app_name), cast(str, pn), handler=ModelGenerator()
+                )
             case ExitSuccess(value={"command": "list"}):
                 return ListStrategy()
+            case ExitSuccess(value={"command": "listwidgets"}):
+                return ListWidgetsStrategy()
             case ExitSuccess(
                 value={"command": "npm", "app_name": app_name, "args": args}
             ):
@@ -652,5 +636,26 @@ class Strategy:
                 value={"command": "compile", "app_name": app_name, "build": build}
             ):
                 return CompileStrategy(cast(str, app_name), cast(bool, build))
+            case ExitSuccess(
+                value={"command": "addwidget", "app_name": app_name, "widget": widget}
+            ):
+                return AddWidgetStrategy(
+                    cast(str, app_name),
+                    cast(str, widget),
+                    handler=widget_name_to_handler(widget),
+                    no_deps=options.get("no_deps", False),
+                )
             case _ as x:
                 raise StrategyError(f"Unable to handle {x}")
+
+
+def widget_name_to_handler(widget_name: str) -> ProgramBuilder:
+    match widget_name:
+        case "ModelChoiceField":
+            return ModelChoiceFieldWidgetGenerator()
+        case _:
+            raise StrategyError(
+                f"""The widget name {widget_name} is not supported.
+
+\033[4m\033[1mHint\033[0m: Run \033[1mpython manage.py djelm listwidgets\033[0m to find out what type of widget programs I can add for you."""
+            )

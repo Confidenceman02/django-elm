@@ -1,6 +1,6 @@
-import os
+from pathlib import Path
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = "secretkey"
 
@@ -8,7 +8,7 @@ DEBUG = False
 
 ALLOWED_HOSTS = ["*"]
 
-INSTALLED_APPS = ["django.contrib.staticfiles", "djelm"]
+INSTALLED_APPS = ["django.contrib.staticfiles", "djelm", "test_programs"]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -31,6 +31,13 @@ TEMPLATES = [
     },
 ]
 
-DATABASES = {}
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
+    }
+}
 
 STATIC_URL = "/static/"
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

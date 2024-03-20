@@ -12,6 +12,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.11.5"]
+        node-version: ["20"]
 
     steps:
       - uses: actions/checkout@v4
@@ -20,21 +21,43 @@ jobs:
         with:
           elm-version: 0.19.1
 
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "pnpm"
+          cache-dependency-path: example/elm_programs/static_src/pnpm-lock.yaml
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
+      - name: Install python dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install poetry
           poetry install
 
-      - name: Lint
+      - name: Install example JS dependencies
+        run: cd example && poetry run python manage.py djelm npm elm_programs install
+
+      - name: Lint python modules
         run: |
           poetry run tox -e lint
 
-      - name: Test with tox
+      - name: Run unit tests
         run: |
           poetry run tox -e django42
+
+      - name: Install playwright browser
+        run: poetry run doit install_e2e_browser
+
+      - name: Run browser tests
+        run: |
+          poetry run doit prepare_e2e_tests &
+          poetry run tox -e e2e

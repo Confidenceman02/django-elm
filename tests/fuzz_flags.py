@@ -1,6 +1,7 @@
 import random
 
 from hypothesis import strategies as st
+from djelm.flags.form.primitives import ModelChoiceFieldFlag
 
 from djelm.flags.main import (
     BoolFlag,
@@ -20,6 +21,8 @@ ALL_FLAGS = [
     IntFlag,
     FloatFlag,
     BoolFlag,
+    # forms
+    ModelChoiceFieldFlag,
 ]
 
 

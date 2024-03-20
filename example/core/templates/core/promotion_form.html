@@ -1,0 +1,66 @@
+{% extends "core/base.html" %}
+{% load modelChoiceField_widget_tags %}
+{% block head %}
+    {% include_ModelChoiceFieldWidget %}
+    <style>
+      h2 {
+        margin: 0px;
+        font-size: 1.125rem; /* 18px */
+        line-height: 1.75rem; /* 28px */
+        font-weight: 500;
+      }
+      p {
+        margin: 0px;
+        color: #374151;
+      }
+      .course-title {
+        display: flex;
+        flex-direction: column;
+      }
+      .course-time {
+        display: flex;
+        gap: 0.5rem;
+        margin-left: 2rem;
+      }
+      .course-popularity {
+        display: flex;
+        align-items: center;
+        gap: 0.1rem;
+        margin-left: 2rem;
+      }
+      .option-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+      .icon-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.7rem;
+        background: white;
+        border-radius: 5px;
+      }
+      .right-content {
+        margin-left: auto;
+        margin-right: 7rem;
+        align-items: center;
+        display: flex;
+      }
+      .course-author {
+        font-size: 0.8rem;
+      }
+    </style>
+{% endblock %}
+{% block content %}
+  <div class=form-parent>
+    <h1>Course selection</h1>
+    <form method="POST">
+        {% csrf_token %}
+
+        {{ form.as_div }}
+
+        <button class="submit" type="submit">Submit</button>
+    </form>
+  </div>
+{% endblock %}

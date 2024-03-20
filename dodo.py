@@ -10,3 +10,35 @@ def task_buildimages():
         ],
         "targets": [],
     }
+
+
+def task_install_e2e_browser():
+    "Install playwright browser"
+
+    return {"actions": ["playwright install firefox"]}
+
+
+def task_run_example():
+    "startenv"
+
+    return {
+        "actions": [
+            "cd example && python manage.py migrate",
+            "cd example && python manage.py seed",
+            "cd example && python manage.py runserver",
+        ]
+    }
+
+
+def task_prepare_e2e_tests():
+    "startenv"
+
+    return {
+        "actions": [
+            "cd example && python manage.py migrate",
+            "cd example && python manage.py seed",
+            "cd example && python manage.py djelm addprogram elm_programs Main",
+            "cd example && python manage.py djelm addwidget elm_programs ModelChoiceField --no-deps",
+            "cd example && python manage.py runserver",
+        ]
+    }
