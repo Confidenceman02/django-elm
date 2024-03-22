@@ -7,6 +7,7 @@ from .primitives import (
     NullableFlag,
     ListFlag,
     ObjectFlag,
+    CustomTypeFlag,
 )
 
 from .main import Flags

@@ -579,6 +579,8 @@ init f =
 To summarize, we get compile and runtime guarantees that our program will behave as we expect. This is what makes Elm programs
 incredibly robust and nearly impossible to produce a runtime exception with.
 
+You can check out all the python flags you can use to express your data shape [here](https://github.com/Confidenceman02/django-elm/blob/main/src/djelm/flags/README.md).
+
 ## `generatemodel` Command
 
 Our python flag classes have a little trick up their sleeve that makes keeping both our python and Elm flag contracts in
