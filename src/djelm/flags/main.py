@@ -9,6 +9,7 @@ from djelm.flags.form.primitives import ModelChoiceFieldFlag
 
 from .primitives import (
     BoolFlag,
+    CustomTypeFlag,
     Flag,
     FloatFlag,
     IntFlag,
@@ -371,6 +372,21 @@ def _prepare_inline_flags(
                 single_flag["elm_values"]["decoder_body"]
             )
             decoder_extra += single_flag["decoder_extra"]
+        case CustomTypeFlag(variants=v):
+            assert 0 < len(v)
+            annos = []
+            variant_names: list[str] = []
+            for var in v:
+                prepared = _prepare_inline_flags(var[1], object_decoder)
+                annos.append(prepared["anno"])
+                variant_names.append(var[0])
+
+            adapter = TypeAdapter(typing.Union[*annos])  # type:ignore
+            anno = typing.Union[*annos]  # type:ignore
+
+            # TODO create alias, alias_extra, decoder and decoder_extra
+            alias_type = FloatDecoder._raw_type()
+            decoder_body = FloatDecoder._raw_decoder()
         case ModelChoiceFieldFlag() as mcf:
             if object_decoder is None:
                 raise Exception(f"Missing an ObjectDecoder argument for {mcf.obj()}")

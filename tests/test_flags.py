@@ -9,6 +9,7 @@ from djelm.elm import Elm
 from djelm.flags.form.primitives import ModelChoiceFieldFlag
 from djelm.flags.primitives import (
     BoolFlag,
+    CustomTypeFlag,
     FloatFlag,
     IntFlag,
     ListFlag,
@@ -1164,6 +1165,83 @@ hello_Decoder =
             "decoder_body": """Decode.succeed ToModel
         |>  required "hello" (Decode.nullable (Decode.list Decode.string))""",
         }
+
+
+class TestCustomTypeFlags:
+    def test_root_string_flag_custom_type_parser(self):
+        """Handles StringFlag"""
+        d = CustomTypeFlag(variants=[("Custom1", StringFlag())])
+
+        SUT = Flags(d)
+        assert SUT.parse("2") == '"2"'
+
+        with pytest.raises(ValidationError):
+            assert SUT.parse(2)
+
+    def test_root_int_flag_custom_type_parser(self):
+        """Handles IntFlag"""
+        d = CustomTypeFlag(variants=[("Custom1", IntFlag())])
+
+        SUT = Flags(d)
+        assert SUT.parse(2) == "2"
+
+        with pytest.raises(ValidationError):
+            assert SUT.parse(2.0)
+
+    def test_root_float_flag_custom_type_parser(self):
+        """Handles FloatFlag"""
+        d = CustomTypeFlag(variants=[("Custom1", FloatFlag())])
+
+        SUT = Flags(d)
+        assert SUT.parse(2.0) == "2.0"
+        assert SUT.parse(2) == "2.0"
+
+    def test_root_bool_flag_custom_type_parser(self):
+        """Handles BoolFlag"""
+        d = CustomTypeFlag(variants=[("Custom1", BoolFlag())])
+
+        SUT = Flags(d)
+        assert SUT.parse(True) == "true"
+        assert SUT.parse(False) == "false"
+
+    def test_root_nullable_with_string_flag_custom_type_parser(self):
+        """Handles NullableFlag"""
+        d = CustomTypeFlag(variants=[("Custom1", NullableFlag(StringFlag()))])
+
+        SUT = Flags(d)
+        assert SUT.parse(None) == "null"
+        assert SUT.parse("hello") == '"hello"'
+
+    def test_root_list_with_string_flag_custom_type_parser(self):
+        """Handles ListFlag"""
+        d = CustomTypeFlag(variants=[("Custom1", ListFlag(StringFlag()))])
+
+        SUT = Flags(d)
+        assert SUT.parse([]) == "[]"
+        assert SUT.parse(["hello"]) == '["hello"]'
+
+    def test_root_object_flag_with_string_field_custom_type_parser(self):
+        """Handles ObjectFlag"""
+        d = CustomTypeFlag(variants=[("Custom1", ObjectFlag({"hello": StringFlag()}))])
+
+        SUT = Flags(d)
+        assert SUT.parse({"hello": "world"}) == '{"hello":"world"}'
+
+    @pytest.mark.django_db
+    def test_root_mcf_flag_custom_type_parser(self, basic_form):
+        """Handles a ModelChoiceFieldFlag"""
+        prepare_form = basic_form()
+        d = ModelChoiceFieldFlag()
+
+        SUT = Flags(d)
+        d = CustomTypeFlag(variants=[("Custom1", ModelChoiceFieldFlag())])
+
+        SUT = Flags(d)
+
+        assert (
+            SUT.parse(prepare_form["car"])
+            == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}'
+        )
 
 
 class TestModelChoiceFieldFlags:
