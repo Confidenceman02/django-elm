@@ -1236,11 +1236,22 @@ class TestCustomTypeFlags:
         SUT = Flags(d)
         d = CustomTypeFlag(variants=[("Custom1", ModelChoiceFieldFlag())])
 
-        SUT = Flags(d)
-
         assert (
             SUT.parse(prepare_form["car"])
             == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}'
+        )
+
+    def test_root_string_flag_custom_type_codegen(self):
+        """Generates String custom type"""
+        d = CustomTypeFlag(variants=[("Custom1", StringFlag())])
+
+        SUT = Flags(d)
+        assert (
+            SUT.to_elm_parser_data()["alias_type"]
+            == """InlineToModel_
+
+type InlineToModel_
+    = Custom1 String"""
         )
 
 
