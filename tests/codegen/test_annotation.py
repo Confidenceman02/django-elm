@@ -68,8 +68,19 @@ class TestToString:
 
         assert SUT == "Something"
 
-    def test_with_record(self):
+    def test_with_record_fields(self):
+        anno = Anno.record([("hello", Anno.string()), ("world", Anno.string())])
+        SUT = Anno.toString(anno)
+
+        assert (
+            SUT
+            == """{ hello : String
+, world : String
+}"""
+        )
+
+    def test_with_record_field(self):
         anno = Anno.record([("hello", Anno.string())])
         SUT = Anno.toString(anno)
 
-        assert SUT == "{hello : String}"
+        assert SUT == """{ hello : String }"""

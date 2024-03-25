@@ -1,5 +1,6 @@
 from typing import List
 import djelm.codegen.compiler as Compiler
+import djelm.codegen.writer as Writer
 import djelm.codegen.format as Format
 from djelm.codegen.utils import foldl
 
@@ -87,4 +88,4 @@ def record(fields: List[tuple[str, Compiler.Annotation]]) -> Compiler.Annotation
 
 
 def toString(anno: Compiler.Annotation) -> str:
-    return Compiler.writeTypeAnnotation(anno.annotation).write()
+    return Writer.writeTypeAnnotation(anno.annotation).write()

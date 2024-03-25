@@ -1,11 +1,19 @@
 from dataclasses import dataclass
 from typing import List
 
-import djelm.codegen.writer as Writer
-
 
 class TypeAnnotation:
     pass
+
+
+class DeclarationKind:
+    pass
+
+
+class Declaration:
+    def __init__(self, name: str, kind: DeclarationKind) -> None:
+        self.name = name
+        self.kind = kind
 
 
 @dataclass(slots=True)
@@ -31,42 +39,6 @@ class Record(TypeAnnotation):
         self.fields = fields
 
 
-def writeRecordField(anno: List[tuple[str, Annotation]]) -> Writer.Writer:
-    return Writer.spaced([])
-
-
-def parensIfContainsSpaces(writer: Writer.Writer) -> Writer.Writer:
-    if " " in writer.write():
-        return Writer.paren(writer)
-    else:
-        return writer
-
-
-def writeTypeAnnotation(anno: TypeAnnotation) -> Writer.Writer:
-    match anno:
-        case Typed(name=name, args=args):
-            spaced_writer = Writer.Spaced(
-                [
-                    Writer.string(name),
-                    *[parensIfContainsSpaces(writeTypeAnnotation(w)) for w in args],
-                ]
-            )
-
-            return spaced_writer
-
-        case Record(fields=fields):
-            writer_fields = []
-            for field in fields:
-                writer_fields.append(
-                    Writer.spaced(
-                        [
-                            Writer.string(field[0]),
-                            Writer.string(":"),
-                            writeTypeAnnotation(field[1].annotation),
-                        ]
-                    )
-                )
-
-            return Writer.bracesComma(False, writer_fields)
-        case _:
-            raise Exception("Can't handle that type of annotation")
+@dataclass(slots=True)
+class AliasDeclaration(DeclarationKind):
+    anno: Annotation
