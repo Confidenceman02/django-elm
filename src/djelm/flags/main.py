@@ -234,6 +234,29 @@ class ObjectDecoder:
         return marker
 
 
+@dataclass(slots=True)
+class CustomTypeDecoder:
+    """Decoder helper for the Elm custom type primitive"""
+
+    name: str
+    depth: int
+    variants: list[tuple[str, str]]
+
+    def _to_alias(self) -> str:
+        # p = self.parent_alias if self.parent_alias else ""
+        return f"{self.name[0].upper()}{self.name[1:]}{self._depth_markers()}"
+
+    def _to_alias_definition(self):
+        return f"""\n\ntype {self._to_alias()}
+    = Custom1 String"""
+
+    def _depth_markers(self) -> str:
+        marker = ""
+        for _ in range(self.depth):
+            marker += "_"
+        return marker
+
+
 ObjHelperReturn = typing.TypedDict(
     "ObjHelperReturn",
     {
@@ -373,19 +396,35 @@ def _prepare_inline_flags(
             )
             decoder_extra += single_flag["decoder_extra"]
         case CustomTypeFlag(variants=v):
+            alias_name = None
+            if object_decoder is None:
+                raise Exception(
+                    "Missing an ObjectDecoder argument for CustomTypeDecoder"
+                )
             assert 0 < len(v)
+            if object_decoder._to_alias() == "InlineToModel_":
+                alias_name = object_decoder._to_alias()
             annos = []
-            variant_names: list[str] = []
+            variant_name_and_param: list[tuple[str, str]] = []
+            alias_extras: list[str] = []
             for var in v:
                 prepared = _prepare_inline_flags(var[1], object_decoder)
                 annos.append(prepared["anno"])
-                variant_names.append(var[0])
+                variant_name_and_param.append(
+                    (var[0], prepared["elm_values"]["alias_type"])
+                )
+                alias_extras.append(prepared["alias_extra"])
 
             adapter = TypeAdapter(typing.Union[*annos])  # type:ignore
             anno = typing.Union[*annos]  # type:ignore
 
-            # TODO create alias, alias_extra, decoder and decoder_extra
-            alias_type = FloatDecoder._raw_type()
+            custom_type_decoder = CustomTypeDecoder(
+                object_decoder._to_alias(), depth, variant_name_and_param
+            )._to_alias()
+
+            # TODO create alias_extra, decoder and decoder_extra
+            alias_type = alias_name or custom_type_decoder
+            # alias_extra = "".join(alias_extras)
             decoder_body = FloatDecoder._raw_decoder()
         case ModelChoiceFieldFlag() as mcf:
             if object_decoder is None:

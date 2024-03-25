@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from .annotation import Annotation
+from djelm.codegen.compiler import Annotation
 
 
 class Variant:

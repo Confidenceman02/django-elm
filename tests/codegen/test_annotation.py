@@ -49,3 +49,27 @@ class TestToString:
         SUT = Anno.toString(anno)
 
         assert SUT == "Maybe Bool"
+
+    def test_with_maybe_list_string(self):
+        anno = Anno.maybe(Anno.list(Anno.string()))
+        SUT = Anno.toString(anno)
+
+        assert SUT == "Maybe (List String)"
+
+    def test_with_list_string(self):
+        anno = Anno.list(Anno.string())
+        SUT = Anno.toString(anno)
+
+        assert SUT == "List String"
+
+    def test_with_alias(self):
+        anno = Anno.alias("Something", Anno.string())
+        SUT = Anno.toString(anno)
+
+        assert SUT == "Something"
+
+    def test_with_record(self):
+        anno = Anno.record([("hello", Anno.string())])
+        SUT = Anno.toString(anno)
+
+        assert SUT == "{hello : String}"
