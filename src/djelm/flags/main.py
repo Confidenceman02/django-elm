@@ -1,6 +1,10 @@
 import typing
 from dataclasses import dataclass
 import djelm.codegen.annotation as Anno
+import djelm.codegen.compiler as Compiler
+import djelm.codegen.format as Format
+import djelm.codegen.writer as Writer
+import djelm.codegen.elm as Elm
 from pydantic import BaseModel, TypeAdapter, validate_call
 from typing_extensions import Annotated
 from djelm.flags.form.adapters import ModelChoiceFieldAdapter
@@ -33,7 +37,6 @@ from .adapters import (
     annotated_float,
 )
 
-
 PreparedElm = typing.TypedDict("PreparedElm", {"alias_type": str, "decoder_body": str})
 
 
@@ -63,7 +66,11 @@ class StringDecoder:
 
     @staticmethod
     def _annotation():
-        return Anno.toString(Anno.string())
+        return Anno.toString(StringDecoder._compiler_annotation())
+
+    @staticmethod
+    def _compiler_annotation() -> Compiler.Annotation:
+        return Anno.string()
 
 
 @dataclass(slots=True)
@@ -87,7 +94,11 @@ class IntDecoder:
 
     @staticmethod
     def _annotation():
-        return Anno.toString(Anno.string())
+        return Anno.toString(IntDecoder._compiler_annotation())
+
+    @staticmethod
+    def _compiler_annotation() -> Compiler.Annotation:
+        return Anno.int()
 
 
 @dataclass(slots=True)
@@ -111,7 +122,11 @@ class BoolDecoder:
 
     @staticmethod
     def _annotation():
-        return Anno.toString(Anno.string())
+        return Anno.toString(BoolDecoder._compiler_annotation())
+
+    @staticmethod
+    def _compiler_annotation() -> Compiler.Annotation:
+        return Anno.bool()
 
 
 @dataclass(slots=True)
@@ -135,7 +150,11 @@ class FloatDecoder:
 
     @staticmethod
     def _annotation():
-        return Anno.toString(Anno.string())
+        return Anno.toString(FloatDecoder._compiler_annotation())
+
+    @staticmethod
+    def _compiler_annotation() -> Compiler.Annotation:
+        return Anno.float()
 
 
 @dataclass(slots=True)
@@ -163,6 +182,10 @@ class ListDecoder:
     def _annotation(targetType: str):
         return f"(List {targetType})"
 
+    @staticmethod
+    def _compiler_annotation(annotation: Compiler.Annotation) -> Compiler.Annotation:
+        return Anno.list(annotation)
+
 
 @dataclass(slots=True)
 class NullableDecoder:
@@ -189,6 +212,10 @@ class NullableDecoder:
     def _annotation(targetType: str):
         return f"(Maybe {targetType})"
 
+    @staticmethod
+    def _compiler_annotation(annotation: Compiler.Annotation) -> Compiler.Annotation:
+        return Anno.maybe(annotation)
+
 
 @dataclass(slots=True)
 class ObjectDecoder:
@@ -213,7 +240,7 @@ class ObjectDecoder:
     def _to_annotation(self) -> str:
         p = self.parent_alias if self.parent_alias else ""
         anno = Anno.alias(
-            f"{p}{self.value}{self._depth_markers()}",
+            f"{p}{Format.alias_type(self.value)}{self._depth_markers()}",
             Anno.record([]),
         )
         return Anno.toString(anno)
@@ -237,6 +264,11 @@ class ObjectDecoder:
             marker += "_"
         return marker
 
+    def _compiler_annotation(
+        self, annotation: Compiler.Annotation
+    ) -> Compiler.Annotation:
+        return Anno.alias(self._to_annotation(), annotation)
+
 
 @dataclass(slots=True)
 class CustomTypeDecoder:
@@ -245,20 +277,31 @@ class CustomTypeDecoder:
     name: str
     depth: int
     variants: list[tuple[str, str]]
+    compiler_variants: list[Compiler.Variant]
 
     def _to_annotation(self) -> str:
         # p = self.parent_alias if self.parent_alias else ""
-        return f"{self.name[0].upper()}{self.name[1:]}{self._depth_markers()}"
+        return Anno.toString(self._compiler_annotation())
 
-    def _to_alias_definition(self):
-        return f"""\n\ntype {self._to_annotation()}
-    = Custom1 String"""
+    def _to_declaration(self) -> str:
+        return "\n\n" + Writer.writeDeclartion(self._compiler_declaration()).write()
 
     def _depth_markers(self) -> str:
         marker = ""
         for _ in range(self.depth):
             marker += "_"
         return marker
+
+    def _compiler_annotation(self) -> Compiler.Annotation:
+        return Compiler.Annotation(
+            Compiler.Typed(self._compiler_declaration().name, []),
+            {},
+        )
+
+    def _compiler_declaration(self) -> Compiler.Declaration:
+        return Elm.customType(
+            f"{self.name}{self._depth_markers()}", self.compiler_variants
+        )
 
 
 ObjHelperReturn = typing.TypedDict(
@@ -278,6 +321,7 @@ SingleHelperReturn = typing.TypedDict(
         "anno": PrimitiveObjectFlagType,
         "elm_values": PreparedElm,
         "alias_extra": str,
+        "compiler_annotation": Compiler.Annotation,
         "decoder_extra": str,
     },
 )
@@ -354,27 +398,32 @@ def _prepare_inline_flags(
     decoder_body = ""
     decoder_extra: str = ""
     alias_extra: str = ""
+    compiler_annotation = None
     match d:
         case StringFlag():
             adapter = StringAdapter
             anno = annotated_string  # type:ignore
             alias_type = StringDecoder._annotation()
             decoder_body = StringDecoder._raw_decoder()
+            compiler_annotation = StringDecoder._compiler_annotation()
         case IntFlag():
             adapter = IntAdapter
             anno = annotated_int  # type:ignore
             alias_type = IntDecoder._annotation()
             decoder_body = IntDecoder._raw_decoder()
+            compiler_annotation = IntDecoder._compiler_annotation()
         case FloatFlag():
             adapter = FloatAdapter
             anno = annotated_float  # type:ignore
             alias_type = FloatDecoder._annotation()
             decoder_body = FloatDecoder._raw_decoder()
+            compiler_annotation = FloatDecoder._compiler_annotation()
         case BoolFlag():
             adapter = BoolAdapter
             anno = annotated_bool  # type:ignore
             alias_type = BoolDecoder._annotation()
             decoder_body = BoolDecoder._raw_decoder()
+            compiler_annotation = BoolDecoder._compiler_annotation()
         case NullableFlag(obj=obj):
             single_flag = _prepare_inline_flags(obj, object_decoder)
             t = single_flag["anno"]
@@ -402,17 +451,20 @@ def _prepare_inline_flags(
             )
             decoder_extra += single_flag["decoder_extra"]
         case CustomTypeFlag(variants=v):
-            alias_name = None
+            annotation_name = None
             if object_decoder is None:
                 raise Exception(
                     "Missing an ObjectDecoder argument for CustomTypeDecoder"
                 )
             assert 0 < len(v)
             if object_decoder._to_annotation() == "InlineToModel_":
-                alias_name = object_decoder._to_annotation()
+                annotation_name = "InlineToModel"
+            else:
+                annotation_name = object_decoder._to_annotation()
             annos = []
             variant_name_and_param: list[tuple[str, str]] = []
             alias_extras: list[str] = []
+            variants: list[Compiler.Variant] = []
             for var in v:
                 prepared = _prepare_inline_flags(var[1], object_decoder)
                 annos.append(prepared["anno"])
@@ -420,17 +472,23 @@ def _prepare_inline_flags(
                     (var[0], prepared["elm_values"]["alias_type"])
                 )
                 alias_extras.append(prepared["alias_extra"])
+                if prepared["compiler_annotation"]:
+                    variants.append(
+                        (Elm.variantWith(var[0], [prepared["compiler_annotation"]]))
+                    )
 
             adapter = TypeAdapter(typing.Union[*annos])  # type:ignore
             anno = typing.Union[*annos]  # type:ignore
 
             custom_type_decoder = CustomTypeDecoder(
-                object_decoder._to_annotation(), depth, variant_name_and_param
-            )._to_annotation()
+                annotation_name, depth, variant_name_and_param, variants
+            )
 
-            # TODO create alias_extra, decoder and decoder_extra
-            alias_type = alias_name or custom_type_decoder
-            # alias_extra = "".join(alias_extras)
+            # TODO decoder and decoder_extra
+            alias_type = custom_type_decoder._to_annotation()
+            alias_extra = "".join(
+                [custom_type_decoder._to_declaration(), *alias_extras]
+            )
             decoder_body = FloatDecoder._raw_decoder()
         case ModelChoiceFieldFlag() as mcf:
             if object_decoder is None:
@@ -505,6 +563,7 @@ def _prepare_inline_flags(
             "decoder_body": decoder_body,
         },
         "alias_extra": alias_extra,
+        "compiler_annotation": compiler_annotation,
         "decoder_extra": decoder_extra,
     }
 

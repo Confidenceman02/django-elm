@@ -183,6 +183,7 @@ def writeDeclartion(declaration: Compiler.Declaration) -> Writer:
                     spaced([string("type"), string(name)]),
                     indent(
                         3,
+                        # TODO rstrip string to remove trailing spaces
                         sepBy(
                             ("= ", "| ", ""),
                             True,

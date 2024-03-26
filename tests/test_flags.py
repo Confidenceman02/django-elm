@@ -1251,7 +1251,8 @@ class TestCustomTypeFlags:
             == """InlineToModel_
 
 type InlineToModel_
-    = Custom1 String"""
+    = Custom1 String
+    """
         )
 
 
