@@ -1,6 +1,6 @@
 import typing
 from dataclasses import dataclass
-
+import djelm.codegen.annotation as Anno
 from pydantic import BaseModel, TypeAdapter, validate_call
 from typing_extensions import Annotated
 from djelm.flags.form.adapters import ModelChoiceFieldAdapter
@@ -52,18 +52,18 @@ class StringDecoder:
         return f"""|>  required "{self.value}" {StringDecoder._raw_decoder()}"""
 
     def alias(self) -> str:
-        return f"""{self.value} : {StringDecoder._raw_type()}"""
+        return f"""{self.value} : {StringDecoder._annotation()}"""
 
     def nested_alias(self):
-        return f""", {self.value} : {StringDecoder._raw_type()}"""
+        return f""", {self.value} : {StringDecoder._annotation()}"""
 
     @staticmethod
     def _raw_decoder():
         return "Decode.string"
 
     @staticmethod
-    def _raw_type():
-        return "String"
+    def _annotation():
+        return Anno.toString(Anno.string())
 
 
 @dataclass(slots=True)
@@ -76,18 +76,18 @@ class IntDecoder:
         return f"""|>  required "{self.value}" {IntDecoder._raw_decoder()}"""
 
     def alias(self):
-        return f"""{self.value} : {IntDecoder._raw_type()}"""
+        return f"""{self.value} : {IntDecoder._annotation()}"""
 
     def nested_alias(self):
-        return f""", {self.value} : {IntDecoder._raw_type()}"""
+        return f""", {self.value} : {IntDecoder._annotation()}"""
 
     @staticmethod
     def _raw_decoder():
         return "Decode.int"
 
     @staticmethod
-    def _raw_type():
-        return "Int"
+    def _annotation():
+        return Anno.toString(Anno.string())
 
 
 @dataclass(slots=True)
@@ -100,18 +100,18 @@ class BoolDecoder:
         return f"""|>  required "{self.value}" {BoolDecoder._raw_decoder()}"""
 
     def alias(self):
-        return f"""{self.value} : {BoolDecoder._raw_type()}"""
+        return f"""{self.value} : {BoolDecoder._annotation()}"""
 
     def nested_alias(self):
-        return f""", {self.value} : {BoolDecoder._raw_type()}"""
+        return f""", {self.value} : {BoolDecoder._annotation()}"""
 
     @staticmethod
     def _raw_decoder():
         return "Decode.bool"
 
     @staticmethod
-    def _raw_type():
-        return "Bool"
+    def _annotation():
+        return Anno.toString(Anno.string())
 
 
 @dataclass(slots=True)
@@ -124,18 +124,18 @@ class FloatDecoder:
         return f"""|>  required "{self.value}" {FloatDecoder._raw_decoder()}"""
 
     def alias(self):
-        return f"""{self.value} : {FloatDecoder._raw_type()}"""
+        return f"""{self.value} : {FloatDecoder._annotation()}"""
 
     def nested_alias(self):
-        return f""", {self.value} : {FloatDecoder._raw_type()}"""
+        return f""", {self.value} : {FloatDecoder._annotation()}"""
 
     @staticmethod
     def _raw_decoder():
         return "Decode.float"
 
     @staticmethod
-    def _raw_type():
-        return "Float"
+    def _annotation():
+        return Anno.toString(Anno.string())
 
 
 @dataclass(slots=True)
@@ -150,7 +150,7 @@ class ListDecoder:
         return f"""|>  required "{self.value}" {ListDecoder._raw_decoder(self.targetDecoderName)}"""
 
     def alias(self):
-        return f"""{self.value} : {self._raw_type(self.targetTypeName)}"""
+        return f"""{self.value} : {self._annotation(self.targetTypeName)}"""
 
     def nested_alias(self):
         return f""", {self.value} : List {self.targetTypeName}"""
@@ -160,7 +160,7 @@ class ListDecoder:
         return f"(Decode.list {decoder_def})"
 
     @staticmethod
-    def _raw_type(targetType: str):
+    def _annotation(targetType: str):
         return f"(List {targetType})"
 
 
@@ -186,7 +186,7 @@ class NullableDecoder:
         return f"(Decode.nullable {decoder_def})"
 
     @staticmethod
-    def _raw_type(targetType: str):
+    def _annotation(targetType: str):
         return f"(Maybe {targetType})"
 
 
@@ -205,27 +205,31 @@ class ObjectDecoder:
         return f"""{self._to_decoder_annotation()}\n    {self._to_pipeline_succeed()}"""
 
     def alias(self):
-        return f"""{self.value} : {self._to_alias()}"""
+        return f"""{self.value} : {self._to_annotation()}"""
 
     def nested_alias(self):
-        return f""", {self.value} : {self._to_alias()}"""
+        return f""", {self.value} : {self._to_annotation()}"""
 
-    def _to_alias(self) -> str:
+    def _to_annotation(self) -> str:
         p = self.parent_alias if self.parent_alias else ""
-        return f"{p}{self.value[0].upper()}{self.value[1:]}{self._depth_markers()}"
+        anno = Anno.alias(
+            f"{p}{self.value}{self._depth_markers()}",
+            Anno.record([]),
+        )
+        return Anno.toString(anno)
 
     def _to_decoder_annotation(self):
-        return f"""{self._to_decoder_name()} : Decode.Decoder {self._to_alias()}\n{self._to_decoder_name()} ="""
+        return f"""{self._to_decoder_name()} : Decode.Decoder {self._to_annotation()}\n{self._to_decoder_name()} ="""
 
     def _to_decoder_name(self):
         p = self.parent_alias if self.parent_alias else ""
         return f"""{p.lower() + self.value + self._depth_markers()}Decoder"""
 
-    def _to_alias_definition(self, body: str):
-        return f"""\n\ntype alias {self._to_alias()} =\n    {body}"""
+    def _to_declaration(self, body: str):
+        return f"""\n\ntype alias {self._to_annotation()} =\n    {body}"""
 
     def _to_pipeline_succeed(self):
-        return f"""Decode.succeed {self._to_alias()}"""
+        return f"""Decode.succeed {self._to_annotation()}"""
 
     def _depth_markers(self) -> str:
         marker = ""
@@ -242,12 +246,12 @@ class CustomTypeDecoder:
     depth: int
     variants: list[tuple[str, str]]
 
-    def _to_alias(self) -> str:
+    def _to_annotation(self) -> str:
         # p = self.parent_alias if self.parent_alias else ""
         return f"{self.name[0].upper()}{self.name[1:]}{self._depth_markers()}"
 
     def _to_alias_definition(self):
-        return f"""\n\ntype {self._to_alias()}
+        return f"""\n\ntype {self._to_annotation()}
     = Custom1 String"""
 
     def _depth_markers(self) -> str:
@@ -354,29 +358,29 @@ def _prepare_inline_flags(
         case StringFlag():
             adapter = StringAdapter
             anno = annotated_string  # type:ignore
-            alias_type = StringDecoder._raw_type()
+            alias_type = StringDecoder._annotation()
             decoder_body = StringDecoder._raw_decoder()
         case IntFlag():
             adapter = IntAdapter
             anno = annotated_int  # type:ignore
-            alias_type = IntDecoder._raw_type()
+            alias_type = IntDecoder._annotation()
             decoder_body = IntDecoder._raw_decoder()
         case FloatFlag():
             adapter = FloatAdapter
             anno = annotated_float  # type:ignore
-            alias_type = FloatDecoder._raw_type()
+            alias_type = FloatDecoder._annotation()
             decoder_body = FloatDecoder._raw_decoder()
         case BoolFlag():
             adapter = BoolAdapter
             anno = annotated_bool  # type:ignore
-            alias_type = BoolDecoder._raw_type()
+            alias_type = BoolDecoder._annotation()
             decoder_body = BoolDecoder._raw_decoder()
         case NullableFlag(obj=obj):
             single_flag = _prepare_inline_flags(obj, object_decoder)
             t = single_flag["anno"]
             adapter = TypeAdapter(Annotated[typing.Optional[t], None])
             anno = typing.Optional[t]  # type:ignore
-            alias_type = NullableDecoder._raw_type(
+            alias_type = NullableDecoder._annotation(
                 single_flag["elm_values"]["alias_type"]
             )
             alias_extra += single_flag["alias_extra"]
@@ -389,7 +393,9 @@ def _prepare_inline_flags(
             t = single_flag["anno"]
             adapter = TypeAdapter(Annotated[list[t], None])  # type:ignore
             anno = list[t]  # type:ignore
-            alias_type = ListDecoder._raw_type(single_flag["elm_values"]["alias_type"])
+            alias_type = ListDecoder._annotation(
+                single_flag["elm_values"]["alias_type"]
+            )
             alias_extra += single_flag["alias_extra"]
             decoder_body = ListDecoder._raw_decoder(
                 single_flag["elm_values"]["decoder_body"]
@@ -402,8 +408,8 @@ def _prepare_inline_flags(
                     "Missing an ObjectDecoder argument for CustomTypeDecoder"
                 )
             assert 0 < len(v)
-            if object_decoder._to_alias() == "InlineToModel_":
-                alias_name = object_decoder._to_alias()
+            if object_decoder._to_annotation() == "InlineToModel_":
+                alias_name = object_decoder._to_annotation()
             annos = []
             variant_name_and_param: list[tuple[str, str]] = []
             alias_extras: list[str] = []
@@ -419,8 +425,8 @@ def _prepare_inline_flags(
             anno = typing.Union[*annos]  # type:ignore
 
             custom_type_decoder = CustomTypeDecoder(
-                object_decoder._to_alias(), depth, variant_name_and_param
-            )._to_alias()
+                object_decoder._to_annotation(), depth, variant_name_and_param
+            )._to_annotation()
 
             # TODO create alias_extra, decoder and decoder_extra
             alias_type = alias_name or custom_type_decoder
@@ -439,8 +445,8 @@ def _prepare_inline_flags(
 
             Subsequent alias's will have their parent added to the start. i.e. type alias InlineToModel_A__
             """
-            if object_decoder._to_alias() != "InlineToModel_":
-                parent_key = object_decoder._to_alias()
+            if object_decoder._to_annotation() != "InlineToModel_":
+                parent_key = object_decoder._to_annotation()
 
             object_flag = _prepare_pipeline_flags(
                 mcf.obj(),
@@ -452,8 +458,8 @@ def _prepare_inline_flags(
             # Use internal annotation
             anno = mcf.anno()
 
-            alias_type = object_decoder._to_alias()
-            alias_extra = object_decoder._to_alias_definition(
+            alias_type = object_decoder._to_annotation()
+            alias_extra = object_decoder._to_declaration(
                 object_flag["elm_values"]["alias_type"]
             )
             decoder_body = object_decoder._to_decoder_name()
@@ -471,8 +477,8 @@ def _prepare_inline_flags(
 
             Subsequent alias's will have their parent added to the start. i.e. type alias InlineToModel_A__
             """
-            if object_decoder._to_alias() != "InlineToModel_":
-                parent_key = object_decoder._to_alias()
+            if object_decoder._to_annotation() != "InlineToModel_":
+                parent_key = object_decoder._to_annotation()
             object_flag = _prepare_pipeline_flags(
                 d,
                 object_decoder.pipeline_starter(),
@@ -483,8 +489,8 @@ def _prepare_inline_flags(
 
             adapter = object_flag["adapter"]
             anno = t  # type:ignore
-            alias_type = object_decoder._to_alias()
-            alias_extra = object_decoder._to_alias_definition(
+            alias_type = object_decoder._to_annotation()
+            alias_extra = object_decoder._to_declaration(
                 object_flag["elm_values"]["alias_type"]
             )
             decoder_body = object_decoder._to_decoder_name()
@@ -526,7 +532,7 @@ def _prepare_pipeline_flags(
                         mcf.obj(),
                         decoder.pipeline_starter(),
                         depth + 1,
-                        decoder._to_alias(),
+                        decoder._to_annotation(),
                     )
 
                     # Use built in annotations
@@ -534,7 +540,7 @@ def _prepare_pipeline_flags(
                     decoder_extra += (
                         f"\n\n{prepared_object_recursive['elm_values']['decoder_body']}"
                     )
-                    alias_extra += decoder._to_alias_definition(
+                    alias_extra += decoder._to_declaration(
                         prepared_object_recursive["elm_values"]["alias_type"]
                     )
                     pipeline_decoder += f"""\n        {decoder.pipeline()}"""
@@ -549,7 +555,7 @@ def _prepare_pipeline_flags(
                         ObjectFlag(obj),
                         decoder.pipeline_starter(),
                         depth + 1,
-                        decoder._to_alias(),
+                        decoder._to_annotation(),
                     )
                     anno[k] = type(
                         "K",
@@ -564,7 +570,7 @@ def _prepare_pipeline_flags(
                     decoder_extra += (
                         f"\n\n{prepared_object_recursive['elm_values']['decoder_body']}"
                     )
-                    alias_extra += decoder._to_alias_definition(
+                    alias_extra += decoder._to_declaration(
                         prepared_object_recursive["elm_values"]["alias_type"]
                     )
                     pipeline_decoder += f"""\n        {decoder.pipeline()}"""
