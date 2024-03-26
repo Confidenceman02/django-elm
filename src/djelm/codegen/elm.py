@@ -1,29 +1,30 @@
 from dataclasses import dataclass
 
 import djelm.codegen.compiler as Compiler
+import djelm.codegen.format as Format
 
 
-class Variant:
-    def __init__(
-        self, name: str, annotations: list[Compiler.Annotation] | None = None
-    ) -> None:
-        self.name = name
-        self.annotations = annotations
+def variantWith(name: str, annotations: list[Compiler.Annotation]) -> Compiler.Variant:
+    return Compiler.Variant(name, annotations)
 
 
-def variant(name: str) -> Variant:
-    return Variant(name)
+def variant(name: str) -> Compiler.Variant:
+    return variantWith(name, [])
 
 
-def variantWith(name: str, annotations: list[Compiler.Annotation]) -> Variant:
-    return Variant(name, annotations)
+def alias(name: str, annotation: Compiler.Annotation) -> Compiler.Declaration:
+    return Compiler.Declaration(
+        name, Compiler.AliasDeclaration(Format.alias_type(name), annotation)
+    )
 
 
-def alias(name: str, annotation: Compiler.Annotation):
-    return Compiler.Declaration(name, Compiler.AliasDeclaration(annotation))
+def customType(name: str, variants: list[Compiler.Variant]) -> Compiler.Declaration:
+    return Compiler.Declaration(
+        name, Compiler.CustomTypeDeclaration(Format.alias_type(name), variants)
+    )
 
 
 @dataclass(slots=True)
 class CustomType:
     name: str
-    variants: list[Variant]
+    variants: list[Compiler.Variant]

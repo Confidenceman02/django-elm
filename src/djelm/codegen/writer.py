@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from typing import List, Protocol
 import djelm.codegen.compiler as Compiler
-import djelm.codegen.format as Format
 
 
 class Writer(Protocol):
@@ -107,6 +106,10 @@ def bracesComma(new_line: bool, items: List[Writer]) -> Writer:
     return Sep(new_line, ("{", ", ", "}"), items)
 
 
+def sepBy(separators: tuple[str, str, str], newlines: bool, writers: list[Writer]):
+    return Sep(newlines, separators, writers)
+
+
 def parensIfContainsSpaces(writer: Writer) -> Writer:
     if " " in writer.write():
         return paren(writer)
@@ -147,20 +150,45 @@ def writeTypeAnnotation(anno: Compiler.TypeAnnotation) -> Writer:
             raise Exception("Can't handle that type of annotation")
 
 
+def writeVariantConstructors(variant: Compiler.Variant) -> Writer:
+    writers: list[Writer] = [string(variant.name)]
+    writers.extend(
+        [
+            parensIfContainsSpaces(writeTypeAnnotation(v.annotation))
+            for v in variant.annotations
+        ]
+    )
+    return spaced(writers)
+
+
 def writeDeclartion(declaration: Compiler.Declaration) -> Writer:
     match declaration.kind:
-        case Compiler.AliasDeclaration(anno=anno):
+        case Compiler.AliasDeclaration(name=name, anno=anno):
             return breaked(
                 [
                     spaced(
                         [
                             string("type"),
                             string("alias"),
-                            string(Format.alias_type(declaration.name)),
+                            string(name),
                             string("="),
                         ]
                     ),
                     indent(3, writeTypeAnnotation(anno.annotation)),
+                ]
+            )
+        case Compiler.CustomTypeDeclaration(name=name, variants=variants):
+            return breaked(
+                [
+                    spaced([string("type"), string(name)]),
+                    indent(
+                        3,
+                        sepBy(
+                            ("= ", "| ", ""),
+                            True,
+                            [writeVariantConstructors(v) for v in variants],
+                        ),
+                    ),
                 ]
             )
         case _:
