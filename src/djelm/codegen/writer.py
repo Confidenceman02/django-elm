@@ -1,13 +1,16 @@
 from dataclasses import dataclass
 from typing import List, Protocol
 import djelm.codegen.compiler as Compiler
+import djelm.codegen.format as Format
 
 
 class Writer(Protocol):
-    def write(self) -> str:
+    def write(self, indent: int = 0) -> str:
         ...
 
     def writeIndented(self, indent: int = 0) -> str:
+        if indent == 0:
+            return ""
         repeated = " "
 
         for _ in range(indent):
@@ -19,15 +22,15 @@ class Writer(Protocol):
 class Spaced(Writer):
     items: List[Writer]
 
-    def write(self) -> str:
-        return " ".join([w.write() for w in self.items])
+    def write(self, indent: int = 0) -> str:
+        return " ".join([w.write(indent) for w in self.items])
 
 
 @dataclass(slots=True)
 class String(Writer):
     val: str
 
-    def write(self) -> str:
+    def write(self, indent: int = 0) -> str:
         return self.val
 
 
@@ -35,7 +38,7 @@ class String(Writer):
 class Paren(Writer):
     writer: Writer
 
-    def write(self) -> str:
+    def write(self, indent: int = 0) -> str:
         return f"({self.writer.write()})"
 
 
@@ -48,12 +51,32 @@ class Sep(Writer):
     def write(self, indent: int = 0) -> str:
         pre, sep, post = self.separators
 
+        post = self.writeIndented(indent) + post
+
         if self.new_line:
+            post = "\n" + post
             separator = "\n" + self.writeIndented(indent) + sep
         else:
             separator = sep
 
         return f"{pre}{separator.join([w.write() for w in self.items])}{post}"
+
+
+@dataclass(slots=True)
+class Breaked(Writer):
+    writers: List[Writer]
+
+    def write(self, indent: int = 0) -> str:
+        return "\n".join([w.write() for w in self.writers])
+
+
+@dataclass(slots=True)
+class Indent(Writer):
+    indent: int
+    writer: Writer
+
+    def write(self, indent: int = 0) -> str:
+        return f"{self.writeIndented(self.indent)}{self.writer.write(self.indent)}"
 
 
 def string(val: str) -> Writer:
@@ -68,12 +91,20 @@ def paren(writer: Writer) -> Writer:
     return Paren(writer)
 
 
+def breaked(writers: List[Writer]) -> Writer:
+    return Breaked(writers)
+
+
+def indent(indent: int, writer: Writer) -> Writer:
+    return Indent(indent, writer)
+
+
 def multiFieldRecord(new_line: bool, items: List[Writer]) -> Writer:
-    return Sep(new_line, ("{ ", "\n, ", "\n}"), items)
+    return Sep(new_line, ("{ ", ", ", "}"), items)
 
 
 def bracesComma(new_line: bool, items: List[Writer]) -> Writer:
-    return Sep(new_line, ("{ ", ", ", " }"), items)
+    return Sep(new_line, ("{", ", ", "}"), items)
 
 
 def parensIfContainsSpaces(writer: Writer) -> Writer:
@@ -108,7 +139,7 @@ def writeTypeAnnotation(anno: Compiler.TypeAnnotation) -> Writer:
                     )
                 )
             if 1 < len(writer_fields):
-                return multiFieldRecord(False, writer_fields)
+                return multiFieldRecord(True, writer_fields)
             else:
                 return bracesComma(False, writer_fields)
 
@@ -117,4 +148,20 @@ def writeTypeAnnotation(anno: Compiler.TypeAnnotation) -> Writer:
 
 
 def writeDeclartion(declaration: Compiler.Declaration) -> Writer:
-    pass
+    match declaration.kind:
+        case Compiler.AliasDeclaration(anno=anno):
+            return breaked(
+                [
+                    spaced(
+                        [
+                            string("type"),
+                            string("alias"),
+                            string(Format.alias_type(declaration.name)),
+                            string("="),
+                        ]
+                    ),
+                    indent(3, writeTypeAnnotation(anno.annotation)),
+                ]
+            )
+        case _:
+            raise Exception("Cant handle that type of annotation")

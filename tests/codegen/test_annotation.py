@@ -83,4 +83,4 @@ class TestToString:
         anno = Anno.record([("hello", Anno.string())])
         SUT = Anno.toString(anno)
 
-        assert SUT == """{ hello : String }"""
+        assert SUT == """{hello : String}"""

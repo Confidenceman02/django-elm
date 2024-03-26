@@ -20,7 +20,7 @@ def variantWith(name: str, annotations: list[Compiler.Annotation]) -> Variant:
 
 
 def alias(name: str, annotation: Compiler.Annotation):
-    return Compiler.Declaration(name, Compiler.Alias(annotation))
+    return Compiler.Declaration(name, Compiler.AliasDeclaration(annotation))
 
 
 @dataclass(slots=True)
