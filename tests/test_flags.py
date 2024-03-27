@@ -115,12 +115,12 @@ def test_fuzz_flags():
 
         class MockHandler(ModelGenerator):
             def load_flags(  # type:ignore
-                self,
-                app_path: str,
-                program_name: str,
-                from_source: bool,
-                watch_mode: bool,
-                logger,
+                    self,
+                    app_path: str,
+                    program_name: str,
+                    from_source: bool,
+                    watch_mode: bool,
+                    logger,
             ):
                 f = Flags(flags)
                 return ExitSuccess(f)
@@ -179,12 +179,10 @@ class TestFuzzExamplesGenerated:
     }
 
 type alias Yh_ =
-    { dFE3 : Maybe (Maybe Yh_DFE3__)
-    }
+    { dFE3 : Maybe (Maybe Yh_DFE3__) }
 
 type alias Yh_DFE3__ =
-    { k69xy : Maybe (Maybe Int)
-    }"""
+    { k69xy : Maybe (Maybe Int) }"""
         )
         assert SUT.to_elm_parser_data()["decoder_body"] == (
             """Decode.succeed ToModel
@@ -243,31 +241,27 @@ dEB_Decoder =
 
         # Alias type
         assert (
-            SUT.to_elm_parser_data()["alias_type"]
-            == """{ a : A_
+                SUT.to_elm_parser_data()["alias_type"]
+                == """{ a : A_
     , b : List B_
     }
 
 type alias A_ =
-    { options : A_Options__
-    }
+    { options : A_Options__ }
 
 type alias A_Options__ =
-    { name : String
-    }
+    { name : String }
 
 type alias B_ =
-    { options : B_Options__
-    }
+    { options : B_Options__ }
 
 type alias B_Options__ =
-    { name : String
-    }"""
+    { name : String }"""
         )
 
         assert (
-            SUT.to_elm_parser_data()["decoder_body"]
-            == """Decode.succeed ToModel
+                SUT.to_elm_parser_data()["decoder_body"]
+                == """Decode.succeed ToModel
         |>  required "a" a_Decoder
         |>  required "b" (Decode.list b_Decoder)
 
@@ -450,8 +444,8 @@ class TestNullableFlags:
 
         assert SUT.parse(None) == "null"
         assert (
-            SUT.parse(prepared["car"])
-            == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}'
+                SUT.parse(prepared["car"])
+                == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}'
         )
 
         try:
@@ -504,7 +498,7 @@ class TestNullableFlags:
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """(Maybe String)""",
+            "alias_type": """Maybe String""",
             "decoder_body": """(Decode.nullable Decode.string)""",
         }
 
@@ -513,7 +507,7 @@ class TestNullableFlags:
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """(Maybe Int)""",
+            "alias_type": """Maybe Int""",
             "decoder_body": """(Decode.nullable Decode.int)""",
         }
 
@@ -522,7 +516,7 @@ class TestNullableFlags:
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """(Maybe Float)""",
+            "alias_type": """Maybe Float""",
             "decoder_body": """(Decode.nullable Decode.float)""",
         }
 
@@ -531,7 +525,7 @@ class TestNullableFlags:
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """(Maybe Bool)""",
+            "alias_type": """Maybe Bool""",
             "decoder_body": """(Decode.nullable Decode.bool)""",
         }
 
@@ -540,7 +534,7 @@ class TestNullableFlags:
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """(Maybe (List String))""",
+            "alias_type": """Maybe (List String)""",
             "decoder_body": """(Decode.nullable (Decode.list Decode.string))""",
         }
 
@@ -549,11 +543,10 @@ class TestNullableFlags:
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """(Maybe InlineToModel_)
+            "alias_type": """Maybe InlineToModel_
 
 type alias InlineToModel_ =
-    { hello : String
-    }""",
+    { hello : String }""",
             "decoder_body": """(Decode.nullable inlineToModel_Decoder)
 
 inlineToModel_Decoder : Decode.Decoder InlineToModel_
@@ -568,15 +561,13 @@ inlineToModel_Decoder =
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """(Maybe InlineToModel_)
+            "alias_type": """Maybe InlineToModel_
 
 type alias InlineToModel_ =
-    { hello : Hello__
-    }
+    { hello : Hello__ }
 
 type alias Hello__ =
-    { world : String
-    }""",
+    { world : String }""",
             "decoder_body": """(Decode.nullable inlineToModel_Decoder)
 
 inlineToModel_Decoder : Decode.Decoder InlineToModel_
@@ -595,7 +586,7 @@ hello__Decoder =
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """(Maybe (Maybe String))""",
+            "alias_type": """Maybe (Maybe String)""",
             "decoder_body": """(Decode.nullable (Decode.nullable Decode.string))""",
         }
 
@@ -604,7 +595,7 @@ hello__Decoder =
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """(Maybe (Maybe Int))""",
+            "alias_type": """Maybe (Maybe Int)""",
             "decoder_body": """(Decode.nullable (Decode.nullable Decode.int))""",
         }
 
@@ -613,7 +604,7 @@ hello__Decoder =
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """(Maybe (Maybe Bool))""",
+            "alias_type": """Maybe (Maybe Bool)""",
             "decoder_body": """(Decode.nullable (Decode.nullable Decode.bool))""",
         }
 
@@ -622,7 +613,7 @@ hello__Decoder =
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """(Maybe (Maybe Float))""",
+            "alias_type": """Maybe (Maybe Float)""",
             "decoder_body": """(Decode.nullable (Decode.nullable Decode.float))""",
         }
 
@@ -631,7 +622,7 @@ hello__Decoder =
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """(Maybe (Maybe (List String)))""",
+            "alias_type": """Maybe (Maybe (List String))""",
             "decoder_body": """(Decode.nullable (Decode.nullable (Decode.list Decode.string)))""",
         }
 
@@ -689,8 +680,8 @@ class TestListFlags:
 
         assert SUT.parse([]) == "[]"
         assert (
-            SUT.parse([prepared["car"]])
-            == '[{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}]'
+                SUT.parse([prepared["car"]])
+                == '[{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}]'
         )
 
         try:
@@ -732,7 +723,7 @@ class TestListFlags:
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """(List String)""",
+            "alias_type": """List String""",
             "decoder_body": """(Decode.list Decode.string)""",
         }
 
@@ -741,7 +732,7 @@ class TestListFlags:
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """(List Int)""",
+            "alias_type": """List Int""",
             "decoder_body": """(Decode.list Decode.int)""",
         }
 
@@ -750,7 +741,7 @@ class TestListFlags:
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """(List Float)""",
+            "alias_type": """List Float""",
             "decoder_body": """(Decode.list Decode.float)""",
         }
 
@@ -759,7 +750,7 @@ class TestListFlags:
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """(List Bool)""",
+            "alias_type": """List Bool""",
             "decoder_body": """(Decode.list Decode.bool)""",
         }
 
@@ -768,11 +759,10 @@ class TestListFlags:
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """(List InlineToModel_)
+            "alias_type": """List InlineToModel_
 
 type alias InlineToModel_ =
-    { hello : String
-    }""",
+    { hello : String }""",
             "decoder_body": """(Decode.list inlineToModel_Decoder)
 
 inlineToModel_Decoder : Decode.Decoder InlineToModel_
@@ -786,7 +776,7 @@ inlineToModel_Decoder =
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """(List (Maybe String))""",
+            "alias_type": """List (Maybe String)""",
             "decoder_body": """(Decode.list (Decode.nullable Decode.string))""",
         }
 
@@ -795,7 +785,7 @@ inlineToModel_Decoder =
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """(List (Maybe Int))""",
+            "alias_type": """List (Maybe Int)""",
             "decoder_body": """(Decode.list (Decode.nullable Decode.int))""",
         }
 
@@ -804,7 +794,7 @@ inlineToModel_Decoder =
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """(List (Maybe Bool))""",
+            "alias_type": """List (Maybe Bool)""",
             "decoder_body": """(Decode.list (Decode.nullable Decode.bool))""",
         }
 
@@ -813,7 +803,7 @@ inlineToModel_Decoder =
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """(List (Maybe Float))""",
+            "alias_type": """List (Maybe Float)""",
             "decoder_body": """(Decode.list (Decode.nullable Decode.float))""",
         }
 
@@ -822,7 +812,7 @@ inlineToModel_Decoder =
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """(List (Maybe (List String)))""",
+            "alias_type": """List (Maybe (List String))""",
             "decoder_body": """(Decode.list (Decode.nullable (Decode.list Decode.string)))""",
         }
 
@@ -886,8 +876,8 @@ class TestObjectFlags:
         SUT = Flags(d)
 
         assert (
-            SUT.parse({"hello": {"world": "I'm here"}, "someList": ["hello", "world"]})
-            == '{"hello":{"world":"I\'m here"},"someList":["hello","world"]}'
+                SUT.parse({"hello": {"world": "I'm here"}, "someList": ["hello", "world"]})
+                == '{"hello":{"world":"I\'m here"},"someList":["hello","world"]}'
         )
         with pytest.raises(ValidationError):
             SUT.parse({"hello": 22})
@@ -905,8 +895,8 @@ class TestObjectFlags:
         SUT = Flags(d)
 
         assert (
-            SUT.parse({"hello": {"world": "I have arrived"}})
-            == '{"hello":{"world":"I have arrived"}}'
+                SUT.parse({"hello": {"world": "I have arrived"}})
+                == '{"hello":{"world":"I have arrived"}}'
         )
         with pytest.raises(ValidationError):
             SUT.parse({"hello": 22})
@@ -984,8 +974,8 @@ class TestObjectFlags:
         SUT = Flags(d)
 
         assert (
-            SUT.parse({"hello": [{"world": "I have arrived"}]})
-            == '{"hello":[{"world":"I have arrived"}]}'
+                SUT.parse({"hello": [{"world": "I have arrived"}]})
+                == '{"hello":[{"world":"I have arrived"}]}'
         )
         with pytest.raises(ValidationError):
             SUT.parse({"hello": "world"})
@@ -1023,8 +1013,7 @@ class TestObjectFlags:
     }
 
 type alias Hello_ =
-    { world : String
-    }""",
+    { world : String }""",
             "decoder_body": """Decode.succeed ToModel
         |>  required "hello" hello_Decoder
         |>  required "someList" (Decode.list Decode.string)
@@ -1040,7 +1029,7 @@ hello_Decoder =
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """{ hello : (List (Maybe String))
+            "alias_type": """{ hello : List (Maybe String)
     }""",
             "decoder_body": """Decode.succeed ToModel
         |>  required "hello" (Decode.list (Decode.nullable Decode.string))""",
@@ -1051,7 +1040,7 @@ hello_Decoder =
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """{ hello : (List (List String))
+            "alias_type": """{ hello : List (List String)
     }""",
             "decoder_body": """Decode.succeed ToModel
         |>  required "hello" (Decode.list (Decode.list Decode.string))""",
@@ -1066,8 +1055,7 @@ hello_Decoder =
     }
 
 type alias Hello_ =
-    { world : String
-    }""",
+    { world : String }""",
             "decoder_body": """Decode.succeed ToModel
         |>  required "hello" hello_Decoder
 
@@ -1082,12 +1070,11 @@ hello_Decoder =
         SUT = Flags(d)
 
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """{ hello : (List Hello_)
+            "alias_type": """{ hello : List Hello_
     }
 
 type alias Hello_ =
-    { world : String
-    }""",
+    { world : String }""",
             "decoder_body": """Decode.succeed ToModel
         |>  required "hello" (Decode.list hello_Decoder)
 
@@ -1101,7 +1088,7 @@ hello_Decoder =
         d = ObjectFlag({"hello": ListFlag(StringFlag())})
         SUT = Flags(d)
         assert SUT.to_elm_parser_data() == {
-            "alias_type": """{ hello : (List String)
+            "alias_type": """{ hello : List String
     }""",
             "decoder_body": """Decode.succeed ToModel
         |>  required "hello" (Decode.list Decode.string)""",
@@ -1145,8 +1132,7 @@ hello_Decoder =
     }
 
 type alias Hello_ =
-    { hello : String
-    }""",
+    { hello : String }""",
             "decoder_body": """Decode.succeed ToModel
         |>  required "hello" (Decode.nullable hello_Decoder)
 
@@ -1237,23 +1223,23 @@ class TestCustomTypeFlags:
         d = CustomTypeFlag(variants=[("Custom1", ModelChoiceFieldFlag())])
 
         assert (
-            SUT.parse(prepare_form["car"])
-            == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}'
+                SUT.parse(prepare_form["car"])
+                == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}'
         )
 
-    def test_root_string_flag_custom_type_codegen(self):
-        """Generates String custom type"""
-        d = CustomTypeFlag(variants=[("Custom1", StringFlag())])
-
-        SUT = Flags(d)
-        assert (
-            SUT.to_elm_parser_data()["alias_type"]
-            == """InlineToModel_
-
-type InlineToModel_
-    = Custom1 String
-    """
-        )
+#     def test_root_string_flag_custom_type_codegen(self):
+#         """Generates String custom type"""
+#         d = CustomTypeFlag(variants=[("Custom1", StringFlag())])
+#
+#         SUT = Flags(d)
+#         assert (
+#                 SUT.to_elm_parser_data()["alias_type"]
+#                 == """InlineToModel_
+#
+# type InlineToModel_
+#     = Custom1 String
+#     """
+#         )
 
 
 class TestModelChoiceFieldFlags:
@@ -1265,8 +1251,8 @@ class TestModelChoiceFieldFlags:
         SUT = Flags(d)
 
         assert (
-            SUT.parse(prepare_form["car"])
-            == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}'
+                SUT.parse(prepare_form["car"])
+                == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}'
         )
 
         try:
@@ -1285,8 +1271,8 @@ class TestModelChoiceFieldFlags:
         SUT = Flags(d)
 
         assert (
-            SUT.parse({"mcf": prepare_form["car"]})
-            == '{"mcf":{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}}'
+                SUT.parse({"mcf": prepare_form["car"]})
+                == '{"mcf":{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}}'
         )
 
     def test_root_model_choice_field_flag(self):

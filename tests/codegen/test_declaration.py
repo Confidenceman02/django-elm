@@ -43,7 +43,7 @@ class TestExpressions:
             == """type Something
     = Hello
     | World
-    """
+"""
         )
 
     def test_custom_type_declaration_with_lower(self):
@@ -55,7 +55,7 @@ class TestExpressions:
             == """type Something
     = Hello
     | World
-    """
+"""
         )
 
     def test_custom_type_declaration_with_annotated_variants(self):
@@ -84,5 +84,5 @@ class TestExpressions:
     | World (Maybe String)
     | Is (Maybe (List String))
     | Classic AnAlias
-    """
+"""
         )
