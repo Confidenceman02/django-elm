@@ -50,7 +50,8 @@ class Sep(Writer):
     def write(self, indent: int = 0) -> str:
         pre, sep, post = self.separators
 
-        post = self.writeIndented(indent) + post
+        if post != "":
+            post = self.writeIndented(indent) + post
 
         if self.new_line:
             post = "\n" + post
@@ -59,6 +60,26 @@ class Sep(Writer):
             separator = sep
 
         return f"{pre}{separator.join([w.write() for w in self.items])}{post}"
+
+
+@dataclass(slots=True)
+class SepInline(Writer):
+    separators: tuple[str, str, str]
+    items: List[Writer]
+
+    def write(self, indent: int = 0) -> str:
+        pre, sep, post = self.separators
+
+        # if post != "":
+        #     post = self.writeIndented(indent) + post
+        #
+        # if self.new_line:
+        #     post = "\n" + post
+        #     separator = "\n" + self.writeIndented(indent) + sep
+        # else:
+        #     separator = sep
+
+        return f"{pre}{sep.join([w.write() for w in self.items])}{post}"
 
 
 @dataclass(slots=True)
@@ -106,6 +127,10 @@ def bracesComma(new_line: bool, items: List[Writer]) -> Writer:
     return Sep(new_line, ("{", ", ", "}"), items)
 
 
+def singleRecordField(items: List[Writer]) -> Writer:
+    return SepInline(("{ ", ", ", " }"), items)
+
+
 def sepBy(separators: tuple[str, str, str], newlines: bool, writers: list[Writer]):
     return Sep(newlines, separators, writers)
 
@@ -144,7 +169,7 @@ def writeTypeAnnotation(anno: Compiler.TypeAnnotation) -> Writer:
             if 1 < len(writer_fields):
                 return multiFieldRecord(True, writer_fields)
             else:
-                return bracesComma(False, writer_fields)
+                return singleRecordField(writer_fields)
 
         case _:
             raise Exception("Can't handle that type of annotation")
