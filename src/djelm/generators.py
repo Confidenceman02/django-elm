@@ -37,6 +37,7 @@ class SupportsFlagLoader(Protocol):
         self,
         app_path: str,
         program_name: str,
+        from_source: bool,
         watch_mode: bool,
         logger,
     ) -> ExitSuccess[Flags] | ExitFailure[None, Exception]:
@@ -193,6 +194,7 @@ class WidgetModelGenerator(ModelBuilder):
         self,
         app_path: str,
         program_name: str,
+        from_source: bool,
         watch_mode: bool,
         logger,
     ) -> ExitSuccess[Flags] | ExitFailure[None, Exception]:
@@ -378,11 +380,12 @@ class ModelGenerator(ModelBuilder):
         self,
         app_path: str,
         program_name: str,
+        from_source: bool,
         watch_mode: bool,
         logger,
     ) -> ExitSuccess[Flags] | ExitFailure[None, Exception]:
-        if watch_mode:
-            # In watch mode we want to load the flags from the flags python module.
+        if from_source:
+            # If load source is True, we want to load the flags from the programs flags.
             import importlib.machinery
 
             loader = importlib.machinery.SourceFileLoader(
@@ -432,7 +435,7 @@ class ModelGenerator(ModelBuilder):
         logger,
     ) -> Sequence[TemplateApplicator]:
         logger.write(
-            """\n-- GENERATING TEMPLATES -------------------------------------------------------- widget/ModelChoiceField"""
+            f"""\n-- GENERATING MODEL -------------------------------------------------------- model/{module_name(program_name)}"""
         )
         return [
             TemplateCopyer(
