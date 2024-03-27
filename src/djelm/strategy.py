@@ -143,7 +143,11 @@ class AddWidgetStrategy:
 
         # Generate model
         model_strat = GenerateModelStrategy(
-            self.app_name, self.widget_name, WidgetModelGenerator(), False
+            self.app_name,
+            self.widget_name,
+            WidgetModelGenerator(),
+            from_source=True,
+            watch_mode=False,
         )
         model_strat_effect = model_strat.run(logger)
 
@@ -280,6 +284,7 @@ class WatchStrategy:
                                 self.app_name,
                                 module_name(filename),
                                 ModelGenerator(),
+                                from_source=True,
                                 watch_mode=True,
                             ).run(logger)
                         except Exception:
@@ -355,11 +360,17 @@ class GenerateModelStrategy:
     """Generate a model and decoders for an Elm program"""
 
     def __init__(
-        self, app_name, prog_name, handler: ModelBuilder, watch_mode: bool = False
+        self,
+        app_name,
+        prog_name,
+        handler: ModelBuilder,
+        from_source: bool,
+        watch_mode: bool,
     ) -> None:
         self.app_name = app_name
         self.prog_name = prog_name
         self.handler = handler
+        self.from_source = from_source
         self.watch_mode = watch_mode
 
     def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
@@ -373,7 +384,7 @@ class GenerateModelStrategy:
             raise src_path.err
 
         flags_effect = handler.load_flags(
-            app_path.value, self.prog_name, self.watch_mode, logger
+            app_path.value, self.prog_name, self.from_source, self.watch_mode, logger
         )
 
         if flags_effect.tag != "Success":
@@ -469,7 +480,11 @@ class AddProgramStrategy:
 
         # Generate model
         model_strat = GenerateModelStrategy(
-            self.app_name, self.prog_name, ModelGenerator(), watch_mode=False
+            self.app_name,
+            self.prog_name,
+            ModelGenerator(),
+            from_source=False,
+            watch_mode=False,
         )
 
         model_strat_effect = model_strat.run(logger)
@@ -618,7 +633,11 @@ class Strategy:
                 }
             ):
                 return GenerateModelStrategy(
-                    cast(str, app_name), cast(str, pn), handler=ModelGenerator()
+                    cast(str, app_name),
+                    cast(str, pn),
+                    handler=ModelGenerator(),
+                    from_source=True,
+                    watch_mode=False,
                 )
             case ExitSuccess(value={"command": "list"}):
                 return ListStrategy()
