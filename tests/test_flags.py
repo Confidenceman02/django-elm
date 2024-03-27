@@ -114,14 +114,19 @@ def test_fuzz_flags():
 
         class MockHandler(ModelGenerator):
             def load_flags(  # type:ignore
-                self, app_path: str, program_name: str, watch_mode: bool, logger
+                self,
+                app_path: str,
+                program_name: str,
+                from_source: bool,
+                watch_mode: bool,
+                logger,
             ):
                 f = Flags(flags)
                 return ExitSuccess(f)
 
         class MockGenerateModel(GenerateModelStrategy):
             def __init__(self, app_name, prog_name) -> None:
-                super().__init__(app_name, prog_name, MockHandler())
+                super().__init__(app_name, prog_name, MockHandler(), False, False)
 
             def generate(self):
                 self.run(LabelCommand().stdout)

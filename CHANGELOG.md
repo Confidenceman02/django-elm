@@ -1,3 +1,10 @@
+## [0.6.0] - 2024-03-27
+
+### Fixed
+
+- generatemodel strategy called from cli ignoring existing program flag
+  and instead rendering a default `Int` model.
+
 ## [0.5.0] - 2024-03-20
 
 ### Added
@@ -83,6 +90,7 @@ type alias A_B__
 
 - First version to pyPI
 
+[0.6.0]: https://github.com/Confidenceman02/django-elm/releases/0.5.0...0.6.0
 [0.5.0]: https://github.com/Confidenceman02/django-elm/releases/0.4.0...0.5.0
 [0.4.0]: https://github.com/Confidenceman02/django-elm/releases/0.3.0...0.4.0
 [0.3.0]: https://github.com/Confidenceman02/django-elm/releases/0.2.0...0.3.0
