@@ -115,12 +115,12 @@ def test_fuzz_flags():
 
         class MockHandler(ModelGenerator):
             def load_flags(  # type:ignore
-                    self,
-                    app_path: str,
-                    program_name: str,
-                    from_source: bool,
-                    watch_mode: bool,
-                    logger,
+                self,
+                app_path: str,
+                program_name: str,
+                from_source: bool,
+                watch_mode: bool,
+                logger,
             ):
                 f = Flags(flags)
                 return ExitSuccess(f)
@@ -241,8 +241,8 @@ dEB_Decoder =
 
         # Alias type
         assert (
-                SUT.to_elm_parser_data()["alias_type"]
-                == """{ a : A_
+            SUT.to_elm_parser_data()["alias_type"]
+            == """{ a : A_
     , b : List B_
     }
 
@@ -260,8 +260,8 @@ type alias B_Options__ =
         )
 
         assert (
-                SUT.to_elm_parser_data()["decoder_body"]
-                == """Decode.succeed ToModel
+            SUT.to_elm_parser_data()["decoder_body"]
+            == """Decode.succeed ToModel
         |>  required "a" a_Decoder
         |>  required "b" (Decode.list b_Decoder)
 
@@ -444,8 +444,8 @@ class TestNullableFlags:
 
         assert SUT.parse(None) == "null"
         assert (
-                SUT.parse(prepared["car"])
-                == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}'
+            SUT.parse(prepared["car"])
+            == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}'
         )
 
         try:
@@ -680,8 +680,8 @@ class TestListFlags:
 
         assert SUT.parse([]) == "[]"
         assert (
-                SUT.parse([prepared["car"]])
-                == '[{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}]'
+            SUT.parse([prepared["car"]])
+            == '[{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}]'
         )
 
         try:
@@ -876,8 +876,8 @@ class TestObjectFlags:
         SUT = Flags(d)
 
         assert (
-                SUT.parse({"hello": {"world": "I'm here"}, "someList": ["hello", "world"]})
-                == '{"hello":{"world":"I\'m here"},"someList":["hello","world"]}'
+            SUT.parse({"hello": {"world": "I'm here"}, "someList": ["hello", "world"]})
+            == '{"hello":{"world":"I\'m here"},"someList":["hello","world"]}'
         )
         with pytest.raises(ValidationError):
             SUT.parse({"hello": 22})
@@ -895,8 +895,8 @@ class TestObjectFlags:
         SUT = Flags(d)
 
         assert (
-                SUT.parse({"hello": {"world": "I have arrived"}})
-                == '{"hello":{"world":"I have arrived"}}'
+            SUT.parse({"hello": {"world": "I have arrived"}})
+            == '{"hello":{"world":"I have arrived"}}'
         )
         with pytest.raises(ValidationError):
             SUT.parse({"hello": 22})
@@ -974,8 +974,8 @@ class TestObjectFlags:
         SUT = Flags(d)
 
         assert (
-                SUT.parse({"hello": [{"world": "I have arrived"}]})
-                == '{"hello":[{"world":"I have arrived"}]}'
+            SUT.parse({"hello": [{"world": "I have arrived"}]})
+            == '{"hello":[{"world":"I have arrived"}]}'
         )
         with pytest.raises(ValidationError):
             SUT.parse({"hello": "world"})
@@ -997,6 +997,48 @@ class TestObjectFlags:
         assert SUT.parse({"hello": ["null"]}) == '{"hello":["null"]}'
         with pytest.raises(ValidationError):
             SUT.parse({"hello": [22]})
+
+    def test_with_custom_type_with_string_flag_to_elm_parser(self):
+        d = ObjectFlag({"hello": CustomTypeFlag(variants=[("Custom1", StringFlag())])})
+        SUT = Flags(d)
+
+        assert SUT.to_elm_parser_data()["alias_type"] == (
+            """{ hello : Hello_
+    }
+
+type Hello_
+    = Custom1 String
+"""
+        )
+
+    def test_with_custom_type_with_object_flag_to_elm_parser(self):
+        d = ObjectFlag(
+            {
+                "hello": CustomTypeFlag(
+                    variants=[
+                        (
+                            "Custom1",
+                            ObjectFlag({"hello": StringFlag(), "world": StringFlag()}),
+                        )
+                    ]
+                )
+            }
+        )
+        SUT = Flags(d)
+
+        assert SUT.to_elm_parser_data()["alias_type"] == (
+            """{ hello : Hello_
+    }
+
+type Hello_
+    = Custom1 Hello__
+
+
+type alias Hello__ =
+    { hello : String
+    , world : String
+    }"""
+        )
 
     def test_with_mix_to_elm_parser(self):
         d = ObjectFlag(
@@ -1223,23 +1265,23 @@ class TestCustomTypeFlags:
         d = CustomTypeFlag(variants=[("Custom1", ModelChoiceFieldFlag())])
 
         assert (
-                SUT.parse(prepare_form["car"])
-                == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}'
+            SUT.parse(prepare_form["car"])
+            == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}'
         )
 
-#     def test_root_string_flag_custom_type_codegen(self):
-#         """Generates String custom type"""
-#         d = CustomTypeFlag(variants=[("Custom1", StringFlag())])
-#
-#         SUT = Flags(d)
-#         assert (
-#                 SUT.to_elm_parser_data()["alias_type"]
-#                 == """InlineToModel_
-#
-# type InlineToModel_
-#     = Custom1 String
-#     """
-#         )
+    def test_root_string_flag_custom_type_codegen(self):
+        """Generates String custom type"""
+        d = CustomTypeFlag(variants=[("Custom1", StringFlag())])
+
+        SUT = Flags(d)
+        assert (
+            SUT.to_elm_parser_data()["alias_type"]
+            == """InlineToModel_
+
+type InlineToModel_
+    = Custom1 String
+"""
+        )
 
 
 class TestModelChoiceFieldFlags:
@@ -1251,8 +1293,8 @@ class TestModelChoiceFieldFlags:
         SUT = Flags(d)
 
         assert (
-                SUT.parse(prepare_form["car"])
-                == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}'
+            SUT.parse(prepare_form["car"])
+            == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}'
         )
 
         try:
@@ -1271,8 +1313,8 @@ class TestModelChoiceFieldFlags:
         SUT = Flags(d)
 
         assert (
-                SUT.parse({"mcf": prepare_form["car"]})
-                == '{"mcf":{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}}'
+            SUT.parse({"mcf": prepare_form["car"]})
+            == '{"mcf":{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}}'
         )
 
     def test_root_model_choice_field_flag(self):

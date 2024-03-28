@@ -55,3 +55,13 @@ class AliasDeclaration(DeclarationKind):
 class CustomTypeDeclaration(DeclarationKind):
     name: str
     variants: list[Variant]
+
+
+def get_declaration_name(declaration: Declaration) -> str:
+    match declaration.kind:
+        case AliasDeclaration(name=name, anno=_):
+            return name
+        case CustomTypeDeclaration(name=name, variants=_):
+            return name
+        case _:
+            raise Exception("I don't recognise that declaration type")

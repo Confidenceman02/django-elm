@@ -280,28 +280,24 @@ class CustomTypeDecoder:
     compiler_variants: list[Compiler.Variant]
 
     def _to_annotation(self) -> str:
-        # p = self.parent_alias if self.parent_alias else ""
         return Anno.toString(self._compiler_annotation())
 
     def _to_declaration(self) -> str:
-        return "\n\n" + Writer.writeDeclartion(self._compiler_declaration()).write()
-
-    def _depth_markers(self) -> str:
-        marker = ""
-        for _ in range(self.depth):
-            marker += "_"
-        return marker
+        return Writer.writeDeclartion(self._compiler_declaration()).write()
 
     def _compiler_annotation(self) -> Compiler.Annotation:
         return Compiler.Annotation(
-            Compiler.Typed(self._compiler_declaration().name, []),
+            Compiler.Typed(
+                Format.alias_type(
+                    Compiler.get_declaration_name(self._compiler_declaration())
+                ),
+                [],
+            ),
             {},
         )
 
     def _compiler_declaration(self) -> Compiler.Declaration:
-        return Elm.customType(
-            f"{self.name}{self._depth_markers()}", self.compiler_variants
-        )
+        return Elm.customType(self.name, self.compiler_variants)
 
 
 ObjHelperReturn = typing.TypedDict(
@@ -455,22 +451,21 @@ def _prepare_inline_flags(
             )
         case CustomTypeFlag(variants=v):
             # TODO Finish
-            annotation_name = None
             if object_decoder is None:
                 raise Exception(
                     "Missing an ObjectDecoder argument for CustomTypeDecoder"
                 )
             assert 0 < len(v)
-            if object_decoder._to_annotation() == "InlineToModel_":
-                annotation_name = "InlineToModel"
-            else:
-                annotation_name = object_decoder._to_annotation()
+
             annos = []
             variant_name_and_param: list[tuple[str, str]] = []
             alias_extras: list[str] = []
             variants: list[Compiler.Variant] = []
+            next_object_decoder = ObjectDecoder(
+                object_decoder.value, object_decoder.depth + 1
+            )
             for var in v:
-                prepared = _prepare_inline_flags(var[1], object_decoder)
+                prepared = _prepare_inline_flags(var[1], next_object_decoder)
                 annos.append(prepared["anno"])
                 variant_name_and_param.append(
                     (var[0], prepared["elm_values"]["alias_type"])
@@ -485,13 +480,15 @@ def _prepare_inline_flags(
             anno = typing.Union[*annos]  # type:ignore
 
             custom_type_decoder = CustomTypeDecoder(
-                annotation_name, depth, variant_name_and_param, variants
+                object_decoder._to_annotation(), depth, variant_name_and_param, variants
             )
+
+            compiler_annotation = custom_type_decoder._compiler_annotation()
 
             # TODO decoder and decoder_extra
             alias_type = custom_type_decoder._to_annotation()
             alias_extra = "".join(
-                [custom_type_decoder._to_declaration(), *alias_extras]
+                ["\n\n" + custom_type_decoder._to_declaration(), *alias_extras]
             )
             decoder_body = FloatDecoder._raw_decoder()
         case ModelChoiceFieldFlag() as mcf:
@@ -717,6 +714,23 @@ def _prepare_pipeline_flags(
                         alias_values += f" {list_decoder.alias()}"
                     else:
                         alias_values += f"\n    {list_decoder.nested_alias()}"
+
+                case CustomTypeFlag(variants=_) as ctf:
+                    decoder = ObjectDecoder(k, depth, parent_key)
+                    single_flag = _prepare_inline_flags(ctf, decoder)
+                    decoder_extra += single_flag["decoder_extra"]
+                    anno[k] = typing.Optional[single_flag["anno"]]  # type:ignore
+                    field_annotations.append((k, single_flag["compiler_annotation"]))
+
+                    alias_extra += single_flag["alias_extra"]
+                    decoder_extra += single_flag["decoder_extra"]
+
+                    if idx == 0:
+                        alias_values += f" {decoder.alias()}"
+                    else:
+                        alias_values += f"\n    {decoder.nested_alias()}"
+                    pass
+
                 case NullableFlag(obj=obj1):
                     single_flag = _prepare_inline_flags(
                         obj1, ObjectDecoder(k, depth, parent_key)
