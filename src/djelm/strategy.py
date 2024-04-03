@@ -206,8 +206,11 @@ class CompileStrategy:
                 )
                 try:
                     process.open()
-                except Exception as _:
-                    return ExitSuccess(None)
+                except Exception as err:
+                    if self.raise_error:
+                        raise err
+                    else:
+                        return ExitSuccess(None)
                 return ExitSuccess(None)
             except subprocess.CalledProcessError:
                 sys.exit(1)

@@ -1,3 +1,9 @@
+## [0.7.0] - 2024-04-03
+
+### Fixed
+
+- compilebuild strategy swallowing errors when Elm compiler errors.
+
 ## [0.6.0] - 2024-03-27
 
 ### Fixed
@@ -90,6 +96,7 @@ type alias A_B__
 
 - First version to pyPI
 
+[0.7.0]: https://github.com/Confidenceman02/django-elm/releases/0.6.0...0.7.0
 [0.6.0]: https://github.com/Confidenceman02/django-elm/releases/0.5.0...0.6.0
 [0.5.0]: https://github.com/Confidenceman02/django-elm/releases/0.4.0...0.5.0
 [0.4.0]: https://github.com/Confidenceman02/django-elm/releases/0.3.0...0.4.0
