@@ -1,3 +1,10 @@
+## [0.8.0] - 2024-04-08
+
+### Added
+
+- Python to Elm compiler
+- CustomTypeFlags support
+
 ## [0.7.0] - 2024-04-03
 
 ### Fixed
@@ -96,6 +103,7 @@ type alias A_B__
 
 - First version to pyPI
 
+[0.8.0]: https://github.com/Confidenceman02/django-elm/releases/0.7.0...0.8.0
 [0.7.0]: https://github.com/Confidenceman02/django-elm/releases/0.6.0...0.7.0
 [0.6.0]: https://github.com/Confidenceman02/django-elm/releases/0.5.0...0.6.0
 [0.5.0]: https://github.com/Confidenceman02/django-elm/releases/0.4.0...0.5.0
