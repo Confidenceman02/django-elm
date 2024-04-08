@@ -49,6 +49,32 @@ class ObjectFlag(Flag):
     obj: typing.Dict[str, Flag]
 
 
+@dataclass(slots=True)
+class CustomTypeFlag(Flag):
+    """
+    A Flag for an Elm custom type.
+
+    <https://guide.elm-lang.org/types/custom_types>
+
+    variants = A list of tuples that specify the a discriminator and flag.
+
+    i.e.
+            FlagModel = Flags(CustomTypeFlag(variants=[("Custom1",StringFLag()), ("Custom2",IntFlag())]))
+
+            Turns into the the Elm type:
+
+            type SomeCustomType
+                = Custom1 String
+                | Custom2 Int
+
+            Then we parse a valid data structure:
+
+            FlagModel.parse("Hi there")
+    """
+
+    variants: list[tuple[str, Flag]]
+
+
 FlagsObject = dict[str, "PrimitiveFlag"]
 FlagsList = list["PrimitiveFlag"]
 FlagsNullable = typing.Union[type[str], type[int], type[float], type[bool], type[None]]
