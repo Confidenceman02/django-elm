@@ -12,6 +12,4 @@ type alias ToModel =
     {{cookiecutter.alias_type}}
 
 
-toModel : Decode.Decoder ToModel
-toModel =
-    {{cookiecutter.decoder_body}}
+{{cookiecutter.decoder_body}}

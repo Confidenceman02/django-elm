@@ -21,6 +21,8 @@ ALL_FLAGS = [
     IntFlag,
     FloatFlag,
     BoolFlag,
+    # TODO solve constructor name clashes
+    # CustomTypeFlag,
     # forms
     ModelChoiceFieldFlag,
 ]
@@ -51,5 +53,16 @@ def fuzz_flag():
 
     if choice is NullableFlag:
         return NullableFlag(fuzz_flag())
+
+    # TODO solve constructor name clashes
+    # if choice is CustomTypeFlag:
+    #     variant_keys = generate_alias_keys()
+    #     variants = []
+    #
+    #     for k in variant_keys:
+    #         k = k.replace("\n", "")
+    #         variants.append((k, fuzz_flag()))
+    #
+    #     return CustomTypeFlag(variants=variants)
 
     return choice()
