@@ -103,11 +103,11 @@ type alias A_B__
 
 - First version to pyPI
 
-[0.8.0]: https://github.com/Confidenceman02/django-elm/releases/0.7.0...0.8.0
-[0.7.0]: https://github.com/Confidenceman02/django-elm/releases/0.6.0...0.7.0
-[0.6.0]: https://github.com/Confidenceman02/django-elm/releases/0.5.0...0.6.0
-[0.5.0]: https://github.com/Confidenceman02/django-elm/releases/0.4.0...0.5.0
-[0.4.0]: https://github.com/Confidenceman02/django-elm/releases/0.3.0...0.4.0
-[0.3.0]: https://github.com/Confidenceman02/django-elm/releases/0.2.0...0.3.0
-[0.2.0]: https://github.com/Confidenceman02/django-elm/releases/0.1.0...0.2.0
+[0.8.0]: https://github.com/Confidenceman02/django-elm/compare/0.7.0...0.8.0
+[0.7.0]: https://github.com/Confidenceman02/django-elm/compare/0.6.0...0.7.0
+[0.6.0]: https://github.com/Confidenceman02/django-elm/compare/0.5.0...0.6.0
+[0.5.0]: https://github.com/Confidenceman02/django-elm/compare/0.4.0...0.5.0
+[0.4.0]: https://github.com/Confidenceman02/django-elm/compare/0.3.0...0.4.0
+[0.3.0]: https://github.com/Confidenceman02/django-elm/compare/0.2.0...0.3.0
+[0.2.0]: https://github.com/Confidenceman02/django-elm/compare/0.1.0...0.2.0
 [0.1.0]: https://github.com/Confidenceman02/django-elm/releases/0.1.0
