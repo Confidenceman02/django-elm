@@ -47,14 +47,6 @@ def test_after_create(settings):
     ), "The elm templatetags directory has been created"
 
     assert os.path.isdir(
-        os.path.join(get_app_path(app_name).value, "templates")  # type:ignore
-    ), "The elm templates directory has been created"
-
-    assert os.path.isdir(
-        os.path.join(get_app_path(app_name).value, "templates", app_name)  # type:ignore
-    ), "The elm templates namespaced directory has been created"
-
-    assert os.path.isdir(
         os.path.join(get_app_path(app_name).value, "static")  # type:ignore
     ), "The elm templates static directory has been created"
 
@@ -94,14 +86,6 @@ def test_after_create(settings):
         )
     ), "The elm program flags directory has been generated"
 
-    assert os.path.isfile(
-        os.path.join(
-            get_app_path(app_name).value,  # type:ignore
-            "templates",
-            "include.html",
-        )
-    ), "The elm program template has been created"
-
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
 
@@ -131,15 +115,6 @@ def test_after_addprogram(settings):
             "Main.elm",
         )
     ), "The elm program flags have been generated"
-
-    assert os.path.isfile(
-        os.path.join(
-            get_app_path(app_name).value,  # type:ignore
-            "templates",
-            app_name,
-            "main.html",
-        )
-    ), "The elm program template has been created"
 
     assert os.path.isfile(
         os.path.join(
@@ -234,16 +209,6 @@ def test_after_addwidget(settings):
             "modelChoiceField_widget_tags.py",
         )
     ), "The templatetags.modelChoiceField__widget_tags module gets generated"
-
-    assert os.path.isfile(
-        os.path.join(
-            get_app_path(app_name).value,
-            "templates",
-            app_name,
-            "widgets",
-            "modelChoiceField.html",
-        )
-    ), "The templates.modelChoiceField html gets generated"
 
     assert os.path.isfile(
         os.path.join(

@@ -78,6 +78,7 @@ class AddWidgetStrategy:
     def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
         src_path = get_app_src_path(self.app_name)
         app_path = get_app_path(self.app_name)
+        djelm_version = version("djelm")
 
         if src_path.tag != "Success":
             raise src_path.err
@@ -102,14 +103,6 @@ class AddWidgetStrategy:
         except FileExistsError:
             pass
 
-        # Make templates.{self.app_name}.widgets dirs
-        try:
-            os.makedirs(
-                os.path.join(app_path.value, "templates", self.app_name, "widgets")
-            )
-        except FileExistsError:
-            pass
-
         # Make Widgets dirs
         try:
             os.makedirs(os.path.join(src_path.value, "src", "Widgets", "Models"))
@@ -117,7 +110,7 @@ class AddWidgetStrategy:
             pass
 
         cookie = self.handler.cookie_cutter(
-            self.app_name, self.widget_name, src_path.value
+            self.app_name, self.widget_name, src_path.value, djelm_version
         )
 
         # Cut cookie
@@ -459,7 +452,7 @@ class AddProgramStrategy:
             raise err
 
         program_ck = self.handler.cookie_cutter(
-            self.app_name, self.prog_name, src_path.value
+            self.app_name, self.prog_name, src_path.value, djelm_version
         )
 
         program_ck_effect = program_ck.cut(logger)
