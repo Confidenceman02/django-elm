@@ -61,13 +61,8 @@ def is_create(app_name: str) -> bool:
                 "templatetags",
             )
         )
-        templates = os.path.isdir(
-            os.path.join(
-                path_exit.value,
-                "templates",
-            )
-        )
-        return templates and tags
+        if tags:
+            return True
     return False
 
 
