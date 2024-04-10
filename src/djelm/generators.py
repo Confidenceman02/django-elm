@@ -51,7 +51,7 @@ class SupportsFlagLoader(Protocol):
 
 class SupportsProgramCookieCutter(Protocol):
     def cookie_cutter(
-        self, app_name: str, program_name: str, src_path: str
+        self, app_name: str, program_name: str, src_path: str, version: str
     ) -> CookieCutter:
         """Generate a cookie cutter config"""
         ...
@@ -114,6 +114,7 @@ WidgetProgramCookieExtra = TypedDict(
         "app_name": str,
         "scope": str,
         "view_name": str,
+        "version": str,
     },
 )
 
@@ -137,12 +138,13 @@ ProgramCookieExtra = TypedDict(
         "tag_file": str,
         "scope": str,
         "app_name": str,
+        "version": str,
     },
 )
 
 
 def widget_cookie_cutter(
-    app_name: str, src_path: str, program_name: str
+    app_name: str, src_path: str, program_name: str, version: str
 ) -> CookieCutter:
     return CookieCutter[WidgetProgramCookieExtra](
         file_dir=os.path.dirname(__file__),
@@ -155,6 +157,7 @@ def widget_cookie_cutter(
             "app_name": app_name,
             "scope": widget_scope_name(app_name, program_name),
             "view_name": view_name(program_name),
+            "version": version,
         },
         overwrite=True,
     )
@@ -250,9 +253,9 @@ class ModelChoiceFieldWidgetGenerator(ProgramBuilder):
         return ExitSuccess(None)
 
     def cookie_cutter(
-        self, app_name: str, program_name: str, src_path: str
+        self, app_name: str, program_name: str, src_path: str, version: str
     ) -> CookieCutter:
-        return widget_cookie_cutter(app_name, src_path, program_name)
+        return widget_cookie_cutter(app_name, src_path, program_name, version)
 
     def applicators(
         self,
@@ -291,10 +294,6 @@ class ModelChoiceFieldWidgetGenerator(ProgramBuilder):
                 ),
             ),
             TemplateCopyer(
-                os.path.join(template_dir, f"{tag_file_name(program_name)}.html"),
-                os.path.join(app_dir, "templates", app_name, "widgets"),
-            ),
-            TemplateCopyer(
                 os.path.join(template_dir, f"Widgets.{module_name(program_name)}.ts"),
                 os.path.join(
                     src_dir,
@@ -311,7 +310,7 @@ class ProgramGenerator(ProgramBuilder):
         return ExitSuccess(None)
 
     def cookie_cutter(
-        self, app_name: str, program_name: str, src_path: str
+        self, app_name: str, program_name: str, src_path: str, version: str
     ) -> CookieCutter:
         return CookieCutter[ProgramCookieExtra](
             file_dir=os.path.dirname(__file__),
@@ -324,6 +323,7 @@ class ProgramGenerator(ProgramBuilder):
                 "tag_file": tag_file_name(program_name),
                 "scope": scope_name(app_name, program_name),
                 "app_name": app_name,
+                "version": version,
             },
             overwrite=True,
         )
@@ -352,10 +352,6 @@ class ProgramGenerator(ProgramBuilder):
             TemplateCopyer(
                 os.path.join(template_dir, tag_file_name(program_name) + ".pyf"),
                 os.path.join(app_dir, "flags", tag_file_name(program_name) + ".py"),
-            ),
-            TemplateCopyer(
-                os.path.join(template_dir, tag_file_name(program_name) + ".html"),
-                os.path.join(app_dir, "templates", app_name),
             ),
             TemplateCopyer(
                 os.path.join(template_dir, module_name(program_name) + ".ts"),

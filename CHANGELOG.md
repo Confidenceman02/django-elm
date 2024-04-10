@@ -1,3 +1,84 @@
+## [0.9.0] - 2024-04-10
+
+### Breaking
+
+In a created djelm app the `templates` directory is no longer used.
+
+Existing code should still work fine, however it is recommended that they are updated.
+
+For updating existing programs that you have added custom code to, ensure you have saved the files listed as the following method will overwrite them.
+
+- "templatetags/<program_name>\_tags.py"
+- "templatetags/<program_name>\_tags.py"
+- "flags/<program_name>.py"
+- "flags/widgets/<program_name>.py"
+- "static_src/src/<program_name>.elm"
+
+run:
+
+```bash
+python manage.py djelm addprogram <djelm_app> <existing_program_name>
+```
+
+i.e.
+
+```bash
+python manage.py djelm addprogram elm_programs Main
+```
+
+for widgets
+
+```bash
+python manage.py djelm addwidget elm_programs <widget>
+```
+
+Once completed you can add back any custom code that existed previously.
+
+#### templatetags
+
+- include.html and <program_name>.html files are now pointing to internal djelm templates.
+- The key that the client hydration code uses to initialize a program is now included in the tag.
+
+previous
+
+```python
+# <djelm_app>/templatetags/<program_name>_tags.py
+
+@register.inclusion_tag("<app_name>/<program_name>.html", takes_context=True)
+def render_<program_name>(context):
+    return {"flags": MainFlags.parse("Hello Elm!")}
+```
+
+current
+
+```python
+# <djelm_app>/templatetags/<program_name>_tags.py
+
+@register.inclusion_tag("djelm/program.html", takes_context=True)
+def render_<program_name>(context):
+    return {"key": key, "flags": MainFlags.parse("Hello Elm!")}
+```
+
+#### flags key
+
+- The client hydration code uses a key to detect server rendered program tags and initialize elm programs. This was
+  being encoded into the generated html templates and now is passed as an argument.
+
+previous
+
+```python
+# flags/<program_name>.py
+<program_name>Flags = Flags(IntFlag())
+```
+
+current
+
+```python
+key = "<generated_key>"
+
+<program_name>Flags = Flags(IntFlag())
+```
+
 ## [0.8.0] - 2024-04-08
 
 ### Added
@@ -103,6 +184,7 @@ type alias A_B__
 
 - First version to pyPI
 
+[0.9.0]: https://github.com/Confidenceman02/django-elm/compare/0.8.0...0.9.0
 [0.8.0]: https://github.com/Confidenceman02/django-elm/compare/0.7.0...0.8.0
 [0.7.0]: https://github.com/Confidenceman02/django-elm/compare/0.6.0...0.7.0
 [0.6.0]: https://github.com/Confidenceman02/django-elm/compare/0.5.0...0.6.0

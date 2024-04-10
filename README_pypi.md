@@ -208,9 +208,6 @@ elm_programs
 │   ├── package.json
 │   └── src
 │       └── Models
-├── templates
-│   ├── include.html
-│   └── elm_programs
 └── templatetags
     └── __init__.py
 ```
@@ -257,10 +254,6 @@ elm_programs
 │       ├── Main.elm *
 │       └── Models
 │           └── Main.elm *
-├── templates
-│   ├── include.html
-│   └── elm_programs
-│       └── main.html *
 └── templatetags
     ├── __init__.py
     └── main_tags.py *
@@ -352,10 +345,6 @@ elm_programs
 │       ├── Main.elm
 │       └── Models
 │           └── Main.elm
-├── templates
-│   ├── include.html
-│   └── elm_programs
-│       └── main.html
 └── templatetags
     ├── __init__.py
     └── main_tags.py
@@ -392,9 +381,10 @@ python manage.py djelm compilebuild elm_programs
 Let's now actually render something in the browser by adding our `Main` programs tags to a Django template.
 
 > [!NOTE]
-> I have added the following `base.html` and `main.html` templates to the `elm_programs/templates` directory for demonstration purposes.
+> I have added the following `base.html` and `main.html` templates to a `elm_programs/templates` directory for demonstration purposes.
+> You will need to create this directory if you havent done so already.
 >
-> if you already have a django project you can just add the tags into whatever templates you want to render the elm program.
+> If you already have a django project you can just add the tags into whatever templates you want to render the elm program.
 
 ```html
 <!-- base.html -->
@@ -472,9 +462,9 @@ as a flag value.
 Check out the `elm_programs/templatetags/main_tags.py` file that was generated for you:
 
 ```python
-@register.inclusion_tag("elm_programs/main.html", takes_context=True)
+@register.inclusion_tag("djelm/program.html", takes_context=True)
 def render_main(context):
-    return {"flags": MainFlags.parse(0)}
+    return {"key": key, "flags": MainFlags.parse(0)}
 ```
 
 Those experienced with Django might be having an 'Aha!' moment right now but don't worry if thats not the case,
@@ -500,9 +490,9 @@ call `MainFlags` with:
 ```python
 # main_tags.py
 
-@register.inclusion_tag("elm_programs/main.html", takes_context=True)
+@register.inclusion_tag("djelm/program.html", takes_context=True)
 def render_main(context):
-    return {"flags": MainFlags.parse(context["counter_start"])}
+    return {"key": key, "flags": MainFlags.parse(context["counter_start"])}
 ```
 
 Whilst in this example we are hardcoding a value of `0`, you really can pass it any `int` you want, perhaps an ID from a
@@ -521,9 +511,9 @@ Let's try passing something that isn't an `int` and see what happens:
 ```python
 # main_tags.py
 
-@register.inclusion_tag("elm_programs/main.html", takes_context=True)
+@register.inclusion_tag("djelm/program.html", takes_context=True)
 def render_main(context):
-    return {"flags": MainFlags.parse("Hello Elm!")}
+    return {"key": key, "flags": MainFlags.parse("Hello Elm!")}
 ```
 
 What you should be seeing is a server error, but why? Let's find out!

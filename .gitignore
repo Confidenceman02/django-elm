@@ -4,6 +4,9 @@ root/
 **/__pycache__/
 .idea
 example/db.sqlite3
+example/elm_programs/**/*.js
+example/elm_programs/**/*.ts
+example/elm_programs/**/*.map
 .hypothesis/
 venv
 .doit.db
