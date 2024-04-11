@@ -1,4 +1,5 @@
 from typing import Literal
+import os
 
 from django.conf import settings
 from typing_extensions import TypedDict
@@ -6,7 +7,15 @@ from typing_extensions import TypedDict
 from djelm.forms.widgets.main import WIDGET_NAMES
 
 from .effect import ExitFailure, ExitSuccess
-from .utils import get_app_path, is_create, is_djelm, is_init, is_program, walk_level
+from .utils import (
+    get_app_path,
+    is_create,
+    is_djelm,
+    is_init,
+    is_program,
+    to_program_namespace,
+    walk_level,
+)
 
 Create = TypedDict("Create", {"command": Literal["create"], "app_name": str})
 List = TypedDict("List", {"command": Literal["list"]})
@@ -167,9 +176,8 @@ class Validations:
                             "addprogram",
                             app_name,
                             [
-                                f"{app_name}/static_src/elm.json",
-                                f"{app_name}/templates/",
-                                f"{app_name}/templatetags/",
+                                os.path.join(app_name, "static", "elm.json"),
+                                os.path.join(app_name, "templatetags"),
                             ],
                         )}
 \033[4m\033[1mHint\033[0m: These files are usually automatically generated for you when you run the \033[1mcreate\033[0m commands."""
@@ -177,6 +185,8 @@ class Validations:
 
             case ["generatemodel", app_name, p]:
                 app_path_exit = get_app_path(app_name)
+                namespace = to_program_namespace(p.split("."))
+                namespace_path, prog_name = namespace
 
                 validated_app_path = self._validate_app_path(
                     app_name, self.__not_in_settings("generatemodel", app_name)
@@ -188,7 +198,7 @@ class Validations:
                 if (
                     not is_init(app_name)
                     or not is_create(app_name)
-                    or not is_program(app_name, p)
+                    or not is_program(app_name, namespace)
                 ):
                     raise ValidationError(
                         f"""
@@ -196,13 +206,12 @@ class Validations:
                             "generatemodel",
                             app_name,
                             [
-                                f"{app_name}/static_src/elm.json",
-                                f"{app_name}/templates/",
-                                f"{app_name}/templatetags/",
-                                f"{app_name}/static_src/src/{p}.elm",
+                                os.path.join(app_name, "static_src", "elm.json"),
+                                os.path.join(app_name, "templatetags"),
+                                os.path.join(app_name, "static_src", "src", *namespace_path, prog_name + ".elm"),
                             ],
                         )}
-\033[4m\033[1mHint\033[0m: These files are usually automatically generated for you when you run the \033[1mcreate\033[0m and \033[1maddprogram\033[0m commands."""
+\033[4m\033[1mHint\033[0m: These files are usually automatically generated for you when you run the \033[1mcreate, addprogram\033[0m and \033[1maddwidget\033[0m commands."""
                     )
             case ["addwidget", app_name, _]:
                 validated_app_path = self._validate_app_path(

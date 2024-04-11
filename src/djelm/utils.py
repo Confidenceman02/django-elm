@@ -87,18 +87,26 @@ def is_init(app_name: str) -> bool:
     return False
 
 
-def is_program(app_name: str, prog_name: str) -> bool:
+def is_program(app_name: str, namespace: tuple[list[str], str]) -> bool:
+    namespace_path, prog_name = namespace
     path_exit = get_app_src_path(app_name)
     if path_exit.tag == "Success":
         f = os.path.isfile(
             os.path.join(
                 path_exit.value,
                 "src",
+                *namespace_path,
                 prog_name + ".elm",
             )
         )
         return f
     return False
+
+
+def to_program_namespace(namespace: list[str]) -> tuple[list[str], str]:
+    prog_name = namespace.pop()
+
+    return (namespace, prog_name)
 
 
 def module_name(app_name: str):

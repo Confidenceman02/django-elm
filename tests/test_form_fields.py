@@ -1,7 +1,7 @@
 import pytest
 from django import forms
 
-from src.djelm.flags.form.adapters import ModelChoiceFieldAdapter
+from djelm.flags.form.primitives import ModelChoiceFieldFlag
 from test_programs.models import Car, Enthusiast
 
 
@@ -28,7 +28,7 @@ def test_model_choice_field_adapter(basic_form):
     prepare_form = basic_form()
 
     try:
-        ModelChoiceFieldAdapter.validate_python(prepare_form["car"])
+        ModelChoiceFieldFlag().adapter().validate_python(prepare_form["car"])
     except Exception:
         pytest.fail("Bound ModelChoiceField should not raise an error")
 
@@ -36,13 +36,13 @@ def test_model_choice_field_adapter(basic_form):
 
     # Unbound form
     try:
-        ModelChoiceFieldAdapter.validate_python(basic_form)
+        ModelChoiceFieldFlag().adapter().validate_python(basic_form)
     except Exception:
         assert True
 
     # Bound form
     try:
-        ModelChoiceFieldAdapter.validate_python(basic_form())
+        ModelChoiceFieldFlag().adapter().validate_python(basic_form())
     except Exception:
         assert True
         return
@@ -52,7 +52,7 @@ def test_model_choice_field_adapter(basic_form):
 @pytest.mark.django_db
 def test_model_choice_field_json_dump(basic_form):
     prepare_form = basic_form()
-    adapter = ModelChoiceFieldAdapter
+    adapter = ModelChoiceFieldFlag().adapter()
 
     validated = adapter.validate_python(prepare_form["car"])
     SUT = adapter.dump_json(validated).decode("utf-8")
@@ -60,7 +60,7 @@ def test_model_choice_field_json_dump(basic_form):
     assert (
         SUT
         == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}'
-        )
+    )
 
 
 # TEST FLAGS
