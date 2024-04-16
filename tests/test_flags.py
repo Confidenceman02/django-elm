@@ -21,7 +21,7 @@ from djelm.flags.main import Flags
 from djelm.generators import ModelGenerator
 from djelm.strategy import GenerateModelStrategy
 from djelm.utils import get_app_src_path
-from test_programs.models import Car, Enthusiast
+from test_programs.models import Car, Driver, Enthusiast, Team
 from tests.conftest import cleanup_models
 from tests.fuzz_flags import fuzz_flag
 
@@ -100,6 +100,36 @@ def basic_form():
         class Meta:
             model = Enthusiast
             fields = ("username",)
+
+    return UserForm
+
+
+@pytest.fixture()
+def basic_form_no_empty_label():
+    class UserForm(forms.ModelForm):
+        car = forms.ModelChoiceField(
+            queryset=Car.objects.all(), help_text="Do I detect.. Elm?", empty_label=None
+        )
+
+        class Meta:
+            model = Enthusiast
+            fields = ("username",)
+
+    return UserForm
+
+
+@pytest.fixture()
+def basic_team_form():
+    class UserForm(forms.ModelForm):
+        driver = forms.ModelChoiceField(
+            queryset=Driver.objects.all(),
+            help_text="Do I detect.. Elm?",
+            empty_label=None,
+        )
+
+        class Meta:
+            model = Team
+            fields = ("driver",)
 
     return UserForm
 
@@ -877,6 +907,21 @@ toModel =
     (Decode.list (Decode.nullable (Decode.list Decode.string)))""",
         }
 
+    def test_with_custom_type_flag_to_elm_parser(self):
+        d = ListFlag(CustomTypeFlag(variants=[("Car", StringFlag())]))
+        SUT = Flags(d)
+
+        assert SUT.to_elm_parser_data() == {
+            "alias_type": """List InlineToModel_
+
+type InlineToModel_
+    = Car String
+""",
+            "decoder_body": """toModel : Decode.Decoder ToModel
+toModel =
+    (Decode.list (Decode.oneOf [Decode.map Car Decode.string]))""",
+        }
+
 
 class TestBoolFlags:
     def test_with_object_parser(self):
@@ -1115,6 +1160,70 @@ hello_Custom1__Decoder =
     Decode.succeed Hello_Custom1__
         |> required "hello" Decode.string
         |> required "world" Decode.string"""
+        )
+
+    def test_with_nullable_with_custom_type_to_elm_parser(self):
+        d = ObjectFlag(
+            {
+                "hello": NullableFlag(
+                    CustomTypeFlag(
+                        variants=[
+                            (
+                                "Custom1",
+                                StringFlag(),
+                            )
+                        ]
+                    )
+                )
+            }
+        )
+        SUT = Flags(d)
+
+        assert SUT.to_elm_parser_data()["alias_type"] == (
+            """{ hello : Maybe Hello_
+    }
+
+type Hello_
+    = Custom1 String
+"""
+        )
+        assert SUT.to_elm_parser_data()["decoder_body"] == (
+            """toModel : Decode.Decoder ToModel
+toModel =
+    Decode.succeed ToModel
+        |> required "hello" (Decode.nullable (Decode.oneOf [Decode.map Custom1 Decode.string]))"""
+        )
+
+    def test_with_list_custom_type_to_elm_parser(self):
+        d = ObjectFlag(
+            {
+                "hello": ListFlag(
+                    CustomTypeFlag(
+                        variants=[
+                            (
+                                "Custom1",
+                                StringFlag(),
+                            )
+                        ]
+                    )
+                )
+            }
+        )
+        SUT = Flags(d)
+
+        assert SUT.to_elm_parser_data()["alias_type"] == (
+            """{ hello : List Hello_
+    }
+
+type Hello_
+    = Custom1 String
+"""
+        )
+        assert SUT.to_elm_parser_data()["decoder_body"] == (
+            """toModel : Decode.Decoder ToModel
+toModel =
+    Decode.succeed ToModel
+        |> required "hello" (Decode.list (Decode.oneOf [Decode.map Custom1 Decode.string]))"""
         )
 
     def test_with_mix_to_elm_parser(self):
@@ -1563,7 +1672,7 @@ inlinetomodel_Custom2__Decoder =
 
 class TestModelChoiceFieldFlags:
     @pytest.mark.django_db
-    def test_root_model_choice_field_parser(self, basic_form):
+    def test_inline_model_choice_field_flag_parser(self, basic_form):
         prepare_form = basic_form()
         d = ModelChoiceFieldFlag()
 
@@ -1594,8 +1703,64 @@ class TestModelChoiceFieldFlags:
             == '{"mcf":{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"---------","value":"","selected":true}]}}'
         )
 
-    def test_root_model_choice_field_flag(self):
-        """The ModelChoiceFieldFlag is the root flag for the Elm program"""
+    @pytest.mark.django_db
+    def test_inline_model_choice_field_flag_with_single_variant(
+        self,
+        basic_form_no_empty_label: type[forms.ModelForm],
+    ):
+        car = Car(manufacturer="Mazda", country="Japan")
+        car.save()
+        d = ModelChoiceFieldFlag(variants=[Car])
+        prepare_form = basic_form_no_empty_label()
+
+        SUT = Flags(d)
+
+        assert (
+            SUT.parse(prepare_form["car"])
+            == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"Mazda","value":"1","selected":false,"instance":{"manufacturer":"Mazda","country":"Japan"}}]}'
+        )
+
+    @pytest.mark.django_db
+    def test_inline_model_choice_field_flag_with_multiple_variants(
+        self,
+        basic_form_no_empty_label: type[forms.ModelForm],
+        basic_team_form: type[forms.ModelForm],
+    ):
+        car = Car(manufacturer="Mazda", country="Japan")
+        car.save()
+        driver = Driver(name="Jdawg")
+        driver.save()
+        d = ModelChoiceFieldFlag(variants=[Car, Driver])
+        prepare_car_form = basic_form_no_empty_label()
+        prepare_team_form = basic_team_form()
+
+        SUT = Flags(d)
+
+        assert (
+            SUT.parse(prepare_car_form["car"])
+            == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"Mazda","value":"1","selected":false,"instance":{"manufacturer":"Mazda","country":"Japan"}}]}'
+        )
+        assert (
+            SUT.parse(prepare_team_form["driver"])
+            == '{"help_text":"Do I detect.. Elm?","auto_id":"id_driver","id_for_label":"id_driver","label":"Driver","name":"driver","widget_type":"select","options":[{"choice_label":"Jdawg","value":"1","selected":false,"instance":{"name":"Jdawg"}}]}'
+        )
+
+    @pytest.mark.django_db
+    def test_inline_model_choice_field_flag_with_incorrect_model_variant(
+        self,
+        basic_team_form: type[forms.ModelForm],
+    ):
+        driver = Driver(name="Jdawg")
+        driver.save()
+        d = ModelChoiceFieldFlag(variants=[Car])
+        prepare_form = basic_team_form()
+
+        SUT = Flags(d)
+
+        with pytest.raises(ValidationError):
+            SUT.parse(prepare_form["driver"])
+
+    def test_inline_model_choice_field_flag(self):
         d = ModelChoiceFieldFlag()
         SUT = Flags(d)
 
@@ -1632,3 +1797,63 @@ options_Decoder =
         |> required "value" Decode.string
         |> required "selected" Decode.bool""",
         }
+
+    def test_inline_model_choice_field_flag_with_variant(self):
+        d = ModelChoiceFieldFlag(variants=[Car])
+        SUT = Flags(d)
+
+        assert (
+            SUT.to_elm_parser_data()["alias_type"]
+            == """{ help_text : String
+    , auto_id : String
+    , id_for_label : String
+    , label : Maybe String
+    , name : String
+    , widget_type : String
+    , options : List Options_
+    }
+
+type Options_
+    = Car Options_Car__
+
+
+type alias Options_Car__ =
+    { choice_label : String
+    , value : String
+    , selected : Bool
+    , instance : Options_Car__Instance__
+    }
+
+type alias Options_Car__Instance__ =
+    { manufacturer : String
+    , country : String
+    }"""
+        )
+
+        assert (
+            SUT.to_elm_parser_data()["decoder_body"]
+            == """toModel : Decode.Decoder ToModel
+toModel =
+    Decode.succeed ToModel
+        |> required "help_text" Decode.string
+        |> required "auto_id" Decode.string
+        |> required "id_for_label" Decode.string
+        |> required "label" (Decode.nullable Decode.string)
+        |> required "name" Decode.string
+        |> required "widget_type" Decode.string
+        |> required "options" (Decode.list (Decode.oneOf [Decode.map Car options_Car__Decoder]))
+
+options_Car__Decoder : Decode.Decoder Options_Car__
+options_Car__Decoder =
+    Decode.succeed Options_Car__
+        |> required "choice_label" Decode.string
+        |> required "value" Decode.string
+        |> required "selected" Decode.bool
+        |> required "instance" options_car__instance__Decoder
+
+options_car__instance__Decoder : Decode.Decoder Options_Car__Instance__
+options_car__instance__Decoder =
+    Decode.succeed Options_Car__Instance__
+        |> required "manufacturer" Decode.string
+        |> required "country" Decode.string"""
+        )

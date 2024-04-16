@@ -3,13 +3,13 @@ from unittest import TestCase
 
 from django.core.management import call_command
 
-from src.djelm.effect import ExitFailure, ExitSuccess
-from src.djelm.validate import Validations
+from djelm.effect import ExitFailure, ExitSuccess
+from djelm.validate import Validations
 
 from .conftest import cleanup_theme_app_dir
 
 
-def test_validate_fails_with_invalid_command_verb():
+def test_validate_failure_with_invalid_command_verb():
     TestCase().assertIsInstance(
         Validations().acceptable_command(["nonsense", "my_app"]), ExitFailure
     )
@@ -193,9 +193,16 @@ def test_validate_success_when_addprogram_sequence(settings):
     call_command("djelm", "create", app_name)
     settings.INSTALLED_APPS += [app_name]
     call_command("djelm", "addprogram", app_name, "Main")
+    call_command("djelm", "addwidget", app_name, "ModelChoiceField", "--no-deps")
 
     TestCase().assertIsInstance(
         Validations().acceptable_command(["generatemodel", app_name, "Main"]),
+        ExitSuccess,
+    )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(
+            ["generatemodel", app_name, "Widgets.ModelChoiceField"]
+        ),
         ExitSuccess,
     )
 

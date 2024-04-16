@@ -32,8 +32,6 @@ def test_modelChoiceField_form(page: Page):
     page.goto("localhost:8000/promotion")
     page.locator("data-test-id=selectContainer").click()
     page.wait_for_selector("data-test-id=listBox")
-    page.keyboard.press("ArrowDown")
-    page.wait_for_selector("data-test-id=listBoxItemTargetFocus1")
     page.keyboard.press("Enter")
     page.wait_for_selector("data-test-id=selectedItem")
     page.get_by_role("button", name="Submit").click()

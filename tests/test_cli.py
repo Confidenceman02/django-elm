@@ -3,7 +3,7 @@ import uuid
 
 from django.core.management import call_command
 
-from src.djelm.utils import get_app_path, get_app_src_path
+from djelm.utils import get_app_path, get_app_src_path
 
 from .conftest import cleanup_theme_app_dir
 

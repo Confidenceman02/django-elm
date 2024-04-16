@@ -761,7 +761,7 @@ class PromotionForm(forms.ModelForm):
 Let's now create that custom template.
 
 ```djangohtml
-<!-- modelChoiceField.html -->
+<!-- modelChoiceFieldWidget.html -->
 
 {% extends "base.html" %}
 {% load modelChoiceField_widget_tags %}
@@ -790,6 +790,9 @@ Let's delight our users by giving them more information about their choices.
 ![example](https://Confidenceman02.github.io/djelm/static/djelm-cs-mcf.gif)
 
 That's a good looking widget!
+
+> [!NOTE]
+> For specific documentation and advanced features for widgets, check out the widget [documentation](https://github.com/Confidenceman02/django-elm/blob/main/src/djelm/forms/widgets/README.md).
 
 [Back to top](#table-of-content)
 
