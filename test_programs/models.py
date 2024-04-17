@@ -16,6 +16,18 @@ class Driver(models.Model):
         return self.name
 
 
+class Blank(models.Model):
+    first = models.CharField(max_length=100, null=True)
+    second = models.CharField(max_length=100, null=True)
+    third = models.BooleanField()
+    fourth = models.IntegerField()
+    fifth = models.FloatField()
+
+
+class Blanks(models.Model):
+    blank = models.ForeignKey(Blank, on_delete=models.SET_NULL, null=True)
+
+
 class Enthusiast(models.Model):
     car = models.ForeignKey(Car, on_delete=models.SET_NULL, null=True)
     username = models.CharField(max_length=100, blank=True)

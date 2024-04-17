@@ -2,26 +2,11 @@
 
 ## What are they?
 
-You can think of djelm widgets as opinionated but flexible Elm programs, designed in house, to work seamlessly with Django form primitives like [ModelChoiceField]().
-
-Widgets visually extend the style and functionality of the native form elements you would usually get out of the box from django.
-
-The following example is a standard select input django renders for us via the use of [ModelChoiceField](https://docs.djangoproject.com/en/5.0/ref/forms/fields/#django.forms.ModelChoiceField) in a typical, albeit oversimplified, form.
-
-![example](https://Confidenceman02.github.io/djelm/static/dj-mcf.gif)
-
-And here is the default djelm [ModelChoiceField](#modelchoicefield-widget) widget.
-
-![example](https://Confidenceman02.github.io/djelm/static/djelm-mcf.gif)
-
-There are many features that you get in the djelm version that would otherwise require a tremendous amount of custom Javascript to implement yourself.
-
-Djelm also doesn't hide the widget implementations from you, they exist as regular Elm programs in your djelm app that you can modify to create incredible user experiences.
-
-![example](https://Confidenceman02.github.io/djelm/static/djelm-cs-mcf.gif)
+Djelm widgets are opinionated but flexible Elm programs, designed in house, that extend the style and functionality of the native html elements you would usually get out of the box from
+Django primitives such as [ModelChoiceField](https://docs.djangoproject.com/en/5.0/ref/forms/fields/#django.forms.ModelChoiceField).
 
 > [!NOTE]
-> For demonstration purposes, I will referring to a hypothetical djelm app called `elm_programs`
+> For demonstration purposes, I will be referring to a hypothetical djelm app called `elm_programs`
 
 # ModelChoiceField widget
 
@@ -34,6 +19,10 @@ Elm dependencies:
 
 > [!NOTE]
 > All Elm dependecies are automatically installed for you
+
+## Example
+
+![example](https://Confidenceman02.github.io/djelm/static/djelm-mcf.gif)
 
 ## Usage
 
@@ -89,14 +78,16 @@ Load and add the [ModelChoiceField](#modelchoicefield-widget) tags to your custo
 
 ## Variants
 
-The [ModelChoiceField](#modelchoicefield-widget) widget by default is a generic widget that can work with all of your django forms that implement a [forms.ModelChoiceField]() instance.
+The [ModelChoiceField](#modelchoicefield-widget) widget is generic and can work with all of your django forms that implement a [forms.ModelChoiceField](https://docs.djangoproject.com/en/5.0/ref/forms/fields/#django.forms.ModelChoiceField) instance.
 
-However, there may be times where you want the widget to look or perform differently based on the model that was used in the queryset.
+However, there may be times where you want the widget to look or perform differently based on the model that was used in the queryset, perhaps something like the following.
+
+![example](https://Confidenceman02.github.io/djelm/static/djelm-cs-mcf.gif)
 
 Variants leverage Elm [Custom Types](https://guide.elm-lang.org/types/custom_types) so that you can, at a type level, know
-which model generated the values and also, at a data level, have access to the fields and values of that model.
+which model generated the values and also, at a data level, have access to the fields and values of that model to enhance the widget as required.
 
-Let consider following models and forms
+Let's consider the following models and forms
 
 ```python
 # models.py
@@ -142,7 +133,7 @@ class SchoolForm(forms.ModelForm):
 
 ```
 
-The widget works with both forms and our respective choices shape in the Elm model looks like the following.
+The widget program represents options with a generic type alias, with just enough information to faithfully render the widget for any model queryset:
 
 ```elm
 type alias Options_ =
@@ -152,17 +143,13 @@ type alias Options_ =
     }
 ```
 
-This shape alone doesn't give us enough information to know which type of option we are dealing with, is it a `Course` or `Student` option?
+This type doesn't give us enough information to differentiate the model however i.e. are they `Course` or `Student` options?
 
-Let's add the variants to the widget flag in `elm_programs/flags/widgets/modelChoiceField.py` file:
+Let's add the models as variants to the [ModelChoiceField](#modelchoicefield-widget) widget flag in `elm_programs/flags/widgets/modelChoiceField.py` file:
 
 ```python
 from models import Course, Student
 
-# previous
-ModelChoiceFieldFlags = Flags(ModelChoiceFieldFlag())
-
-# with variants
 ModelChoiceFieldFlags = Flags(ModelChoiceFieldFlag(variants=[Course, Student]))
 ```
 
@@ -194,7 +181,7 @@ type alias Options_Student__ =
     }
 ```
 
-This gives us pattern matching super powers that we can leverage to customise the widget
+This gives us pattern matching super powers that we can leverage to customise the widget program.
 
 ```elm
 doSomethingWithOption : Options_ -> somethingAwesome
@@ -205,6 +192,3 @@ doSomethingWithOption option =
         Student data ->
             -- do something awesome with student option
 ```
-
-> [!NOTE]
-> Only `models.Charfield` model fields are supoprted currently.

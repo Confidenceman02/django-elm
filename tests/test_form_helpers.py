@@ -8,15 +8,15 @@ class TestModelChoiceFieldVariant:
     def test_field_objects_fields(self):
         SUT = ModelChoiceFieldVariant(Car)
 
-        assert SUT.get_field_objects()["fields"] == ["manufacturer", "country"]
+        assert SUT.get_field_objects()["fields"] == ["id", "manufacturer", "country"]
 
     def test_field_objects_flag_parser(self):
         flag = ModelChoiceFieldVariant(Car).get_field_objects()["flag"]
         SUT = Flags(flag)
 
         assert (
-            SUT.parse({"manufacturer": "Mazda", "country": "Japan"})
-            == '{"manufacturer":"Mazda","country":"Japan"}'
+            SUT.parse({"id": 1, "manufacturer": "Mazda", "country": "Japan"})
+            == '{"id":1,"manufacturer":"Mazda","country":"Japan"}'
         )
 
     def test_get_classname(self):
@@ -27,7 +27,10 @@ class TestModelChoiceFieldVariant:
     def test_get_instance_values(self):
         SUT = ModelChoiceFieldVariant(Car)
 
-        assert SUT.get_instance_values(Car(manufacturer="Mazda", country="Japan")) == {
+        assert SUT.get_instance_values(
+            Car(id=1, manufacturer="Mazda", country="Japan")
+        ) == {
+            "id": 1,
             "manufacturer": "Mazda",
             "country": "Japan",
         }
