@@ -1,7 +1,6 @@
 import os
 import shutil
 from typing import Protocol, Sequence
-import types
 from typing_extensions import TypedDict
 
 from djelm.cookiecutter import CookieCutter
@@ -10,6 +9,7 @@ from djelm.flags import Flags
 from djelm.flags.form.primitives import ModelChoiceFieldFlag
 from djelm.flags.primitives import IntFlag
 from djelm.npm import NPM, NPMError
+import djelm.flag_loader as FlagLoader
 from djelm.utils import (
     STUFF_NAMESPACE,
     module_name,
@@ -201,8 +201,41 @@ class WidgetModelGenerator(ModelBuilder):
         watch_mode: bool,
         logger,
     ) -> ExitSuccess[Flags] | ExitFailure[None, Exception]:
-        # TODO load flags from source flag module
-        return ExitSuccess(Flags(ModelChoiceFieldFlag()))  # type:ignore
+        if from_source:
+            module = tag_file_name(program_name)
+            module_path = os.path.join(
+                app_path, "flags", "widgets", tag_file_name(program_name) + ".py"
+            )
+
+            try:
+                mod = FlagLoader.loader(module, module_path)
+            except Exception as err:
+                error_hint = ""
+                if watch_mode:
+                    error_hint = "\033[4m\033[1mNote\033[0m: I'll keep watching this module and will generate the model once the errors are fixed."
+                logger.write(
+                    f"""
+    \033[91m-- FLAG MODULE ERROR ----------------------------------------------------------------------------------------------------- command/generatemodel\033[0m
+
+    I was trying to generate a model from this flags module:
+
+        \033[93m{module_path}\033[0m
+
+    But got the following error type:
+
+        \033[93m{err.args[0]}\033[0m
+
+    Make sure you fix the errors in \033[1m{module_path}\033[0m.
+
+    {error_hint}
+
+    """
+                )
+                return ExitFailure(None, err=err)
+
+            return ExitSuccess(getattr(mod, program_name + "Flags"))
+        else:
+            return ExitSuccess(Flags(ModelChoiceFieldFlag()))  # type:ignore
 
     def applicators(
         self,
@@ -381,17 +414,13 @@ class ModelGenerator(ModelBuilder):
         logger,
     ) -> ExitSuccess[Flags] | ExitFailure[None, Exception]:
         if from_source:
-            # If load source is True, we want to load the flags from the programs flags.
-            import importlib.machinery
-
-            loader = importlib.machinery.SourceFileLoader(
-                tag_file_name(program_name),
-                os.path.join(app_path, "flags", tag_file_name(program_name) + ".py"),
+            module = tag_file_name(program_name)
+            module_path = os.path.join(
+                app_path, "flags", tag_file_name(program_name) + ".py"
             )
-            mod = types.ModuleType(loader.name)
 
             try:
-                loader.exec_module(mod)
+                mod = FlagLoader.loader(module, module_path)
             except Exception as err:
                 error_hint = ""
                 if watch_mode:
@@ -402,13 +431,13 @@ class ModelGenerator(ModelBuilder):
 
     I was trying to generate a model from this flags module:
 
-        \033[93m{os.path.join(app_path, "flags", tag_file_name(program_name) + ".py")}\033[0m
+        \033[93m{module_path}\033[0m
 
     But got the following error type:
 
         \033[93m{err.args[0]}\033[0m
 
-    Make sure you fix the errors in \033[1m{os.path.join(app_path, "flags", tag_file_name(program_name) + ".py")}\033[0m.
+    Make sure you fix the errors in \033[1m{module_path}\033[0m.
 
     {error_hint}
 

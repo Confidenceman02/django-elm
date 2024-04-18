@@ -1,3 +1,9 @@
+## [0.10.0] - 2024-04-18
+
+### Added
+
+- ModelChoiceField [variants](https://github.com/Confidenceman02/django-elm/blob/main/src/djelm/forms/widgets/README.md)
+
 ## [0.9.0] - 2024-04-10
 
 ### Breaking
@@ -184,6 +190,7 @@ type alias A_B__
 
 - First version to pyPI
 
+[0.10.0]: https://github.com/Confidenceman02/django-elm/compare/0.9.0...0.10.0
 [0.9.0]: https://github.com/Confidenceman02/django-elm/compare/0.8.0...0.9.0
 [0.8.0]: https://github.com/Confidenceman02/django-elm/compare/0.7.0...0.8.0
 [0.7.0]: https://github.com/Confidenceman02/django-elm/compare/0.6.0...0.7.0

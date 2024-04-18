@@ -10,6 +10,7 @@ from typing import Iterable, cast
 from django.conf import settings
 from importlib.metadata import version
 from typing_extensions import TypedDict
+from djelm.forms.widgets.main import WIDGET_NAMES
 from djelm.generators import (
     ModelGenerator,
     ModelBuilder,
@@ -33,6 +34,7 @@ from .utils import (
     is_djelm,
     module_name,
     program_file,
+    to_program_namespace,
     walk_level,
 )
 from .validate import Validations
@@ -49,7 +51,6 @@ AddProgramCookieExtra = TypedDict(
         "app_name": str,
     },
 )
-
 
 FlagsCookieExtra = TypedDict(
     "FlagsCookieExtra",
@@ -267,6 +268,7 @@ class WatchStrategy:
                 # If flags change generate models
                 # TODO Don't generate a model when a flags module is deleted
                 # TODO Only generate a model when the flags output is different to what has already been generated.
+                # TODO Handle widget programs
                 if os.path.join(app_path, "flags") in f and f.endswith(".py"):
                     filename = os.path.basename(f).split(".")[0]
                     program_name = program_file(filename)
@@ -535,7 +537,7 @@ Here are all the djelm apps I found:
 
 
 class ListWidgetsStrategy:
-    widgets = ["ModelChoiceField"]
+    widgets = WIDGET_NAMES
 
     def run(self, logger) -> ExitSuccess[list[str]] | ExitFailure[None, StrategyError]:
         widgets = ""
@@ -628,10 +630,13 @@ class Strategy:
                     "program_name": pn,
                 }
             ):
+                program_path, program_name = to_program_namespace(pn.split("."))
                 return GenerateModelStrategy(
                     cast(str, app_name),
-                    cast(str, pn),
-                    handler=ModelGenerator(),
+                    program_name,
+                    handler=program_namespace_to_model_builder(
+                        [*program_path, program_name]
+                    ),
                     from_source=True,
                     watch_mode=False,
                 )
@@ -657,14 +662,14 @@ class Strategy:
                 return AddWidgetStrategy(
                     cast(str, app_name),
                     cast(str, widget),
-                    handler=widget_name_to_handler(widget),
+                    handler=widget_name_to_program_builder(widget),
                     no_deps=options.get("no_deps", False),
                 )
             case _ as x:
                 raise StrategyError(f"Unable to handle {x}")
 
 
-def widget_name_to_handler(widget_name: str) -> ProgramBuilder:
+def widget_name_to_program_builder(widget_name: str) -> ProgramBuilder:
     match widget_name:
         case "ModelChoiceField":
             return ModelChoiceFieldWidgetGenerator()
@@ -674,3 +679,41 @@ def widget_name_to_handler(widget_name: str) -> ProgramBuilder:
 
 \033[4m\033[1mHint\033[0m: Run \033[1mpython manage.py djelm listwidgets\033[0m to find out what type of widget programs I can add for you."""
             )
+
+
+def program_namespace_to_model_builder(namespace: list[str]) -> ModelBuilder:
+    match namespace:
+        case [_]:
+            return ModelGenerator()
+        case ["Widgets", widget_name]:
+            if widget_name in WIDGET_NAMES:
+                return WidgetModelGenerator()
+            else:
+                raise StrategyError(
+                    f"""
+
+\033[91m-- UNKNOWN WIDGET ------------------------------------------------------------------------------------------------------------------------- command/generatemodel\033[0m
+
+It looks like you are trying to generate a model for this widget:
+
+    \033[93m{widget_name}\033[0m
+
+But I don't recognize the \033[1m{widget_name}\033[0m widget name.
+
+\033[4m\033[1mHint\033[0m: Run \033[1mpython manage.py djelm listwidgets\033[0m to find out what type of widget programs I can work with."""
+                )
+
+        case [head, *_]:
+            raise StrategyError(
+                f"""\033[91m-- INVALID PROGRAM NAMESPACE ------------------------------------------------------------------------------------------------------------------------- command/generatemodel\033[0m
+
+I can't generate a model for programs in the {head} namespace.
+
+\033[4m\033[1mHint\033[0m: Make sure the program you are trying to generate a model for exists in one of the following directories.
+
+\033[1msrc\033[0m - python manage.py djelm generatemodel <app> <program_name>
+\033[1mWidgets\033[0m  - python manage.py djelm generatemodel <app> Widgets.<widget_program>
+"""
+            )
+        case _:
+            raise StrategyError(f"I can't resolve a ModelBuilder for {namespace}")

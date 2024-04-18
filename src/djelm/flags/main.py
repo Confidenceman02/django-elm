@@ -11,7 +11,6 @@ import djelm.codegen.writer as Writer
 import djelm.codegen.elm as Elm
 from pydantic import BaseModel, TypeAdapter, validate_call
 from typing_extensions import Annotated
-from djelm.flags.form.adapters import ModelChoiceFieldAdapter
 
 from djelm.flags.form.primitives import ModelChoiceFieldFlag
 
@@ -210,7 +209,6 @@ class ListDecoder:
     """Decoder helper for the Elm List primitive"""
 
     value: str
-    targetDecoderName: str
     target: Compiler.Annotation
 
     def alias(self):
@@ -231,12 +229,14 @@ class ListDecoder:
     def _compiler_annotation(annotation: Compiler.Annotation) -> Compiler.Annotation:
         return Anno.list(annotation)
 
-    def pipeline_expression(self) -> Compiler.Expression:
+    def pipeline_expression(
+        self, expression: Compiler.Expression
+    ) -> Compiler.Expression:
         return Elm.apply(
             Exp.FunctionOrValue(Module.ModuleName([]), "required", None, None),
             [
                 Elm.literal(self.value),
-                self.decoder_expression(Elm.value(self.targetDecoderName)),
+                self.decoder_expression(expression),
             ],
             Range.Range(1, 0),
         )
@@ -257,7 +257,6 @@ class NullableDecoder:
     """Decoder helper for the Elm Maybe monad"""
 
     value: str
-    targetDecoderName: str
     target: Compiler.Annotation
 
     def alias(self):
@@ -278,12 +277,14 @@ class NullableDecoder:
     def _compiler_annotation(annotation: Compiler.Annotation) -> Compiler.Annotation:
         return Anno.maybe(annotation)
 
-    def pipeline_expression(self) -> Compiler.Expression:
+    def pipeline_expression(
+        self, expression: Compiler.Expression
+    ) -> Compiler.Expression:
         return Elm.apply(
             Exp.FunctionOrValue(Module.ModuleName([]), "required", None, None),
             [
                 Elm.literal(self.value),
-                self.decoder_expression(Elm.value(self.targetDecoderName)),
+                self.decoder_expression(expression),
             ],
             Range.Range(1, 0),
         )
@@ -486,11 +487,11 @@ class BaseFlag(metaclass=FlagMetaClass):
         match d:
             case ObjectFlag(obj=_):
                 prepared_flags = _prepare_pipeline_flags(d, decoder_sig)
-            case ModelChoiceFieldFlag() as mcf:
+            case ModelChoiceFieldFlag(variants=_) as mcf:
                 prepared_flags = _prepare_pipeline_flags(
                     mcf.obj(), decoder_sig=decoder_sig
                 )
-                prepared_flags["adapter"] = ModelChoiceFieldAdapter
+                prepared_flags["adapter"] = mcf.adapter()
             case _:
                 prepared_flags = _prepare_inline_flags(
                     d, ObjectDecoder("inlineToModel", 1), decoder_sig=decoder_sig
@@ -668,7 +669,7 @@ def _prepare_inline_flags(
                 ["\n\n" + custom_type_decoder._to_declaration(), *alias_extras]
             )
             decoder_expression = custom_type_decoder.decoder_expression()
-        case ModelChoiceFieldFlag() as mcf:
+        case ModelChoiceFieldFlag(variants=_) as mcf:
             if object_decoder is None:
                 raise Exception(f"Missing an ObjectDecoder argument for {mcf.obj()}")
             parent_key = None
@@ -693,7 +694,7 @@ def _prepare_inline_flags(
                 depth + 1,
                 parent_key,
             )
-            adapter = ModelChoiceFieldAdapter
+            adapter = mcf.adapter()
             # Use internal annotation
             anno = mcf.anno()
             declaration = Elm.alias(
@@ -900,7 +901,6 @@ def _prepare_pipeline_flags(
                     single_flag = _prepare_inline_flags(obj, decoder)
                     list_decoder = ListDecoder(
                         k,
-                        single_flag["elm_values"]["decoder_body"],
                         single_flag["compiler_annotation"],
                     )
                     alias_extra += single_flag["alias_extra"]
@@ -909,7 +909,11 @@ def _prepare_pipeline_flags(
                     field_annotations.append(
                         (k, Anno.list(single_flag["compiler_annotation"]))
                     )
-                    pipeline_expressions.append(list_decoder.pipeline_expression())
+                    pipeline_expressions.append(
+                        list_decoder.pipeline_expression(
+                            single_flag["decoder_expression"]
+                        )
+                    )
                     if idx == 0:
                         alias_values += f" {list_decoder.alias()}"
                     else:
@@ -941,7 +945,6 @@ def _prepare_pipeline_flags(
                     )
                     nullable_decoder = NullableDecoder(
                         k,
-                        single_flag["elm_values"]["decoder_body"],
                         single_flag["compiler_annotation"],
                     )
                     alias_extra += single_flag["alias_extra"]
@@ -951,7 +954,11 @@ def _prepare_pipeline_flags(
                         (k, Anno.maybe(single_flag["compiler_annotation"]))
                     )
 
-                    pipeline_expressions.append(nullable_decoder.pipeline_expression())
+                    pipeline_expressions.append(
+                        nullable_decoder.pipeline_expression(
+                            single_flag["decoder_expression"]
+                        )
+                    )
 
                     if idx == 0:
                         alias_values += f" {nullable_decoder.alias()}"

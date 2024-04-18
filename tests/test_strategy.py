@@ -1,12 +1,17 @@
 import uuid
+import pytest
 from unittest import TestCase
 
 from django.core.management import call_command
 from django.core.management.base import LabelCommand
-from djelm.generators import ProgramGenerator
+from djelm.generators import (
+    ModelGenerator,
+    ProgramGenerator,
+    WidgetModelGenerator,
+)
 
-from src.djelm.effect import ExitSuccess
-from src.djelm.strategy import (
+from djelm.effect import ExitSuccess
+from djelm.strategy import (
     AddProgramStrategy,
     AddWidgetStrategy,
     CreateStrategy,
@@ -14,7 +19,9 @@ from src.djelm.strategy import (
     ListStrategy,
     NpmStrategy,
     Strategy,
+    StrategyError,
     WatchStrategy,
+    program_namespace_to_model_builder,
 )
 
 from .conftest import cleanup_theme_app_dir
@@ -76,3 +83,19 @@ def test_after_addprogram_strategy_success(settings):
 
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
+
+
+def test_program_namespace_to_model_builder():
+    SUT1 = program_namespace_to_model_builder(["Main"])
+
+    assert isinstance(SUT1, ModelGenerator)
+
+    SUT2 = program_namespace_to_model_builder(["Widgets", "ModelChoiceField"])
+
+    assert isinstance(SUT2, WidgetModelGenerator)
+
+    with pytest.raises(StrategyError):
+        program_namespace_to_model_builder(["Widgets", "NonsenseWidget"])
+
+    with pytest.raises(StrategyError):
+        program_namespace_to_model_builder(["Some", "Program"])
