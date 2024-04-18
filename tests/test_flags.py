@@ -21,7 +21,7 @@ from djelm.flags.main import Flags
 from djelm.generators import ModelGenerator
 from djelm.strategy import GenerateModelStrategy
 from djelm.utils import get_app_src_path
-from test_programs.models import Car, Driver, Enthusiast, Team
+from test_programs.models import Blank, Blanks, Car, Driver, Enthusiast, Team
 from tests.conftest import cleanup_models
 from tests.fuzz_flags import fuzz_flag
 
@@ -130,6 +130,22 @@ def basic_team_form():
         class Meta:
             model = Team
             fields = ("driver",)
+
+    return UserForm
+
+
+@pytest.fixture()
+def blanks_form():
+    class UserForm(forms.ModelForm):
+        blank = forms.ModelChoiceField(
+            queryset=Blank.objects.all(),
+            help_text="SOS",
+            empty_label=None,
+        )
+
+        class Meta:
+            model = Blanks
+            fields = ("blank",)
 
     return UserForm
 
@@ -1704,6 +1720,64 @@ class TestModelChoiceFieldFlags:
         )
 
     @pytest.mark.django_db
+    def test_inline_model_choice_field_flag_with_mixed_fields(
+        self,
+        blanks_form: type[forms.ModelForm],
+    ):
+        blank = Blank(third=False, fourth=122, fifth=5.55)
+        blank.save()
+        d = ModelChoiceFieldFlag(variants=[Blank])
+        prepare_form = blanks_form()
+
+        SUT = Flags(d)
+
+        assert (
+            SUT.parse(prepare_form["blank"])
+            == '{"help_text":"SOS","auto_id":"id_blank","id_for_label":"id_blank","label":"Blank","name":"blank","widget_type":"select","options":[{"choice_label":"Blank object (1)","value":"1","selected":false,"instance":{"id":1,"first":null,"second":null,"third":false,"fourth":122,"fifth":5.55}}]}'
+        )
+
+        blank.first = "first"
+        blank.save()
+        prepare_form = blanks_form()
+
+        assert (
+            SUT.parse(prepare_form["blank"])
+            == '{"help_text":"SOS","auto_id":"id_blank","id_for_label":"id_blank","label":"Blank","name":"blank","widget_type":"select","options":[{"choice_label":"Blank object (1)","value":"1","selected":false,"instance":{"id":1,"first":"first","second":null,"third":false,"fourth":122,"fifth":5.55}}]}'
+        )
+
+        assert (
+            SUT.to_elm_parser_data()["alias_type"]
+            == """{ help_text : String
+    , auto_id : String
+    , id_for_label : String
+    , label : Maybe String
+    , name : String
+    , widget_type : String
+    , options : List Options_
+    }
+
+type Options_
+    = Blank Options_Blank__
+
+
+type alias Options_Blank__ =
+    { choice_label : String
+    , value : String
+    , selected : Bool
+    , instance : Options_Blank__Instance__
+    }
+
+type alias Options_Blank__Instance__ =
+    { id : Int
+    , first : Maybe String
+    , second : Maybe String
+    , third : Bool
+    , fourth : Int
+    , fifth : Float
+    }"""
+        )
+
+    @pytest.mark.django_db
     def test_inline_model_choice_field_flag_with_single_variant(
         self,
         basic_form_no_empty_label: type[forms.ModelForm],
@@ -1717,7 +1791,7 @@ class TestModelChoiceFieldFlags:
 
         assert (
             SUT.parse(prepare_form["car"])
-            == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"Mazda","value":"1","selected":false,"instance":{"manufacturer":"Mazda","country":"Japan"}}]}'
+            == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"Mazda","value":"1","selected":false,"instance":{"id":1,"manufacturer":"Mazda","country":"Japan"}}]}'
         )
 
     @pytest.mark.django_db
@@ -1738,11 +1812,11 @@ class TestModelChoiceFieldFlags:
 
         assert (
             SUT.parse(prepare_car_form["car"])
-            == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"Mazda","value":"1","selected":false,"instance":{"manufacturer":"Mazda","country":"Japan"}}]}'
+            == '{"help_text":"Do I detect.. Elm?","auto_id":"id_car","id_for_label":"id_car","label":"Car","name":"car","widget_type":"select","options":[{"choice_label":"Mazda","value":"1","selected":false,"instance":{"id":1,"manufacturer":"Mazda","country":"Japan"}}]}'
         )
         assert (
             SUT.parse(prepare_team_form["driver"])
-            == '{"help_text":"Do I detect.. Elm?","auto_id":"id_driver","id_for_label":"id_driver","label":"Driver","name":"driver","widget_type":"select","options":[{"choice_label":"Jdawg","value":"1","selected":false,"instance":{"name":"Jdawg"}}]}'
+            == '{"help_text":"Do I detect.. Elm?","auto_id":"id_driver","id_for_label":"id_driver","label":"Driver","name":"driver","widget_type":"select","options":[{"choice_label":"Jdawg","value":"1","selected":false,"instance":{"id":1,"name":"Jdawg"}}]}'
         )
 
     @pytest.mark.django_db
@@ -1825,7 +1899,8 @@ type alias Options_Car__ =
     }
 
 type alias Options_Car__Instance__ =
-    { manufacturer : String
+    { id : Int
+    , manufacturer : String
     , country : String
     }"""
         )
@@ -1854,6 +1929,7 @@ options_Car__Decoder =
 options_car__instance__Decoder : Decode.Decoder Options_Car__Instance__
 options_car__instance__Decoder =
     Decode.succeed Options_Car__Instance__
+        |> required "id" Decode.int
         |> required "manufacturer" Decode.string
         |> required "country" Decode.string"""
         )

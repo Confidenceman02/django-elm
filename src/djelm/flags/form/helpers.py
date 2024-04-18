@@ -1,22 +1,25 @@
 from dataclasses import dataclass
+from types import UnionType
 from typing import Any, NotRequired, Optional
 import typing
 from typing_extensions import TypedDict
 from django.db import models
 from django.forms.boundfield import BoundField, BoundWidget
-from django.db.models.fields import CharField
+from django.db.models.fields import CharField, BooleanField, IntegerField, FloatField
 from pydantic import BaseModel
 from djelm.flags.primitives import (
     BoolFlag,
     CustomTypeFlag,
     Flag,
+    IntFlag,
     ListFlag,
     NullableFlag,
     ObjectFlag,
     StringFlag,
+    FloatFlag,
 )
 
-SUPPORTED_VARIANT_FIELDS = [CharField]
+SUPPORTED_VARIANT_FIELDS = [CharField, BooleanField, IntegerField, FloatField]
 
 DEFAULT_OPTION_TYPES = [
     ("choice_label", str),
@@ -51,7 +54,13 @@ MODEL_CHOICE_FIELD_BASE_MODEL = type(
 
 ModelChoiceFieldObjects = TypedDict(
     "ModelChoiceFieldObjects",
-    {"fields": list[str], "flag": Flag, "annotations": dict[str, type[str]]},
+    {
+        "fields": list[str],
+        "flag": Flag,
+        "annotations": dict[
+            str, typing.Union[type[str], type[int], type[float], type[bool]] | UnionType
+        ],
+    },
 )
 
 ModelChoiceFieldOptions = TypedDict(
@@ -85,7 +94,9 @@ class ModelChoiceFieldVariant:
     def get_field_objects(self) -> ModelChoiceFieldObjects:
         resolved_field_names: list[str] = []
         resolved_flags: list[Flag] = []
-        resolved_annotations: list[type[str]] = []
+        resolved_annotations: list[
+            typing.Union[type[str], type[int], type[float], type[bool] | UnionType]
+        ] = []
         fields = self.model._meta.get_fields()
 
         for field in fields:
@@ -113,15 +124,56 @@ class ModelChoiceFieldVariant:
         return resolved_fields
 
     def field_to_flag(self, field) -> Flag:
+        is_null: bool = field.null
         if isinstance(field, CharField):
-            return StringFlag()
+            if is_null:
+                return NullableFlag(StringFlag())
+            else:
+                return StringFlag()
+        if isinstance(field, BooleanField):
+            if is_null:
+                return NullableFlag(BoolFlag())
+            else:
+                return BoolFlag()
+        if isinstance(field, IntegerField):
+            if is_null:
+                return NullableFlag(IntFlag())
+            else:
+                return IntFlag()
+        if isinstance(field, FloatField):
+            if is_null:
+                return NullableFlag(FloatFlag())
+            else:
+                return FloatFlag()
         raise Exception(
             f"The model field type {field.__class__.__name__} is not supported."
         )
 
-    def field_to_annotation(self, field) -> type[str]:
+    def field_to_annotation(
+        self, field
+    ) -> typing.Union[type[str], type[int], type[float], type[bool]] | UnionType:
+        is_null: bool = field.null
         if isinstance(field, CharField):
-            return str
+            if is_null:
+                return typing.Optional[str]
+            else:
+                return str
+        if isinstance(field, BooleanField):
+            if is_null:
+                return typing.Optional[bool]
+            else:
+                return bool
+        if isinstance(field, IntegerField):
+            # TODO Handle AutoField, BigAutoField and BigIntegerField
+            if is_null:
+                return typing.Optional[int]
+            else:
+                return int
+        if isinstance(field, FloatField):
+            if is_null:
+                return typing.Optional[float]
+            else:
+                return float
         raise Exception(
             f"The model field type {field.__class__.__name__} is not supported."
         )

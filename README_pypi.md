@@ -5,6 +5,11 @@
 [![Actions status](https://Confidenceman02.github.io/djelm/workflows/CI/badge.svg)](https://github.com/Confidenceman02/django-elm/actions)
 [![](https://img.shields.io/badge/license-MIT-blue)](https://github.com/Confidenceman02/django-elm/blob/main/LICENSE)
 
+> [!NOTE]
+> Djelm is an active project and prior to a stable release changes might come hard and fast as we explore and learn the best way to integrate Elm programs into Django.
+>
+> Much effort is put into the [CHANGELOG](https://github.com/Confidenceman02/django-elm/blob/main/CHANGELOG.md) to describe and advise on all changes between versions so be sure to utilise it when updating to the latest and greatest version.
+
 # Elm integration for Django a.k.a. Django + Elm = 💚
 
 ---
@@ -750,7 +755,7 @@ class PromotionForm(forms.ModelForm):
 Let's now create that custom template.
 
 ```djangohtml
-<!-- modelChoiceField.html -->
+<!-- modelChoiceFieldWidget.html -->
 
 {% extends "base.html" %}
 {% load modelChoiceField_widget_tags %}
@@ -779,6 +784,9 @@ Let's delight our users by giving them more information about their choices.
 ![example](https://Confidenceman02.github.io/djelm/static/djelm-cs-mcf.gif)
 
 That's a good looking widget!
+
+> [!NOTE]
+> For specific documentation and advanced features for widgets, check out the widget [documentation](https://github.com/Confidenceman02/django-elm/blob/main/src/djelm/forms/widgets/README.md).
 
 [Back to top](#table-of-content)
 
