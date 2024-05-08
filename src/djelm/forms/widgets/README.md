@@ -115,6 +115,7 @@ class PromotionForm(forms.ModelForm):
     courses = forms.ModelChoiceField(
         queryset=Course.objects.all(),
         template_name="modelChoiceFieldWidget.html",
+        empty_label=None
     )
 
     class Meta:
@@ -192,3 +193,9 @@ doSomethingWithOption option =
         Student data ->
             -- do something awesome with student option
 ```
+
+> [!IMPORTANT]
+> Django by default includes an empty label option that is not part of a model instance.
+> Using variants will cause djelm to trigger a pydantic error due to this.
+>
+> Make sure you set `empty_label` to `None` on the ModelChoiceField form field to avoid this error.
