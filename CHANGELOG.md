@@ -1,3 +1,23 @@
+## [0.11.0] - 2024-05-09
+
+### Added
+
+- Compiled programs now esmodule targets
+- Include script now targeting `type="module"`
+
+Things should just work but in case you are doing anything with ES modules in the compiled js
+the following should set it right:
+
+```bash
+python manage.py djelm watch <your-djelm-app>
+```
+
+Alternatively you can remove the `.parcel-cache` directory and run:
+
+```bash
+python manage.py djelm compile <your-djelm-app>
+```
+
 ## [0.10.0] - 2024-04-18
 
 ### Added
@@ -190,6 +210,7 @@ type alias A_B__
 
 - First version to pyPI
 
+[0.11.0]: https://github.com/Confidenceman02/django-elm/compare/0.10.0...0.11.0
 [0.10.0]: https://github.com/Confidenceman02/django-elm/compare/0.9.0...0.10.0
 [0.9.0]: https://github.com/Confidenceman02/django-elm/compare/0.8.0...0.9.0
 [0.8.0]: https://github.com/Confidenceman02/django-elm/compare/0.7.0...0.8.0
