@@ -175,6 +175,7 @@ class CompileStrategy:
                   mode: {"'production'" if self.build else "'development'"},
                   defaultTargetOptions: {{
                     distDir: "../static/dist",
+                    outputFormat: "esmodule",
                   }},
                 }});
                 async function Main() {{
