@@ -3,6 +3,12 @@ import djelm.codegen.expression as Exp
 import djelm.codegen.compiler as Compiler
 
 
+def equals(
+    left: Compiler.Expression, right: Compiler.Expression
+) -> Compiler.Expression:
+    return Exp.OperatorApplication("==", "Left", left, right, None)
+
+
 def plus(left: Compiler.Expression, right: Compiler.Expression) -> Compiler.Expression:
     return Exp.OperatorApplication("+", "Left", left, right, None)
 

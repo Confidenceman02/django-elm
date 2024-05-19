@@ -5,6 +5,7 @@ import djelm.codegen.compiler as Compiler
 import djelm.codegen.expression as Exp
 import djelm.codegen.op as Op
 import djelm.codegen.module_name as Module
+from djelm.codegen.pattern import VarPattern
 import djelm.codegen.range as Range
 import djelm.codegen.format as Format
 import djelm.codegen.writer as Writer
@@ -38,7 +39,11 @@ from .adapters import (
     annotated_int,
     annotated_bool,
     annotated_float,
+    annotated_string_literal,
+    string_literal_adapter,
 )
+
+RESERVED_KEYWORDS = ["if"]
 
 PreparedElm = typing.TypedDict("PreparedElm", {"alias_type": str, "decoder_body": str})
 
@@ -61,8 +66,10 @@ class StringDecoder:
         return f""", {self.value} : {StringDecoder._annotation()}"""
 
     @staticmethod
-    def _raw_decoder():
-        return "Decode.string"
+    def _raw_literal_decoder(literal: str) -> str:
+        return Writer.writeExpression(
+            StringDecoder.decoder_literal_expression(literal)
+        ).write()
 
     @staticmethod
     def _annotation():
@@ -79,11 +86,73 @@ class StringDecoder:
             Range.Range(1, 0),
         )
 
+    def pipeline_literal_expression(self, literal: str) -> Compiler.Expression:
+        return Elm.apply(
+            Exp.FunctionOrValue(Module.ModuleName([]), "required", None, None),
+            [
+                Elm.literal(self.value),
+                self.decoder_literal_expression(literal),
+            ],
+            Range.Range(1, 0),
+        )
+
     @staticmethod
     def decoder_expression() -> Compiler.Expression:
         return Elm.apply(
             Exp.FunctionOrValue(Module.ModuleName(["Decode"]), "string", None, None),
             [],
+        )
+
+    @staticmethod
+    def decoder_literal_expression(literal: str) -> Compiler.Expression:
+        return Exp.Parenthesized(
+            Op.pipe(
+                Elm.apply(
+                    Exp.FunctionOrValue(
+                        Module.ModuleName(["Decode"]), "andThen", None, None
+                    ),
+                    [
+                        Exp.Parenthesized(
+                            Exp.Lambda(
+                                [VarPattern("lit")],
+                                Exp.IfBlock(
+                                    Op.equals(
+                                        Exp.FunctionOrValue(
+                                            Module.ModuleName([]), "lit", None, None
+                                        ),
+                                        Elm.literal(literal),
+                                    ),
+                                    Elm.apply(
+                                        Exp.FunctionOrValue(
+                                            Module.ModuleName(["Decode"]),
+                                            "succeed",
+                                            None,
+                                            None,
+                                        ),
+                                        [Elm.literal(literal)],
+                                    ),
+                                    Elm.apply(
+                                        Exp.FunctionOrValue(
+                                            Module.ModuleName(["Decode"]),
+                                            "fail",
+                                            None,
+                                            None,
+                                        ),
+                                        [
+                                            Elm.literal(
+                                                f"Value did not match literal <{literal}>"
+                                            )
+                                        ],
+                                    ),
+                                ),
+                            ),
+                            None,
+                        )
+                    ],
+                ),
+                StringDecoder.decoder_expression(),
+            ),
+            None,
         )
 
 
@@ -98,10 +167,6 @@ class IntDecoder:
 
     def nested_alias(self):
         return f""", {self.value} : {IntDecoder._annotation()}"""
-
-    @staticmethod
-    def _raw_decoder():
-        return "Decode.int"
 
     @staticmethod
     def _annotation():
@@ -139,10 +204,6 @@ class BoolDecoder:
         return f""", {self.value} : {BoolDecoder._annotation()}"""
 
     @staticmethod
-    def _raw_decoder():
-        return "Decode.bool"
-
-    @staticmethod
     def _annotation():
         return Anno.toString(BoolDecoder._compiler_annotation())
 
@@ -176,10 +237,6 @@ class FloatDecoder:
 
     def nested_alias(self):
         return f""", {self.value} : {FloatDecoder._annotation()}"""
-
-    @staticmethod
-    def _raw_decoder():
-        return "Decode.float"
 
     @staticmethod
     def _annotation():
@@ -216,10 +273,6 @@ class ListDecoder:
 
     def nested_alias(self):
         return f""", {self.value} : {self._annotation(self.target)}"""
-
-    @staticmethod
-    def _raw_decoder(decoder_def: str):
-        return f"(Decode.list {decoder_def})"
 
     @staticmethod
     def _annotation(annotation: Compiler.Annotation) -> str:
@@ -264,10 +317,6 @@ class NullableDecoder:
 
     def nested_alias(self):
         return f""", {self.value} : {self._annotation(self.target)}"""
-
-    @staticmethod
-    def _raw_decoder(decoder_def: str):
-        return f"(Decode.nullable {decoder_def})"
 
     @staticmethod
     def _annotation(annotation: Compiler.Annotation) -> str:
@@ -544,7 +593,6 @@ def _prepare_inline_flags(
     adapter: TypeAdapter
     anno: PrimitiveObjectFlagType
     alias_type: str = ""
-    decoder_body = ""
     decoder_extra: str = ""
     alias_extra: str = ""
     compiler_annotation = None
@@ -552,30 +600,30 @@ def _prepare_inline_flags(
     match d:
         case StringFlag():
             adapter = StringAdapter
-            anno = annotated_string  # type:ignore
-            alias_type = StringDecoder._annotation()
-            decoder_body = StringDecoder._raw_decoder()
-            compiler_annotation = StringDecoder._compiler_annotation()
             decoder_expression = StringDecoder.decoder_expression()
+            anno = annotated_string  # type:ignore
+            if d.literal is not None:
+                adapter = string_literal_adapter(d.literal)
+                decoder_expression = StringDecoder.decoder_literal_expression(d.literal)
+                anno = annotated_string_literal(d.literal)  # type:ignore
+            alias_type = StringDecoder._annotation()
+            compiler_annotation = StringDecoder._compiler_annotation()
         case IntFlag():
             adapter = IntAdapter
             anno = annotated_int  # type:ignore
             alias_type = IntDecoder._annotation()
-            decoder_body = IntDecoder._raw_decoder()
             compiler_annotation = IntDecoder._compiler_annotation()
             decoder_expression = IntDecoder.decoder_expression()
         case FloatFlag():
             adapter = FloatAdapter
             anno = annotated_float  # type:ignore
             alias_type = FloatDecoder._annotation()
-            decoder_body = FloatDecoder._raw_decoder()
             compiler_annotation = FloatDecoder._compiler_annotation()
             decoder_expression = FloatDecoder.decoder_expression()
         case BoolFlag():
             adapter = BoolAdapter
             anno = annotated_bool  # type:ignore
             alias_type = BoolDecoder._annotation()
-            decoder_body = BoolDecoder._raw_decoder()
             compiler_annotation = BoolDecoder._compiler_annotation()
             decoder_expression = BoolDecoder.decoder_expression()
         case NullableFlag(obj=obj):
@@ -585,9 +633,6 @@ def _prepare_inline_flags(
             anno = typing.Optional[t]  # type:ignore
             alias_type = NullableDecoder._annotation(single_flag["compiler_annotation"])
             alias_extra += single_flag["alias_extra"]
-            decoder_body = NullableDecoder._raw_decoder(
-                single_flag["elm_values"]["decoder_body"]
-            )
             decoder_extra += single_flag["decoder_extra"]
             compiler_annotation = NullableDecoder._compiler_annotation(
                 single_flag["compiler_annotation"]
@@ -602,9 +647,6 @@ def _prepare_inline_flags(
             anno = list[t]  # type:ignore
             alias_type = ListDecoder._annotation(single_flag["compiler_annotation"])
             alias_extra += single_flag["alias_extra"]
-            decoder_body = ListDecoder._raw_decoder(
-                single_flag["elm_values"]["decoder_body"]
-            )
             decoder_extra += single_flag["decoder_extra"]
             compiler_annotation = ListDecoder._compiler_annotation(
                 single_flag["compiler_annotation"]
@@ -662,7 +704,6 @@ def _prepare_inline_flags(
 
             compiler_annotation = custom_type_decoder._compiler_annotation()
 
-            # decoder_body = object_decoder._to_decoder_name()
             decoder_extra = "".join(decoder_extras)
             alias_type = custom_type_decoder._to_annotation()
             alias_extra = "".join(
@@ -711,7 +752,6 @@ def _prepare_inline_flags(
                 + Writer.writeDeclartion(declaration).write()
                 + object_flag["alias_extra"]
             )
-            decoder_body = object_decoder._to_decoder_name()
             decoder_extra = f"\n\n{object_flag['elm_values']['decoder_body']}"
             decoder_expression = object_decoder.decoder_expression()
         case ObjectFlag(obj=obj):
@@ -756,11 +796,12 @@ def _prepare_inline_flags(
                 + Writer.writeDeclartion(declaration).write()
                 + object_flag["alias_extra"]
             )
-            decoder_body = object_decoder._to_decoder_name()
             decoder_extra = f"\n\n{object_flag['elm_values']['decoder_body']}"
             decoder_expression = object_decoder.decoder_expression()
         case _:
             raise Exception(f"Can't resolve core_schema type for: {d}")
+
+    decoder_body = ""
 
     if decoder_sig:
         sig, _ = decoder_sig
@@ -799,6 +840,7 @@ def _prepare_pipeline_flags(
 
     for idx, (k, v) in enumerate(d.obj.items()):
         try:
+            assert k not in RESERVED_KEYWORDS
             k = k.replace("\n", "")
             valid_alias_key(k)
             match v:
@@ -972,7 +1014,14 @@ def _prepare_pipeline_flags(
                         (k, single_prepared["compiler_annotation"])
                     )
 
-                    pipeline_expressions.append(string_decoder.pipeline_expression())
+                    if v.literal:
+                        pipeline_expressions.append(
+                            string_decoder.pipeline_literal_expression(v.literal)
+                        )
+                    else:
+                        pipeline_expressions.append(
+                            string_decoder.pipeline_expression()
+                        )
 
                     if idx == 0:
                         alias_values += f" {string_decoder.alias()}"

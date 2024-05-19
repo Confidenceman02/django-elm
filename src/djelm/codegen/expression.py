@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import typing as Typ
 import djelm.codegen.module_name as Mod
+from djelm.codegen.pattern import Pattern
 import djelm.codegen.range as Range
 import djelm.codegen.compiler as Compiler
 
@@ -168,6 +169,47 @@ class Application(Compiler.Expression):
 class Parenthesized(Compiler.Expression):
     expression: Compiler.Expression
     range: Range.Range | None
+
+    def annotation_type(self) -> Compiler.TypeAnnotation | None:
+        return None
+
+    def set_range(self, rng: Range.Range) -> None:
+        self.range = rng
+
+    def set_range_column(self, start: int) -> None:
+        new_range = self.get_range()
+        new_range.column = start
+        self.range = new_range
+
+    def get_range(self) -> Range.Range:
+        return self.range or Range.Range(0, 0)
+
+
+@dataclass(slots=True)
+class Lambda(Compiler.Expression):
+    args: list[Pattern]
+    expression: Compiler.Expression
+
+    def annotation_type(self) -> Compiler.TypeAnnotation | None:
+        return None
+
+    def set_range(self, rng: Range.Range) -> None:
+        self.range = rng
+
+    def set_range_column(self, start: int) -> None:
+        new_range = self.get_range()
+        new_range.column = start
+        self.range = new_range
+
+    def get_range(self) -> Range.Range:
+        return self.range or Range.Range(0, 0)
+
+
+@dataclass(slots=True)
+class IfBlock(Compiler.Expression):
+    condition: Compiler.Expression
+    then_case: Compiler.Expression
+    else_case: Compiler.Expression
 
     def annotation_type(self) -> Compiler.TypeAnnotation | None:
         return None
