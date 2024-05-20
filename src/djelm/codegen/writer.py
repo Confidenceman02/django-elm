@@ -3,11 +3,11 @@ from typing import List, Protocol
 import djelm.codegen.compiler as Compiler
 import djelm.codegen.expression as Exp
 import djelm.codegen.module_name as Mod
+from djelm.codegen.pattern import Pattern, VarPattern
 
 
 class Writer(Protocol):
-    def write(self, indent: int = 0) -> str:
-        ...
+    def write(self, indent: int = 0) -> str: ...
 
     def writeIndented(self, indent: int = 0) -> str:
         if indent == 0:
@@ -218,6 +218,14 @@ def writeModuleName(module: Mod.ModuleName) -> Writer:
     return string(".".join(module.names))
 
 
+def writePattern(pattern: Pattern) -> Writer:
+    match pattern:
+        case VarPattern(value=v):
+            return string(v)
+        case _:
+            raise Exception("Cant handle that type of pattern")
+
+
 def writeExpression(expression: Compiler.Expression) -> Writer:
     match expression:
         case (
@@ -327,6 +335,25 @@ def writeExpression(expression: Compiler.Expression) -> Writer:
 
         case Exp.List(members=members, range=_):
             return bracketsComma(False, [writeExpression(m) for m in members])
+        case Exp.Lambda(args=args, expression=ex):
+            return spaced(
+                [
+                    join([string("\\"), spaced([writePattern(pat) for pat in args])]),
+                    string("->"),
+                    writeExpression(ex),
+                ]
+            )
+        case Exp.IfBlock(condition=cond, then_case=then, else_case=els):
+            return spaced(
+                [
+                    string("if"),
+                    writeExpression(cond),
+                    string("then"),
+                    writeExpression(then),
+                    string("else"),
+                    writeExpression(els),
+                ]
+            )
 
         case _:
             raise Exception("Can't handle that expression type")

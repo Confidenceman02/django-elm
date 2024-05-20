@@ -10,7 +10,15 @@ class Flag:
 
 @dataclass(slots=True)
 class StringFlag(Flag):
-    """Flag for the Elm String primitive"""
+    """Flag for the Elm String primitive
+
+    literal :
+        Will match against the passed string literal.
+
+        Generated decoders will also express the string literal
+    """
+
+    literal: str | None = None
 
 
 @dataclass(slots=True)

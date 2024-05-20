@@ -338,6 +338,17 @@ b_options__Decoder =
         |> required "name" Decode.string"""
         )
 
+    def test_fuzz_failure_04(self):
+        """Compiler error: RESERVED WORD - using keyword if."""
+        d = ObjectFlag(
+            {
+                "if": StringFlag(),
+            }
+        )
+
+        with pytest.raises(Exception):
+            Flags(d)
+
 
 class TestStringFlags:
     def test_with_object_parser(self):
@@ -348,12 +359,38 @@ class TestStringFlags:
         with pytest.raises(ValidationError):
             SUT.parse({"hello": 1})
 
+    def test_with_object_parser_literal(self):
+        d = ObjectFlag({"hello": StringFlag(literal="world")})
+        SUT = Flags(d)
+
+        assert SUT.parse({"hello": "world"}) == '{"hello":"world"}'
+        with pytest.raises(Exception):
+            SUT.parse({"hello": "World"})
+
     def test_parser(self):
         SUT = Flags(StringFlag())
 
         assert SUT.parse("hello world") == '"hello world"'
         with pytest.raises(ValidationError):
             SUT.parse(2)
+
+    def test_parser_with_literal(self):
+        SUT = Flags(StringFlag(literal="Hello"))
+
+        assert SUT.parse("Hello") == '"Hello"'
+        with pytest.raises(Exception):
+            SUT.parse("hello")
+
+    def test_to_elm_parser_with_literal(self):
+        SUT = Flags(StringFlag(literal="hello"))
+
+        assert SUT.to_elm_parser_data() == {
+            "alias_type": "String",
+            "decoder_body": """toModel : Decode.Decoder ToModel
+toModel =
+    (Decode.string |> Decode.andThen (\\lit -> if lit == "hello" then Decode.succeed "hello" else Decode.fail "Value did not match literal <hello>\"))"""
+            "",
+        }
 
     def test_to_elm_parser(self):
         SUT = Flags(StringFlag())
@@ -1123,6 +1160,19 @@ class TestObjectFlags:
         assert SUT.parse({"hello": ["null"]}) == '{"hello":["null"]}'
         with pytest.raises(ValidationError):
             SUT.parse({"hello": [22]})
+
+    def test_with_with_string_literal_to_elm_parser(self):
+        d = ObjectFlag({"hello": StringFlag(literal="world")})
+        SUT = Flags(d)
+
+        assert SUT.to_elm_parser_data() == {
+            "alias_type": """{ hello : String
+    }""",
+            "decoder_body": """toModel : Decode.Decoder ToModel
+toModel =
+    Decode.succeed ToModel
+        |> required "hello" (Decode.string |> Decode.andThen (\\lit -> if lit == "world" then Decode.succeed "world" else Decode.fail "Value did not match literal <world>"))""",
+        }
 
     def test_with_custom_type_with_string_flag_to_elm_parser(self):
         d = ObjectFlag({"hello": CustomTypeFlag(variants=[("Custom1", StringFlag())])})

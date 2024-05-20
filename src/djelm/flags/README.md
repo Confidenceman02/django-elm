@@ -13,8 +13,16 @@ You can find a good explanation for djelm flags with examples in the official gu
 
 # StringFlag
 
+### Args
+
+literal : str
+
 ```python
 StringFlag()
+
+# Match against a literal string
+
+StringFlag(literal="hello")
 ```
 
 ```
