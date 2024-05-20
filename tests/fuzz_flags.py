@@ -30,7 +30,10 @@ ALL_FLAGS = [
 
 def generate_alias_keys() -> list[str]:
     keys = st.lists(
-        st.from_regex(regex=r"^[a-z][A-Za-z0-9_]*$"), min_size=1, max_size=5
+        # Added lookahead for reserved keywords
+        st.from_regex(regex=r"^(?!\bif\W*$)[a-z][A-Za-z0-9_]*$"),
+        min_size=1,
+        max_size=5,
     ).example()
     return keys
 

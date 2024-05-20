@@ -1,6 +1,25 @@
 from typing_extensions import Annotated
+import typing
 
-from pydantic import Field, Strict, TypeAdapter
+from pydantic import BeforeValidator, Field, Strict, TypeAdapter
+
+
+def match_literal(v: str) -> typing.Callable[[str], str]:
+    def do_match(v1):
+        if v != v1:
+            raise Exception(f"#{v} does not match #{v1} for string literal flag")
+        else:
+            return v1
+
+    return do_match
+
+
+def string_literal_adapter(v: str):
+    return TypeAdapter(Annotated[str, Strict(), BeforeValidator(match_literal(v))])  # type:ignore
+
+
+def annotated_string_literal(v: str):
+    return Annotated[str, Strict(), BeforeValidator(match_literal(v))]
 
 
 annotated_string = Annotated[str, Strict()]
