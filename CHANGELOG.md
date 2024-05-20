@@ -1,3 +1,21 @@
+## [0.12.0] - 2024-05-20
+
+### Added
+
+- StringFlag now accepts a 'literal' arg for matching string literals
+- Generated Elm decoders express the literal validation
+
+```python
+# flags
+
+StringFlag(literal="foo")
+```
+
+```elm
+-- Model
+(Decode.string |> Decode.andThen (lit -> if lit = "foo" then Decode.succeed "foo" else Decode.fail "..."))
+```
+
 ## [0.11.0] - 2024-05-09
 
 ### Added
@@ -210,6 +228,7 @@ type alias A_B__
 
 - First version to pyPI
 
+[0.12.0]: https://github.com/Confidenceman02/django-elm/compare/0.11.0...0.12.0
 [0.11.0]: https://github.com/Confidenceman02/django-elm/compare/0.10.0...0.11.0
 [0.10.0]: https://github.com/Confidenceman02/django-elm/compare/0.9.0...0.10.0
 [0.9.0]: https://github.com/Confidenceman02/django-elm/compare/0.8.0...0.9.0
