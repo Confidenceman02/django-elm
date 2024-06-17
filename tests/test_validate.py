@@ -183,6 +183,12 @@ def test_after_create_validate_success(settings):
         Validations().acceptable_command(["addwidget", app_name, "ModelChoiceField"]),
         ExitSuccess,
     )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(
+            ["addwidget", app_name, "ModelMultipleChoiceField"]
+        ),
+        ExitSuccess,
+    )
 
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)

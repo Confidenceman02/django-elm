@@ -199,3 +199,23 @@ doSomethingWithOption option =
 > Using variants will cause djelm to trigger a pydantic error due to this.
 >
 > Make sure you set `empty_label` to `None` on the ModelChoiceField form field to avoid this error.
+
+# ModelMultipleChoiceField widget
+
+django primitive: ModelMultipleChoiceField
+
+Elm dependencies:
+
+- [Confidenceman02/elm-select](https://package.elm-lang.org/packages/Confidenceman02/elm-select/latest/)
+- [rtfeldman/elm-css](https://package.elm-lang.org/packages/rtfeldman/elm-css/latest/)
+
+> [!NOTE]
+> All Elm dependecies are automatically installed for you
+
+## Example
+
+![example](https://Confidenceman02.github.io/djelm/static/djelm-mmcf.gif)
+
+> [!IMPORTANT]
+> For examples and customization options see [ModelChoiceField](#modelchoicefield-widget).
+> Under the hood they both work exactly the same.

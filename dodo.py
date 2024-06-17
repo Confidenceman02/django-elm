@@ -39,6 +39,7 @@ def task_prepare_e2e_tests():
             "cd example && python manage.py seed",
             "cd example && python manage.py djelm addprogram elm_programs Main",
             "cd example && python manage.py djelm addwidget elm_programs ModelChoiceField --no-deps",
+            "cd example && python manage.py djelm addwidget elm_programs ModelMultipleChoiceField --no-deps",
             "cd example && python manage.py runserver",
         ]
     }

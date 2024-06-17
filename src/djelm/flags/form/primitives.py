@@ -43,3 +43,8 @@ class ModelChoiceFieldFlag(Flag):
             raise ValidationError(err)
 
         return ModelChoiceFlagHelper.field_to_dict(field, self._get_variants())
+
+
+class ModelMultipleChoiceFieldFlag(ModelChoiceFieldFlag):
+    def __init__(self, variants: list[type[models.Model]] | None = None):
+        super().__init__(variants)

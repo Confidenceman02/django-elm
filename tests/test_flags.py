@@ -6,7 +6,10 @@ from django.core.management.base import LabelCommand
 from pydantic import ValidationError
 
 from djelm.elm import Elm
-from djelm.flags.form.primitives import ModelChoiceFieldFlag
+from djelm.flags.form.primitives import (
+    ModelChoiceFieldFlag,
+    ModelMultipleChoiceFieldFlag,
+)
 from djelm.flags.primitives import (
     BoolFlag,
     CustomTypeFlag,
@@ -21,7 +24,17 @@ from djelm.flags.main import Flags
 from djelm.generators import ModelGenerator
 from djelm.strategy import GenerateModelStrategy
 from djelm.utils import get_app_src_path
-from test_programs.models import Blank, Blanks, Car, Driver, Enthusiast, Team
+from test_programs.models import (
+    Blank,
+    Extra,
+    BlankM,
+    Blanks,
+    Car,
+    Driver,
+    Enthusiast,
+    Extra01,
+    Team,
+)
 from tests.conftest import cleanup_models
 from tests.fuzz_flags import fuzz_flag
 
@@ -97,9 +110,14 @@ def basic_form():
             help_text="Do I detect.. Elm?",
         )
 
+        extras = forms.ModelMultipleChoiceField(
+            queryset=Extra.objects.all(),
+            help_text="Do I detect.. Multiple Elm's?",
+        )
+
         class Meta:
             model = Enthusiast
-            fields = ("username",)
+            fields = ("username", "extras")
 
     return UserForm
 
@@ -109,6 +127,15 @@ def basic_form_no_empty_label():
     class UserForm(forms.ModelForm):
         car = forms.ModelChoiceField(
             queryset=Car.objects.all(), help_text="Do I detect.. Elm?", empty_label=None
+        )
+        extras = forms.ModelMultipleChoiceField(
+            queryset=Extra.objects.all(),
+            help_text="Do I detect.. Multiple Elm's?",
+        )
+
+        extras01 = forms.ModelMultipleChoiceField(
+            queryset=Extra01.objects.all(),
+            help_text="Do I detect.. Multiple Elm's?",
         )
 
         class Meta:
@@ -126,6 +153,10 @@ def basic_team_form():
             help_text="Do I detect.. Elm?",
             empty_label=None,
         )
+        extras = forms.ModelMultipleChoiceField(
+            queryset=Extra.objects.all(),
+            help_text="Do I detect.. Multiple Elm's?",
+        )
 
         class Meta:
             model = Team
@@ -142,10 +173,14 @@ def blanks_form():
             help_text="SOS",
             empty_label=None,
         )
+        blanks = forms.ModelMultipleChoiceField(
+            queryset=BlankM.objects.all(),
+            help_text="SOS Multi",
+        )
 
         class Meta:
             model = Blanks
-            fields = ("blank",)
+            fields = ("blank", "blanks")
 
     return UserForm
 
@@ -1733,6 +1768,264 @@ inlinetomodel_Custom2__Decoder =
     Decode.succeed InlineToModel_Custom2__
         |> required "ive" Decode.string
         |> required "arrived" Decode.string"""
+        )
+
+
+class TestModelMultipleChoiceFieldFlags:
+    @pytest.mark.django_db
+    def test_inline_model_multiple_choice_field_flag_parser(self, basic_form):
+        prepare_form = basic_form()
+        d = ModelMultipleChoiceFieldFlag()
+
+        SUT = Flags(d)
+
+        assert (
+            SUT.parse(prepare_form["extras"])
+            == '{"help_text":"Do I detect.. Multiple Elm\'s?","auto_id":"id_extras","id_for_label":"id_extras","label":"Extras","name":"extras","widget_type":"selectmultiple","options":[]}'
+        )
+
+    @pytest.mark.django_db
+    def test_inline_model_multiple_choice_field_flag_parser_with_selections_on_model(
+        self, basic_form
+    ):
+        extra = Extra(name="Something")
+        extra.save()
+
+        enth = Enthusiast()
+        enth.save()
+        enth.extras.add(extra)
+
+        prepare_form = basic_form(instance=enth)
+        d = ModelMultipleChoiceFieldFlag()
+
+        SUT = Flags(d)
+
+        assert (
+            SUT.parse(prepare_form["extras"])
+            == '{"help_text":"Do I detect.. Multiple Elm\'s?","auto_id":"id_extras","id_for_label":"id_extras","label":"Extras","name":"extras","widget_type":"selectmultiple","options":[{"choice_label":"Extra object (1)","value":"1","selected":true}]}'
+        )
+
+    @pytest.mark.django_db
+    def test_root_value_model_multiple_choice_field_parser(self, basic_form):
+        prepare_form = basic_form()
+        d = ObjectFlag({"mmcf": ModelMultipleChoiceFieldFlag()})
+
+        SUT = Flags(d)
+
+        assert (
+            SUT.parse({"mmcf": prepare_form["extras"]})
+            == '{"mmcf":{"help_text":"Do I detect.. Multiple Elm\'s?","auto_id":"id_extras","id_for_label":"id_extras","label":"Extras","name":"extras","widget_type":"selectmultiple","options":[]}}'
+        )
+
+    @pytest.mark.django_db
+    def test_inline_model_multiple_choice_field_flag_with_mixed_fields(
+        self,
+        blanks_form: type[forms.ModelForm],
+    ):
+        blanks = BlankM(third=False, fourth=122, fifth=5.55)
+        blanks.save()
+        d = ModelMultipleChoiceFieldFlag(variants=[BlankM])
+        prepare_form = blanks_form()
+
+        SUT = Flags(d)
+
+        assert (
+            SUT.parse(prepare_form["blanks"])
+            == '{"help_text":"SOS Multi","auto_id":"id_blanks","id_for_label":"id_blanks","label":"Blanks","name":"blanks","widget_type":"selectmultiple","options":[{"choice_label":"BlankM object (1)","value":"1","selected":false,"instance":{"id":1,"first":null,"second":null,"third":false,"fourth":122,"fifth":5.55}}]}'
+        )
+
+        blanks.first = "first"
+        blanks.save()
+        prepare_form = blanks_form()
+
+        assert (
+            SUT.parse(prepare_form["blanks"])
+            == '{"help_text":"SOS Multi","auto_id":"id_blanks","id_for_label":"id_blanks","label":"Blanks","name":"blanks","widget_type":"selectmultiple","options":[{"choice_label":"BlankM object (1)","value":"1","selected":false,"instance":{"id":1,"first":"first","second":null,"third":false,"fourth":122,"fifth":5.55}}]}'
+        )
+
+        assert (
+            SUT.to_elm_parser_data()["alias_type"]
+            == """{ help_text : String
+    , auto_id : String
+    , id_for_label : String
+    , label : Maybe String
+    , name : String
+    , widget_type : String
+    , options : List Options_
+    }
+
+type Options_
+    = BlankM Options_BlankM__
+
+
+type alias Options_BlankM__ =
+    { choice_label : String
+    , value : String
+    , selected : Bool
+    , instance : Options_BlankM__Instance__
+    }
+
+type alias Options_BlankM__Instance__ =
+    { id : Int
+    , first : Maybe String
+    , second : Maybe String
+    , third : Bool
+    , fourth : Int
+    , fifth : Float
+    }"""
+        )
+
+    @pytest.mark.django_db
+    def test_inline_model_multiple_choice_field_flag_with_single_variant(
+        self,
+        basic_form_no_empty_label: type[forms.ModelForm],
+    ):
+        extra = Extra(name="Something")
+        extra.save()
+        d = ModelMultipleChoiceFieldFlag(variants=[Extra])
+        prepare_form = basic_form_no_empty_label()
+
+        SUT = Flags(d)
+
+        assert (
+            SUT.parse(prepare_form["extras"])
+            == '{"help_text":"Do I detect.. Multiple Elm\'s?","auto_id":"id_extras","id_for_label":"id_extras","label":"Extras","name":"extras","widget_type":"selectmultiple","options":[{"choice_label":"Extra object (1)","value":"1","selected":false,"instance":{"id":1,"name":"Something"}}]}'
+        )
+
+    @pytest.mark.django_db
+    def test_inline_model_multiple_choice_field_flag_with_multiple_variants(
+        self,
+        basic_form_no_empty_label: type[forms.ModelForm],
+    ):
+        extras = Extra(name="Extra")
+        extras.save()
+        extra01 = Extra01(name="Extra01")
+        extra01.save()
+        d = ModelMultipleChoiceFieldFlag(variants=[Extra, Extra01])
+        prepare_extra_form = basic_form_no_empty_label()
+
+        SUT = Flags(d)
+
+        assert (
+            SUT.parse(prepare_extra_form["extras"])
+            == '{"help_text":"Do I detect.. Multiple Elm\'s?","auto_id":"id_extras","id_for_label":"id_extras","label":"Extras","name":"extras","widget_type":"selectmultiple","options":[{"choice_label":"Extra object (1)","value":"1","selected":false,"instance":{"id":1,"name":"Extra"}}]}'
+        )
+        assert (
+            SUT.parse(prepare_extra_form["extras01"])
+            == '{"help_text":"Do I detect.. Multiple Elm\'s?","auto_id":"id_extras01","id_for_label":"id_extras01","label":"Extras01","name":"extras01","widget_type":"selectmultiple","options":[{"choice_label":"Extra01 object (1)","value":"1","selected":false,"instance":{"id":1,"name":"Extra01"}}]}'
+        )
+
+    @pytest.mark.django_db
+    def test_inline_model_multiple_choice_field_flag_with_incorrect_model_variant(
+        self,
+        basic_team_form: type[forms.ModelForm],
+    ):
+        driver = Driver(name="Jdawg")
+        driver.save()
+        d = ModelMultipleChoiceFieldFlag(variants=[Extra])
+        prepare_form = basic_team_form()
+
+        SUT = Flags(d)
+
+        with pytest.raises(ValidationError):
+            SUT.parse(prepare_form["driver"])
+
+    def test_inline_model_multiple_choice_field_flag(self):
+        d = ModelChoiceFieldFlag()
+        SUT = Flags(d)
+
+        assert SUT.to_elm_parser_data() == {
+            "alias_type": """{ help_text : String
+    , auto_id : String
+    , id_for_label : String
+    , label : Maybe String
+    , name : String
+    , widget_type : String
+    , options : List Options_
+    }
+
+type alias Options_ =
+    { choice_label : String
+    , value : String
+    , selected : Bool
+    }""",
+            "decoder_body": """toModel : Decode.Decoder ToModel
+toModel =
+    Decode.succeed ToModel
+        |> required "help_text" Decode.string
+        |> required "auto_id" Decode.string
+        |> required "id_for_label" Decode.string
+        |> required "label" (Decode.nullable Decode.string)
+        |> required "name" Decode.string
+        |> required "widget_type" Decode.string
+        |> required "options" (Decode.list options_Decoder)
+
+options_Decoder : Decode.Decoder Options_
+options_Decoder =
+    Decode.succeed Options_
+        |> required "choice_label" Decode.string
+        |> required "value" Decode.string
+        |> required "selected" Decode.bool""",
+        }
+
+    def test_inline_model_multiple_choice_field_flag_with_variant(self):
+        d = ModelMultipleChoiceFieldFlag(variants=[Extra])
+        SUT = Flags(d)
+
+        assert (
+            SUT.to_elm_parser_data()["alias_type"]
+            == """{ help_text : String
+    , auto_id : String
+    , id_for_label : String
+    , label : Maybe String
+    , name : String
+    , widget_type : String
+    , options : List Options_
+    }
+
+type Options_
+    = Extra Options_Extra__
+
+
+type alias Options_Extra__ =
+    { choice_label : String
+    , value : String
+    , selected : Bool
+    , instance : Options_Extra__Instance__
+    }
+
+type alias Options_Extra__Instance__ =
+    { id : Int
+    , name : String
+    }"""
+        )
+
+        assert (
+            SUT.to_elm_parser_data()["decoder_body"]
+            == """toModel : Decode.Decoder ToModel
+toModel =
+    Decode.succeed ToModel
+        |> required "help_text" Decode.string
+        |> required "auto_id" Decode.string
+        |> required "id_for_label" Decode.string
+        |> required "label" (Decode.nullable Decode.string)
+        |> required "name" Decode.string
+        |> required "widget_type" Decode.string
+        |> required "options" (Decode.list (Decode.oneOf [Decode.map Extra options_Extra__Decoder]))
+
+options_Extra__Decoder : Decode.Decoder Options_Extra__
+options_Extra__Decoder =
+    Decode.succeed Options_Extra__
+        |> required "choice_label" Decode.string
+        |> required "value" Decode.string
+        |> required "selected" Decode.bool
+        |> required "instance" options_extra__instance__Decoder
+
+options_extra__instance__Decoder : Decode.Decoder Options_Extra__Instance__
+options_extra__instance__Decoder =
+    Decode.succeed Options_Extra__Instance__
+        |> required "id" Decode.int
+        |> required "name" Decode.string"""
         )
 
 

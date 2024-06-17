@@ -65,6 +65,10 @@ def test_after_create_strategy_success(settings):
         Strategy().create(["addwidget", app_name, "ModelChoiceField"], {}),
         AddWidgetStrategy,
     )
+    TestCase().assertIsInstance(
+        Strategy().create(["addwidget", app_name, "ModelMultipleChoiceField"], {}),
+        AddWidgetStrategy,
+    )
 
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
