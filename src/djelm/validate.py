@@ -4,7 +4,7 @@ import os
 from django.conf import settings
 from typing_extensions import TypedDict
 
-from djelm.forms.widgets.main import WIDGET_NAMES
+from djelm.forms.widgets.main import WIDGET_NAMES, WIDGET_NAMES_T
 
 from .effect import ExitFailure, ExitSuccess
 from .utils import (
@@ -47,7 +47,7 @@ Compile = TypedDict(
 
 AddWidget = TypedDict(
     "AddWidget",
-    {"command": Literal["addwidget"], "app_name": str, "widget": str},
+    {"command": Literal["addwidget"], "app_name": str, "widget": WIDGET_NAMES_T},
 )
 
 
@@ -230,11 +230,7 @@ class Validations:
                 return
             case ["addprogram", _, _]:
                 return
-            case ["addwidget", _, widget_type]:
-                if widget_type not in WIDGET_NAMES:
-                    raise ValidationError(
-                        Validations.__unknown_widget("addwidget", widget_type)
-                    )
+            case ["addwidget", _, _]:
                 return
             case ["generatemodel", _, _]:
                 return
@@ -552,6 +548,10 @@ But \033[1m{app_name}\033[0m doesn't look like a djelm app and I can't run comma
             case ["listwidgets"]:
                 return ExitSuccess({"command": "listwidgets"})
             case ["addwidget", v, widget_name]:
+                if widget_name not in WIDGET_NAMES:
+                    raise ValidationError(
+                        Validations.__unknown_widget("addwidget", widget_name)
+                    )
                 return ExitSuccess(
                     {"command": "addwidget", "app_name": v, "widget": widget_name}
                 )

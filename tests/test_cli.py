@@ -157,6 +157,9 @@ def test_after_addwidget(settings):
     settings.INSTALLED_APPS += [app_name]
 
     call_command("djelm", "addwidget", app_name, "ModelChoiceField", "--no-deps")
+    call_command(
+        "djelm", "addwidget", app_name, "ModelMultipleChoiceField", "--no-deps"
+    )
 
     assert os.path.isdir(
         os.path.join(get_app_src_path(app_name).value, "elm-stuff")
@@ -179,6 +182,15 @@ def test_after_addwidget(settings):
             "ModelChoiceField.elm",
         )
     ), "The Widgets.Models.ModelChoiceField module gets generated"
+    assert os.path.isfile(
+        os.path.join(
+            get_app_src_path(app_name).value,
+            "src",
+            "Widgets",
+            "Models",
+            "ModelMultipleChoiceField.elm",
+        )
+    ), "The Widgets.Models.ModelMultipleChoiceField module gets generated"
 
     assert os.path.isfile(
         os.path.join(
@@ -188,6 +200,15 @@ def test_after_addwidget(settings):
             "ModelChoiceField.elm",
         )
     ), "The Widgets.ModelChoiceField  module gets generated"
+
+    assert os.path.isfile(
+        os.path.join(
+            get_app_src_path(app_name).value,
+            "src",
+            "Widgets",
+            "ModelMultipleChoiceField.elm",
+        )
+    ), "The Widgets.ModelMultipleChoiceField  module gets generated"
 
     assert os.path.isdir(
         os.path.join(get_app_path(app_name).value, "flags", "widgets")
@@ -205,10 +226,27 @@ def test_after_addwidget(settings):
     assert os.path.isfile(
         os.path.join(
             get_app_path(app_name).value,
+            "flags",
+            "widgets",
+            "modelMultipleChoiceField.py",
+        )
+    ), "The flags.widgets.modelMultipleChoiceField module gets generated"
+
+    assert os.path.isfile(
+        os.path.join(
+            get_app_path(app_name).value,
             "templatetags",
             "modelChoiceField_widget_tags.py",
         )
     ), "The templatetags.modelChoiceField__widget_tags module gets generated"
+
+    assert os.path.isfile(
+        os.path.join(
+            get_app_path(app_name).value,
+            "templatetags",
+            "modelMultipleChoiceField_widget_tags.py",
+        )
+    ), "The templatetags.modelMultipleChoiceField__widget_tags module gets generated"
 
     assert os.path.isfile(
         os.path.join(
@@ -217,6 +255,14 @@ def test_after_addwidget(settings):
             "Widgets.ModelChoiceField.ts",
         )
     ), "The Widgets.ModelChoiceField ts file gets generated"
+
+    assert os.path.isfile(
+        os.path.join(
+            get_app_src_path(app_name).value,
+            "djelm_src",
+            "Widgets.ModelMultipleChoiceField.ts",
+        )
+    ), "The Widgets.ModelMultipleChoiceField ts file gets generated"
 
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)

@@ -1,7 +1,9 @@
 {% extends "core/base.html" %}
 {% load modelChoiceField_widget_tags %}
+{% load modelMultipleChoiceField_widget_tags %}
 {% block head %}
     {% include_ModelChoiceFieldWidget %}
+    {% include_ModelMultipleChoiceFieldWidget %}
     <style>
       h2 {
         margin: 0px;
