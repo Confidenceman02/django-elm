@@ -1,15 +1,19 @@
 from django import forms
 
-from core.models import Course, Promotion
+from core.models import Course, Extra, Promotion
 
 
 class PromotionForm(forms.ModelForm):
-    courses = forms.ModelChoiceField(
+    course = forms.ModelChoiceField(
         queryset=Course.objects.all(),
         template_name="core/modelChoiceFieldWidget.html",
         empty_label=None,
     )
+    extras = forms.ModelMultipleChoiceField(
+        queryset=Extra.objects.all(),
+        template_name="core/modelMultipleChoiceFieldWidget.html",
+    )
 
     class Meta:
         model = Promotion
-        fields = ["courses"]
+        fields = ["course", "extras"]

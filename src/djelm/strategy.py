@@ -10,7 +10,7 @@ from typing import Iterable, cast
 from django.conf import settings
 from importlib.metadata import version
 from typing_extensions import TypedDict
-from djelm.forms.widgets.main import WIDGET_NAMES
+from djelm.forms.widgets.main import WIDGET_NAMES, WIDGET_NAMES_T
 from djelm.generators import (
     ModelGenerator,
     ModelBuilder,
@@ -72,7 +72,7 @@ class AddWidgetStrategy:
     """Add a djelm widget"""
 
     app_name: str
-    widget_name: str
+    widget_name: WIDGET_NAMES_T
     handler: ProgramBuilder
     no_deps: bool
 
@@ -540,7 +540,9 @@ Here are all the djelm apps I found:
 class ListWidgetsStrategy:
     widgets = WIDGET_NAMES
 
-    def run(self, logger) -> ExitSuccess[list[str]] | ExitFailure[None, StrategyError]:
+    def run(
+        self, logger
+    ) -> ExitSuccess[list[WIDGET_NAMES_T]] | ExitFailure[None, StrategyError]:
         widgets = ""
         for w in self.widgets:
             widgets += f"\033[93m{w}\033[0m\n\t"
@@ -662,7 +664,7 @@ class Strategy:
             ):
                 return AddWidgetStrategy(
                     cast(str, app_name),
-                    cast(str, widget),
+                    cast(WIDGET_NAMES_T, widget),
                     handler=widget_name_to_program_builder(widget),
                     no_deps=options.get("no_deps", False),
                 )
@@ -670,9 +672,11 @@ class Strategy:
                 raise StrategyError(f"Unable to handle {x}")
 
 
-def widget_name_to_program_builder(widget_name: str) -> ProgramBuilder:
+def widget_name_to_program_builder(widget_name: WIDGET_NAMES_T) -> ProgramBuilder:
     match widget_name:
         case "ModelChoiceField":
+            return ModelChoiceFieldWidgetGenerator()
+        case "ModelMultipleChoiceField":
             return ModelChoiceFieldWidgetGenerator()
         case _:
             raise StrategyError(

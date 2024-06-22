@@ -1,17 +1,16 @@
-module Widgets.ModelChoiceField exposing (..)
+module Widgets.ModelMultipleChoiceField exposing (..)
 
 import Browser
 import Css
 import Html.Styled as Styled exposing (Html, text)
 import Json.Decode exposing (decodeValue)
 import Json.Encode exposing (Value)
-import List.Extra
 import Select exposing (MenuItem, initState, staticSelectIdentifier, update)
 import Select.Styles as Styles
-import Widgets.Models.ModelChoiceField exposing (Options_, ToModel, toModel)
+import Widgets.Models.ModelMultipleChoiceField exposing (Options_, ToModel, toModel)
 
 
-{-| A djelm widget for the ModelChoiceField Django form field
+{-| A djelm widget for the ModelMultipleChoiceField Django form field
 
 This widget was generated and tested against the <https://package.elm-lang.org/packages/Confidenceman02/elm-select/10.4.4/> Elm package.
 
@@ -23,7 +22,7 @@ type Msg
 type alias ReadyModel =
     { selectState : Select.State
     , items : List (MenuItem Options_)
-    , selectedItem : Maybe Options_
+    , selectedItems : List Options_
     , toModel : ToModel
     }
 
@@ -46,7 +45,7 @@ toReadyModel m =
         List.map
             toMenuItem
             m.options
-    , selectedItem = List.Extra.find (\opt -> opt.selected) m.options
+    , selectedItems = List.filter .selected m.options
     , toModel = m
     }
 
@@ -81,21 +80,24 @@ update msg model =
                         ( maybeAction, selectState, cmds ) =
                             Select.update selectMsg readyModel.selectState
 
-                        updatedSelectedItem =
+                        updatedSelectedItems =
                             case maybeAction of
                                 Just (Select.Select i) ->
-                                    Just i
+                                    readyModel.selectedItems ++ [ i ]
+
+                                Just (Select.Deselect deletedItems) ->
+                                    List.filter (\i -> not (List.member i deletedItems)) readyModel.selectedItems
 
                                 Just Select.Clear ->
-                                    Nothing
+                                    []
 
                                 _ ->
-                                    readyModel.selectedItem
+                                    readyModel.selectedItems
                     in
                     ( Ready
                         { readyModel
                             | selectState = selectState
-                            , selectedItem = updatedSelectedItem
+                            , selectedItems = updatedSelectedItems
                         }
                     , Cmd.map SelectMsg cmds
                     )
@@ -109,20 +111,20 @@ view model =
     case model of
         Ready readyModel ->
             let
-                selected =
-                    case readyModel.selectedItem of
-                        Just opt ->
-                            Just (toMenuItem opt)
-
-                        _ ->
-                            Nothing
+                selectedItems =
+                    List.map
+                        (\i ->
+                            Select.basicMenuItem { item = i, label = i.choice_label }
+                                |> Select.valueMenuItem i.value
+                        )
+                        readyModel.selectedItems
 
                 menuConfig =
                     Styles.setMenuMaxHeightPx (Css.px 390) (Styles.getMenuConfig Styles.bootstrap4)
             in
             Styled.map SelectMsg <|
                 Select.view
-                    (Select.single selected
+                    (Select.multi selectedItems
                         |> Select.state readyModel.selectState
                         |> Select.menuItems readyModel.items
                         |> Select.placeholder "Select..."

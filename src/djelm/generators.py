@@ -6,8 +6,8 @@ from typing_extensions import TypedDict
 from djelm.cookiecutter import CookieCutter
 from djelm.effect import ExitFailure, ExitSuccess
 from djelm.flags import Flags
-from djelm.flags.form.primitives import ModelChoiceFieldFlag
 from djelm.flags.primitives import IntFlag
+from djelm.forms.widgets.main import WIDGET_NAME_TO_DEFAULT_FLAG, WIDGET_NAMES_T
 from djelm.npm import NPM, NPMError
 import djelm.flag_loader as FlagLoader
 from djelm.utils import (
@@ -28,8 +28,7 @@ from djelm.utils import (
 
 
 class TemplateApplicator(Protocol):
-    def apply(self, logger) -> None:
-        ...
+    def apply(self, logger) -> None: ...
 
 
 class SupportsFlagLoader(Protocol):
@@ -144,7 +143,7 @@ ProgramCookieExtra = TypedDict(
 
 
 def widget_cookie_cutter(
-    app_name: str, src_path: str, program_name: str, version: str
+    app_name: str, src_path: str, program_name: WIDGET_NAMES_T, version: str
 ) -> CookieCutter:
     return CookieCutter[WidgetProgramCookieExtra](
         file_dir=os.path.dirname(__file__),
@@ -235,7 +234,7 @@ class WidgetModelGenerator(ModelBuilder):
 
             return ExitSuccess(getattr(mod, program_name + "Flags"))
         else:
-            return ExitSuccess(Flags(ModelChoiceFieldFlag()))  # type:ignore
+            return ExitSuccess(Flags(WIDGET_NAME_TO_DEFAULT_FLAG[program_name]()))  # type:ignore
 
     def applicators(
         self,

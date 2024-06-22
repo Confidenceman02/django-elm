@@ -1,0 +1,14 @@
+{% extends "core/base.html" %}
+{% load modelMultipleChoiceField_widget_tags %}
+{% block content %}
+  <div class="form_body">
+    <div class="field_group">
+      {% if field.label %}{{ field.label_tag }}{% endif %}
+      {% if field.help_text %}<div class="helptext"{% if field.auto_id %} id="{{ field.auto_id }}_helptext"{% endif %}>{{ field.help_text|safe }}</div>{% endif %}
+      {{ field.errors }}
+      <div class="widget">
+        {% render_ModelMultipleChoiceFieldWidget %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

@@ -1,2 +1,2 @@
 # ruff : noqa: F401
-from .primitives import ModelChoiceFieldFlag
+from .primitives import ModelChoiceFieldFlag, ModelMultipleChoiceFieldFlag

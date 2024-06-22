@@ -1,3 +1,9 @@
+## [0.13.0] - 2024-06-22
+
+### Added
+
+- ModelMultipleChoiceField widget
+
 ## [0.12.0] - 2024-05-20
 
 ### Added
@@ -228,6 +234,7 @@ type alias A_B__
 
 - First version to pyPI
 
+[0.13.0]: https://github.com/Confidenceman02/django-elm/compare/0.12.0...0.13.0
 [0.12.0]: https://github.com/Confidenceman02/django-elm/compare/0.11.0...0.12.0
 [0.11.0]: https://github.com/Confidenceman02/django-elm/compare/0.10.0...0.11.0
 [0.10.0]: https://github.com/Confidenceman02/django-elm/compare/0.9.0...0.10.0
