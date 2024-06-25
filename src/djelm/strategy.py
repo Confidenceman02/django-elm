@@ -269,12 +269,23 @@ class WatchStrategy:
                 # If flags change generate models
                 # TODO Don't generate a model when a flags module is deleted
                 # TODO Only generate a model when the flags output is different to what has already been generated.
-                # TODO Handle widget programs
+                # TODO Validate if it's an actual flag file and not some other python file
                 if os.path.join(app_path, "flags") in f and f.endswith(".py"):
-                    filename = os.path.basename(f).split(".")[0]
+                    dirname = os.path.basename(os.path.dirname(f))
+                    target_dirs = ["widgets", "flags"]
+                    # bail early
+                    if dirname not in target_dirs:
+                        continue
+                    filename = os.path.splitext(os.path.basename(f))[0]
+                    namespace = ["src"]
+                    generator: ModelBuilder = ModelGenerator()
+                    if "widgets" == dirname:
+                        namespace.append("Widgets")
+                        generator = WidgetModelGenerator()
                     program_name = program_file(filename)
+                    # TODO validate if program is an actual Elm program and not some other Elm file
                     is_program = os.path.isfile(
-                        os.path.join(src_path, "src", program_name)
+                        os.path.join(src_path, *namespace, program_name)
                     )
                     if is_program:
                         logger.write(f"FLAGS CHANGED: {f}")
@@ -282,7 +293,7 @@ class WatchStrategy:
                             GenerateModelStrategy(
                                 self.app_name,
                                 module_name(filename),
-                                ModelGenerator(),
+                                generator,
                                 from_source=True,
                                 watch_mode=True,
                             ).run(logger)
