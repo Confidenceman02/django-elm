@@ -15,6 +15,7 @@ from djelm.strategy import (
     AddProgramStrategy,
     AddWidgetStrategy,
     CreateStrategy,
+    FindPrograms,
     GenerateModelStrategy,
     ListStrategy,
     NpmStrategy,
@@ -31,6 +32,29 @@ def test_strategy_create_when_no_create():
     TestCase().assertIsInstance(
         Strategy().create(["create", "my_app"], {}), CreateStrategy
     )
+
+
+def test_findprograms_strategy(settings):
+    app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
+    call_command("djelm", "create", app_name)
+    settings.INSTALLED_APPS += [app_name]
+    call_command("djelm", "addprogram", app_name, "Main1")
+    call_command("djelm", "addprogram", app_name, "Main2")
+    call_command("djelm", "addprogram", app_name, "Main3")
+    call_command("djelm", "addprogram", app_name, "Main4")
+
+    TestCase().assertIsInstance(
+        FindPrograms(app_name).run(LabelCommand().stdout), ExitSuccess
+    )
+
+    programs = FindPrograms(app_name).run(LabelCommand().stdout).value
+
+    TestCase().assertEqual(
+        set(["Main1.elm", "Main2.elm", "Main3.elm", "Main4.elm"]), set(programs)
+    )
+
+    settings.INSTALLED_APPS.remove(app_name)
+    cleanup_theme_app_dir(app_name)
 
 
 def test_after_create_strategy_success(settings):
@@ -68,6 +92,10 @@ def test_after_create_strategy_success(settings):
     TestCase().assertIsInstance(
         Strategy().create(["addwidget", app_name, "ModelMultipleChoiceField"], {}),
         AddWidgetStrategy,
+    )
+    TestCase().assertIsInstance(
+        Strategy().create(["findprograms", app_name], {}),
+        FindPrograms,
     )
 
     settings.INSTALLED_APPS.remove(app_name)

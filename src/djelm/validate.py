@@ -20,6 +20,9 @@ from .utils import (
 Create = TypedDict("Create", {"command": Literal["create"], "app_name": str})
 List = TypedDict("List", {"command": Literal["list"]})
 ListWidgets = TypedDict("ListWidgets", {"command": Literal["listwidgets"]})
+FindPrograms = TypedDict(
+    "FindPrograms", {"command": Literal["findprograms"], "app_name": str}
+)
 AddProgram = TypedDict(
     "AddProgram",
     {"command": Literal["addprogram"], "app_name": str, "program_name": str},
@@ -63,6 +66,7 @@ class Validations:
             Create
             | List
             | ListWidgets
+            | FindPrograms
             | AddProgram
             | Npm
             | Elm
@@ -96,8 +100,6 @@ class Validations:
                         Validations.__not_a_djelm_app("create", app_name)
                     )
             case ["npm", app_name, *_]:
-                app_path_exit = get_app_path(app_name)
-
                 validated_app_path = self._validate_app_path(
                     app_name, self.__not_in_settings("npm", app_name)
                 )
@@ -107,8 +109,6 @@ class Validations:
                         Validations.__not_a_djelm_app("npm", app_name)
                     )
             case ["elm", app_name, *_]:
-                app_path_exit = get_app_path(app_name)
-
                 validated_app_path = self._validate_app_path(
                     app_name, self.__not_in_settings("elm", app_name)
                 )
@@ -117,24 +117,18 @@ class Validations:
                         Validations.__not_a_djelm_app("elm", app_name)
                     )
             case ["watch", app_name]:
-                app_path_exit = get_app_path(app_name)
-
                 validated_app_path = self._validate_app_path(
                     app_name, self.__not_in_settings("watch", app_name)
                 )
                 if not is_djelm(next(walk_level(validated_app_path))[2]):
                     raise ValidationError(self.__not_a_djelm_app("watch", app_name))
             case ["compile", app_name]:
-                app_path_exit = get_app_path(app_name)
-
                 validated_app_path = self._validate_app_path(
                     app_name, self.__not_in_settings("compile", app_name)
                 )
                 if not is_djelm(next(walk_level(validated_app_path))[2]):
                     raise ValidationError(self.__not_a_djelm_app("compile", app_name))
             case ["compilebuild", app_name]:
-                app_path_exit = get_app_path(app_name)
-
                 validated_app_path = self._validate_app_path(
                     app_name, self.__not_in_settings("compilebuild", app_name)
                 )
@@ -160,8 +154,6 @@ class Validations:
                 )
 
             case ["addprogram", app_name, _]:
-                app_path_exit = get_app_path(app_name)
-
                 validated_app_path = self._validate_app_path(
                     app_name, self.__not_in_settings("addprogram", app_name)
                 )
@@ -182,9 +174,16 @@ class Validations:
                         )}
 \033[4m\033[1mHint\033[0m: These files are usually automatically generated for you when you run the \033[1mcreate\033[0m commands."""
                     )
+            case ["findprograms", app_name]:
+                validated_app_path = self._validate_app_path(
+                    app_name, self.__not_in_settings("addprogram", app_name)
+                )
+                if not is_djelm(next(walk_level(validated_app_path))[2]):
+                    raise ValidationError(
+                        f'{Validations.__not_a_djelm_app("findprograms", app_name)}\n'
+                    )
 
             case ["generatemodel", app_name, p]:
-                app_path_exit = get_app_path(app_name)
                 namespace = to_program_namespace(p.split("."))
                 namespace_path, prog_name = namespace
 
@@ -238,6 +237,8 @@ class Validations:
                 return
             case ["listwidgets"]:
                 return
+            case ["findprograms", _]:
+                return
             case ["compile", _]:
                 return
             case ["compilebuild", _]:
@@ -278,6 +279,8 @@ class Validations:
                 "elm",
             ]:
                 raise ValidationError(Validations.__missing_app_name("elm"))
+            case ["findprograms"]:
+                raise ValidationError(Validations.__missing_app_name("findprograms"))
             case ["npm", _, *_]:
                 return
             case ["elm", _, *_]:
@@ -493,6 +496,7 @@ But \033[1m{app_name}\033[0m doesn't look like a djelm app and I can't run comma
             "elm",
             "list",
             "listwidgets",
+            "findprograms",
             "addprogram",
             "addwidget",
             "watch",
@@ -510,6 +514,7 @@ But \033[1m{app_name}\033[0m doesn't look like a djelm app and I can't run comma
             Create
             | List
             | ListWidgets
+            | FindPrograms
             | AddProgram
             | Npm
             | Elm
@@ -555,6 +560,8 @@ But \033[1m{app_name}\033[0m doesn't look like a djelm app and I can't run comma
                 return ExitSuccess(
                     {"command": "addwidget", "app_name": v, "widget": widget_name}
                 )
+            case ["findprograms", v]:
+                return ExitSuccess({"command": "findprograms", "app_name": v})
             case _ as cmds:
                 return ExitFailure(
                     cmds,
