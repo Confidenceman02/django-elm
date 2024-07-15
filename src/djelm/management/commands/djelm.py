@@ -8,6 +8,7 @@ from ...strategy import (
     CompileStrategy,
     CreateStrategy,
     ElmStrategy,
+    FindPrograms,
     GenerateModelStrategy,
     ListStrategy,
     ListWidgetsStrategy,
@@ -31,6 +32,7 @@ Command arguments are missing, please add one of the following:
   generatemodel <app-name> [args].. - generate a model for the existing program <program-name> in the <app-name> app
   list - to list all your djelm apps
   listwidgets - to list all supported widget programs
+  findprograms - to list all Elm programs in src/
   compile <app-name> - to compile all your elm programs in the given <app-name> app
   compilebuild <app-name> - to compile all your elm programs with a production level build in the given <app-name> app
 Usage example:
@@ -43,6 +45,7 @@ Usage example:
   python manage.py djelm generatemodel djelm_app MyElmProgram
   python manage.py djelm list
   python manage.py djelm listwidgets
+  python manage.py djelm findprograms djelm_app
   python manage.py djelm compile djelm_app
   python manage.py djelm compilebuild djelm_app
 """
@@ -58,6 +61,7 @@ Usage example:
         | GenerateModelStrategy
         | CompileStrategy
         | AddWidgetStrategy
+        | FindPrograms
     )
 
     def __init__(self, *args, **kwargs):

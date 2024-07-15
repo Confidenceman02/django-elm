@@ -39,6 +39,9 @@ def test_validate_failure_when_single_command():
     TestCase().assertIsInstance(
         Validations().acceptable_command(["addwidget"]), ExitFailure
     )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["findprograms"]), ExitFailure
+    )
 
 
 def test_validate_failure_when_too_many_args():
@@ -75,6 +78,10 @@ def test_validate_failure_when_not_app():
     )
     TestCase().assertIsInstance(
         Validations().acceptable_command(["addwidget", "my_app", "ModelChoiceField"]),
+        ExitFailure,
+    )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["findprograms", "my_app"]),
         ExitFailure,
     )
 
@@ -181,6 +188,10 @@ def test_after_create_validate_success(settings):
     )
     TestCase().assertIsInstance(
         Validations().acceptable_command(["addwidget", app_name, "ModelChoiceField"]),
+        ExitSuccess,
+    )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["findprograms", app_name]),
         ExitSuccess,
     )
     TestCase().assertIsInstance(

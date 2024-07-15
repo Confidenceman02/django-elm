@@ -1,4 +1,6 @@
 import asyncio
+import re
+import aiofiles
 import os
 import shutil
 import subprocess
@@ -65,6 +67,61 @@ FlagsCookieExtra = TypedDict(
 
 class StrategyError(Exception):
     pass
+
+
+@dataclass(slots=True)
+class FindPrograms:
+    app_name: str
+
+    def run(self, logger) -> ExitSuccess[list[str]] | ExitFailure[None, StrategyError]:
+        src_path = get_app_src_path(self.app_name)
+
+        if src_path.tag != "Success":
+            raise src_path.err
+        if not os.path.isdir(os.path.join(src_path.value, "src")):
+            logger.write("No programs found.")
+            return ExitSuccess([])
+
+        programs_home = os.path.join(src_path.value, "src")
+
+        dir_data: Iterable[tuple[str, list[str], list[str]]] = walk_level(programs_home)
+        _, _, files = next(dir_data)
+        elm_files = list(filter(lambda x: x.endswith(".elm"), files))
+        parsed_file_results = asyncio.run(self.parsed_files(programs_home, elm_files))
+
+        if parsed_file_results:
+            logger.write("I found the following programs:\n")
+            for f in parsed_file_results:
+                if f.tag == "Success":
+                    if f.value.endswith(".elm"):
+                        logger.write(f"""    {f.value}""")
+                else:
+                    logger.write(str(f.err))
+
+        return ExitSuccess(elm_files)
+
+    async def parsed_files(self, programs_home: str, files: list[str]):
+        parsed_file_exits = [self.parse_file(programs_home, f) for f in files]
+        return await asyncio.gather(*parsed_file_exits)
+
+    async def parse_file(
+        self, programs_home: str, file: str
+    ) -> ExitSuccess[str] | ExitFailure[None, Exception]:
+        try:
+            handle = await aiofiles.open(os.path.join(programs_home, file))
+            content = await handle.read()
+            await handle.close()
+            if re.search(
+                r"^(main : Program Value Model Msg)", content, flags=re.MULTILINE
+            ):
+                return ExitSuccess(file)
+            else:
+                return ExitFailure(
+                    None, Exception("'main : Program Value Model Msg' not found")
+                )
+
+        except Exception as err:
+            return ExitFailure(None, err)
 
 
 @dataclass(slots=True)
@@ -520,11 +577,11 @@ Check out <https://github.com/Confidenceman02/django-elm/blob/main/README.md> to
 
 
 class ListStrategy:
-    _apps: list[str] = settings.INSTALLED_APPS
+    apps: list[str] = settings.INSTALLED_APPS
 
     def run(self, logger) -> ExitSuccess[list[str]] | ExitFailure[None, StrategyError]:
         app_path_exits = filterfalse(
-            lambda x: x.tag == "Failure", map(get_app_path, self._apps)
+            lambda x: x.tag == "Failure", map(get_app_path, self.apps)
         )
 
         dir_data: Iterable[tuple[str, list[str], list[str]]] = map(
@@ -618,6 +675,7 @@ class Strategy:
         | GenerateModelStrategy
         | CompileStrategy
         | AddWidgetStrategy
+        | FindPrograms
     ):
         e = Validations().acceptable_command(labels)
         match e:
@@ -658,6 +716,8 @@ class Strategy:
                 return ListStrategy()
             case ExitSuccess(value={"command": "listwidgets"}):
                 return ListWidgetsStrategy()
+            case ExitSuccess(value={"command": "findprograms", "app_name": app_name}):
+                return FindPrograms(app_name=app_name)
             case ExitSuccess(
                 value={"command": "npm", "app_name": app_name, "args": args}
             ):
