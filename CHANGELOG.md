@@ -1,3 +1,13 @@
+## [0.15.0] - 2024-07-15
+
+### Added
+
+- FindPrograms strategy
+
+```elm
+python manage.py djelm findprograms <djelm_app>
+```
+
 ## [0.14.0] - 2024-06-25
 
 ### Fixed
@@ -240,6 +250,7 @@ type alias A_B__
 
 - First version to pyPI
 
+[0.15.0]: https://github.com/Confidenceman02/django-elm/compare/0.14.0...0.15.0
 [0.14.0]: https://github.com/Confidenceman02/django-elm/compare/0.13.0...0.14.0
 [0.13.0]: https://github.com/Confidenceman02/django-elm/compare/0.12.0...0.13.0
 [0.12.0]: https://github.com/Confidenceman02/django-elm/compare/0.11.0...0.12.0
