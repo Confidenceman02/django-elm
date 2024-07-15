@@ -185,13 +185,13 @@ def blanks_form():
     return UserForm
 
 
-def test_fuzz_flags():
+def test_program_fuzzer():
     app_name = "test_programs"
     src_path = get_app_src_path(app_name).value  # type:ignore
 
     programs = []
 
-    for i in range(1, 13):
+    for i in range(1, 15):
         flags = fuzz_flag()
 
         class MockHandler(ModelGenerator):

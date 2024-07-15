@@ -1,6 +1,6 @@
 import os
 import shutil
-from typing import Protocol, Sequence
+from typing import Protocol, Sequence, cast
 from typing_extensions import TypedDict
 
 from djelm.cookiecutter import CookieCutter
@@ -287,7 +287,9 @@ class ModelChoiceFieldWidgetGenerator(ProgramBuilder):
     def cookie_cutter(
         self, app_name: str, program_name: str, src_path: str, version: str
     ) -> CookieCutter:
-        return widget_cookie_cutter(app_name, src_path, program_name, version)
+        return widget_cookie_cutter(
+            app_name, src_path, cast(WIDGET_NAMES_T, program_name), version
+        )
 
     def applicators(
         self,
