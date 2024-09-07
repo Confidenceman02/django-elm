@@ -10,7 +10,6 @@ from itertools import filterfalse
 from typing import Iterable, cast
 
 from django.conf import settings
-from importlib.metadata import version
 from typing_extensions import TypedDict
 from djelm.forms.widgets.main import WIDGET_NAMES, WIDGET_NAMES_T
 from djelm.generators import (
@@ -30,6 +29,8 @@ from .effect import ExitFailure, ExitSuccess
 from .elm import Elm
 from .npm import NPM
 from .utils import (
+    DJELM_VERSION,
+    STUFF_ENTRYPOINTS,
     STUFF_NAMESPACE,
     get_app_path,
     get_app_src_path,
@@ -136,7 +137,6 @@ class AddWidgetStrategy:
     def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
         src_path = get_app_src_path(self.app_name)
         app_path = get_app_path(self.app_name)
-        djelm_version = version("djelm")
 
         if src_path.tag != "Success":
             raise src_path.err
@@ -148,6 +148,13 @@ class AddWidgetStrategy:
             install_deps_effect = self.handler.install_elm_deps(src_path.value, logger)
             if install_deps_effect.tag != "Success":
                 raise install_deps_effect.err
+
+        try:
+            os.makedirs(os.path.join(src_path.value, *STUFF_NAMESPACE, "entrypoints"))
+        except FileExistsError:
+            pass
+        except FileNotFoundError as err:
+            raise err
 
         # Make widgets dir in elm-stuff
         try:
@@ -168,7 +175,7 @@ class AddWidgetStrategy:
             pass
 
         cookie = self.handler.cookie_cutter(
-            self.app_name, self.widget_name, src_path.value, djelm_version
+            self.app_name, self.widget_name, src_path.value, DJELM_VERSION
         )
 
         # Cut cookie
@@ -220,14 +227,13 @@ class CompileStrategy:
 
     def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
         src_path = get_app_src_path(self.app_name)
-
         if src_path.tag == "Success":
             try:
                 COMPILE_PROGRAM = f"""
                 "use strict";
                 const _core = require("@parcel/core");
                 let bundler = new _core.Parcel({{
-                  entries: "./djelm_src/*.ts",
+                  entries: "./{os.path.join(*STUFF_ENTRYPOINTS)}/*.ts",
                   defaultConfig: "@parcel/config-default",
                   mode: {"'production'" if self.build else "'development'"},
                   defaultTargetOptions: {{
@@ -301,7 +307,6 @@ class WatchStrategy:
                     src_path.value,
                     [
                         os.path.join(src_path.value, "src"),
-                        os.path.join(src_path.value, "djelm_src"),
                         os.path.join(app_path.value, "flags"),
                     ],
                     logger,
@@ -506,8 +511,6 @@ class AddProgramStrategy:
     ):
         src_path = get_app_src_path(self.app_name)
         app_path = get_app_path(self.app_name)
-        djelm_version = version("djelm")
-        stuff_namespace = ("elm-stuff", f"djelm_{djelm_version}")
 
         if src_path.tag != "Success":
             raise src_path.err
@@ -516,14 +519,14 @@ class AddProgramStrategy:
             raise app_path.err
 
         try:
-            os.makedirs(os.path.join(src_path.value, *stuff_namespace))
+            os.makedirs(os.path.join(src_path.value, *STUFF_NAMESPACE, "entrypoints"))
         except FileExistsError:
             pass
         except FileNotFoundError as err:
             raise err
 
         program_ck = self.handler.cookie_cutter(
-            self.app_name, self.prog_name, src_path.value, djelm_version
+            self.app_name, self.prog_name, src_path.value, DJELM_VERSION
         )
 
         program_ck_effect = program_ck.cut(logger)
