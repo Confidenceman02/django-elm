@@ -1,3 +1,12 @@
+## [0.16.0] - 2024-09-08
+
+### Breaking
+
+- djelm_src directory removed from app
+
+All typescript entrypoint files are now managed internally.
+If you were adding custom javascript to those files then stay on the previous version.
+
 ## [0.15.0] - 2024-07-15
 
 ### Added
@@ -250,6 +259,7 @@ type alias A_B__
 
 - First version to pyPI
 
+[0.16.0]: https://github.com/Confidenceman02/django-elm/compare/0.15.0...0.16.0
 [0.15.0]: https://github.com/Confidenceman02/django-elm/compare/0.14.0...0.15.0
 [0.14.0]: https://github.com/Confidenceman02/django-elm/compare/0.13.0...0.14.0
 [0.13.0]: https://github.com/Confidenceman02/django-elm/compare/0.12.0...0.13.0
