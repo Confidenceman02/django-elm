@@ -6,7 +6,6 @@ REMOVE_PATHS = [
     "static/dist/.gitkeep",
     "templates/.gitkeep",
     "templates/{{cookiecutter.app_name}}/.gitkeep",
-    "static_src/djelm_src/.gitkeep",
     "static_src/src/Models/.gitkeep",
     "flags/.gitkeep",
 ]

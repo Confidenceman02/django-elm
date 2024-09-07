@@ -40,11 +40,7 @@ class SupportsFlagLoader(Protocol):
         watch_mode: bool,
         logger,
     ) -> ExitSuccess[Flags] | ExitFailure[None, Exception]:
-        """
-        Load the flag config.
-
-        Is is either going to be from a djelm app or a pre-built one.
-        """
+        """Support loading a python flag module"""
         ...
 
 
@@ -52,7 +48,7 @@ class SupportsProgramCookieCutter(Protocol):
     def cookie_cutter(
         self, app_name: str, program_name: str, src_path: str, version: str
     ) -> CookieCutter:
-        """Generate a cookie cutter config"""
+        """Support generating a cookie cutter config for an Elm program"""
         ...
 
 
@@ -64,7 +60,7 @@ class SupportsModelCookieCutter(Protocol):
         program_name: str,
         src_path: str,
     ) -> CookieCutter:
-        """Generate a cookie cutter config"""
+        """Support generating a cookie cutter config for an Elm program Model"""
         ...
 
 
@@ -78,7 +74,7 @@ class SupportsApplyTemplates(Protocol):
         app_name: str,
         logger,
     ) -> Sequence[TemplateApplicator]:
-        """Move the template files to their respective targets."""
+        """Support moving template files to their respective targets."""
         ...
 
 
@@ -86,7 +82,7 @@ class SupportsElmDependencies(Protocol):
     def install_elm_deps(
         self, working_dir: str, logger
     ) -> ExitSuccess[None] | ExitFailure[None, NPMError]:
-        """Install Elm packages for the program needs"""
+        """Support installing an Elm package"""
         ...
 
 
@@ -181,6 +177,8 @@ def model_cookie_cutter(
 
 
 class WidgetModelGenerator(ModelBuilder):
+    """Generates models for widget programs"""
+
     def cookie_cutter(
         self, flags: Flags, app_name: str, program_name: str, src_path: str
     ) -> CookieCutter:
@@ -200,6 +198,18 @@ class WidgetModelGenerator(ModelBuilder):
         watch_mode: bool,
         logger,
     ) -> ExitSuccess[Flags] | ExitFailure[None, Exception]:
+        """
+        Load a flag class for the given program
+
+        app_path: The path of the djelm app
+        program_name: The Elm program name
+        from_source:
+            True =  Load the flag class from a python module in the 'flags' directory
+            False = Load a default flag class
+        watch_mode:
+            True = In a watch mode context
+            False = Not in a watch mode context
+        """
         if from_source:
             module = tag_file_name(program_name)
             module_path = os.path.join(
@@ -248,6 +258,7 @@ class WidgetModelGenerator(ModelBuilder):
         logger.write(
             f"""\n-- GENERATING WIDGET MODEL ---------------------------------------------- widget/{module_name(program_name)}"""
         )
+        """Move the generated Elm model to their target location"""
         return [
             TemplateCopyer(
                 os.path.join(template_dir, module_name(program_name) + ".elmf"),
@@ -263,6 +274,8 @@ class WidgetModelGenerator(ModelBuilder):
 
 
 class ModelChoiceFieldWidgetGenerator(ProgramBuilder):
+    """Generate all files for the ModelChoiceField widget"""
+
     def install_elm_deps(self, working_dir: str, logger):
         deps = [
             "elm-community/list-extra",
@@ -300,16 +313,20 @@ class ModelChoiceFieldWidgetGenerator(ProgramBuilder):
         app_name: str,
         logger,
     ) -> Sequence[TemplateApplicator]:
+        """Apply all generated templates to their respective targets"""
+
         logger.write(
             """\n-- GENERATING TEMPLATES -------------------------------------------------------- widget/ModelChoiceField"""
         )
         return [
+            # Program file
             TemplateCopyer(
                 os.path.join(template_dir, module_name(program_name) + ".elmw"),
                 os.path.join(
                     src_dir, "src", "Widgets", module_name(program_name) + ".elm"
                 ),
             ),
+            # Flags
             TemplateCopyer(
                 os.path.join(template_dir, tag_file_name(program_name) + ".pyf"),
                 os.path.join(
@@ -319,6 +336,7 @@ class ModelChoiceFieldWidgetGenerator(ProgramBuilder):
                     tag_file_name(program_name) + ".py",
                 ),
             ),
+            # Tags
             TemplateCopyer(
                 os.path.join(template_dir, f"{tag_file_name(program_name)}_tags.py"),
                 os.path.join(
@@ -327,17 +345,20 @@ class ModelChoiceFieldWidgetGenerator(ProgramBuilder):
                     f"{tag_file_name(program_name)}_widget_tags.py",
                 ),
             ),
+            # TS Entrypoint
             TemplateCopyer(
                 os.path.join(template_dir, f"Widgets.{module_name(program_name)}.ts"),
                 os.path.join(
-                    src_dir,
-                    "djelm_src",
+                    os.path.join(src_dir, *STUFF_NAMESPACE, "entrypoints"),
                 ),
+                log=False,
             ),
         ]
 
 
 class ProgramGenerator(ProgramBuilder):
+    """Generate an Elm program"""
+
     def install_elm_deps(
         self, working_dir: str, logger
     ) -> ExitSuccess[None] | ExitFailure[None, NPMError]:
@@ -372,24 +393,29 @@ class ProgramGenerator(ProgramBuilder):
         logger,
     ) -> Sequence[TemplateApplicator]:
         logger.write(
-            f"""\n-- GENERATING TEMPLATES -------------------------------------------------------- widget/{module_name(program_name)}"""
+            f"""\n-- GENERATING TEMPLATES -------------------------------------------------------- {module_name(program_name)}"""
         )
         return [
+            # Program file
             TemplateCopyer(
                 os.path.join(template_dir, module_name(program_name) + ".elm"),
                 os.path.join(src_dir, "src"),
             ),
+            # Template tags
             TemplateCopyer(
                 os.path.join(template_dir, tag_file_name(program_name) + "_tags.py"),
                 os.path.join(app_dir, "templatetags"),
             ),
+            # Flags
             TemplateCopyer(
                 os.path.join(template_dir, tag_file_name(program_name) + ".pyf"),
                 os.path.join(app_dir, "flags", tag_file_name(program_name) + ".py"),
             ),
+            # TS entry point
             TemplateCopyer(
                 os.path.join(template_dir, module_name(program_name) + ".ts"),
-                os.path.join(src_dir, "djelm_src"),
+                os.path.join(src_dir, *STUFF_NAMESPACE, "entrypoints"),
+                log=False,
             ),
         ]
 
@@ -474,10 +500,14 @@ class ModelGenerator(ModelBuilder):
 
 
 class TemplateCopyer(TemplateApplicator):
-    def __init__(self, src, destination) -> None:
+    """Copy a template file to a given destination"""
+
+    def __init__(self, src: str, destination: str, log: bool = True) -> None:
         self.src = src
         self.destination = destination
+        self.log = log
 
     def apply(self, logger) -> None:
         shutil.copy(self.src, self.destination)
-        logger.write(f"\t\033[93m{self.destination}\033[0m")
+        if self.log:
+            logger.write(f"\t\033[93m{self.destination}\033[0m")
