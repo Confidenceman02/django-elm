@@ -3,7 +3,7 @@ import uuid
 
 from django.core.management import call_command
 
-from djelm.utils import get_app_path, get_app_src_path
+from djelm.utils import STUFF_ENTRYPOINTS, get_app_path, get_app_src_path
 
 from .conftest import cleanup_theme_app_dir
 
@@ -56,13 +56,6 @@ def test_after_create(settings):
             "elm.json",  # type:ignore
         )
     ), "The project elm.json file has been generated"
-
-    assert os.path.isdir(
-        os.path.join(
-            get_app_src_path(app_name).value,
-            "djelm_src",  # type:ignore
-        )
-    ), "The djelm source directory has been generated"
 
     assert os.path.isdir(
         os.path.join(
@@ -127,10 +120,10 @@ def test_after_addprogram(settings):
     assert os.path.isfile(
         os.path.join(
             get_app_src_path(app_name).value,  # type:ignore
-            "djelm_src",
+            *STUFF_ENTRYPOINTS,
             "Main.ts",
         )
-    ), "The elm program custom template tag has been created"
+    ), "The elm program entrypoint has been created"
 
     assert os.path.isfile(
         os.path.join(
@@ -139,13 +132,6 @@ def test_after_addprogram(settings):
             "main.py",
         )
     ), "The elm program flag file has been created"
-
-    assert any(
-        f == "Main.ts"
-        for f in os.listdir(
-            os.path.join(get_app_src_path(app_name).value, "djelm_src")  # type:ignore
-        )
-    ), "The elm program typescript glue code has been generated"
 
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
@@ -251,18 +237,18 @@ def test_after_addwidget(settings):
     assert os.path.isfile(
         os.path.join(
             get_app_src_path(app_name).value,
-            "djelm_src",
+            *STUFF_ENTRYPOINTS,
             "Widgets.ModelChoiceField.ts",
         )
-    ), "The Widgets.ModelChoiceField ts file gets generated"
+    ), "The Widgets.ModelChoiceField ts entrypoint gets generated"
 
     assert os.path.isfile(
         os.path.join(
             get_app_src_path(app_name).value,
-            "djelm_src",
+            *STUFF_ENTRYPOINTS,
             "Widgets.ModelMultipleChoiceField.ts",
         )
-    ), "The Widgets.ModelMultipleChoiceField ts file gets generated"
+    ), "The Widgets.ModelMultipleChoiceField ts entrypoint gets generated"
 
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)

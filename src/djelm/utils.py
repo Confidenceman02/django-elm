@@ -7,6 +7,7 @@ from importlib.metadata import version
 
 DJELM_VERSION = version("djelm")
 STUFF_NAMESPACE = ("elm-stuff", f"djelm_{DJELM_VERSION}")
+STUFF_ENTRYPOINTS = (*STUFF_NAMESPACE, "entrypoints")
 
 
 def get_app_path(app_name) -> ExitSuccess[str] | ExitFailure[None, Exception]:

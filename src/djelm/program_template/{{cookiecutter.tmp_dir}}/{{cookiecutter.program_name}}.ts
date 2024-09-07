@@ -7,7 +7,7 @@ import defo from "@icelab/defo";
 const views = {
     djelm{{cookiecutter.view_name}}: async (el: HTMLElement, data: any) => {
         //@ts-ignore
-        const { Elm } = await import("../src/{{cookiecutter.program_name}}.elm")
+        const { Elm } = await import("../../../src/{{cookiecutter.program_name}}.elm")
 
         const app = Elm.{{cookiecutter.program_name}}.init({
             node: el,
