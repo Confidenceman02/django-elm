@@ -134,3 +134,7 @@ def widget_scope_name(app_name: str, prog_name: str) -> str:
     return ("widgets" + app_name.lower() + prog_name.lower().replace("_", "")).replace(
         "_", ""
     )
+
+
+def is_elm_file_string(string_file: str) -> bool:
+    return string_file.endswith(".elm")

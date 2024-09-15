@@ -42,6 +42,10 @@ def test_findprograms_strategy(settings):
     call_command("djelm", "addprogram", app_name, "Main2")
     call_command("djelm", "addprogram", app_name, "Main3")
     call_command("djelm", "addprogram", app_name, "Main4")
+    call_command("djelm", "addwidget", app_name, "ModelChoiceField", "--no-deps")
+    call_command(
+        "djelm", "addprogram", app_name, "ModelMultipleChoiceField", "--no-deps"
+    )
 
     TestCase().assertIsInstance(
         FindPrograms(app_name).run(LabelCommand().stdout), ExitSuccess
@@ -49,8 +53,20 @@ def test_findprograms_strategy(settings):
 
     programs = FindPrograms(app_name).run(LabelCommand().stdout).value
 
+    SUT = [p["file"] for p in programs]
+
     TestCase().assertEqual(
-        set(["Main1.elm", "Main2.elm", "Main3.elm", "Main4.elm"]), set(programs)
+        set(
+            [
+                "Main1.elm",
+                "Main2.elm",
+                "Main3.elm",
+                "Main4.elm",
+                "ModelChoiceField.elm",
+                "ModelMultipleChoiceField.elm",
+            ]
+        ),
+        set(SUT),
     )
 
     settings.INSTALLED_APPS.remove(app_name)

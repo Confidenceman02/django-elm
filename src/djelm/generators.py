@@ -112,6 +112,17 @@ WidgetProgramCookieExtra = TypedDict(
         "version": str,
     },
 )
+EntrypointCookieExtra = TypedDict(
+    "EntrypointCookieExtra",
+    {
+        "base_name": str,
+        "base_path": str,
+        "dir": str,
+        "program_name": str,
+        "scope": str,
+        "view_name": str,
+    },
+)
 
 ModelCookieExtra = TypedDict(
     "ModelCookieExtra",
@@ -153,6 +164,30 @@ def widget_cookie_cutter(
             "scope": widget_scope_name(app_name, program_name),
             "view_name": view_name(program_name),
             "version": version,
+        },
+        overwrite=True,
+    )
+
+
+def entrypoint_cookie_cutter(
+    base_name: str,
+    base_path: str,
+    src_path: str,
+    program_name: str,
+    scope: str,
+    view_prefix: str,
+) -> CookieCutter:
+    return CookieCutter[EntrypointCookieExtra](
+        file_dir=os.path.join(os.path.dirname(__file__), "cookiecutters"),
+        output_dir=os.path.join(src_path, *STUFF_NAMESPACE),
+        cookie_dir_name="entrypoint_template",
+        extra={
+            "base_name": base_name,
+            "base_path": base_path,
+            "dir": "entrypoints",
+            "program_name": program_name,
+            "scope": scope,
+            "view_name": view_prefix + view_name(program_name),
         },
         overwrite=True,
     )

@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="compile:dev" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="compile" type="PythonConfigurationType" factoryName="Python">
     <module name="django-elm" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
@@ -14,7 +14,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="manage.py" />
-    <option name="PARAMETERS" value="djelm npm test_elm run compile:dev" />
+    <option name="PARAMETERS" value="djelm compile elm_programs" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />
