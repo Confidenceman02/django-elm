@@ -1,3 +1,9 @@
+## [0.16.1] - 2024-09-18
+
+### Fixed
+
+- Generating compile files when running compile command
+
 ## [0.16.0] - 2024-09-08
 
 ### Breaking
@@ -259,6 +265,7 @@ type alias A_B__
 
 - First version to pyPI
 
+[0.16.1]: https://github.com/Confidenceman02/django-elm/compare/0.16.0...0.16.1
 [0.16.0]: https://github.com/Confidenceman02/django-elm/compare/0.15.0...0.16.0
 [0.15.0]: https://github.com/Confidenceman02/django-elm/compare/0.14.0...0.15.0
 [0.14.0]: https://github.com/Confidenceman02/django-elm/compare/0.13.0...0.14.0
