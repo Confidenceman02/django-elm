@@ -61,3 +61,9 @@ jobs:
         run: |
           poetry run doit prepare_e2e_tests &
           poetry run tox -e e2e
+
+      - name: Run browser tests after delete compile
+        run: |
+          rm -rf example/elm_programs/static_src/elm-stuff/djelm*
+          rm -rf example/elm_programs/static/dist
+          poetry run tox -e e2e
