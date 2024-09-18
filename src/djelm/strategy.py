@@ -1,4 +1,5 @@
 import asyncio
+from functools import lru_cache
 import re
 import aiofiles
 import os
@@ -7,7 +8,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from itertools import filterfalse
-from typing import Iterable, cast
+from typing import Coroutine, Iterable, cast
 
 from django.conf import settings
 from typing_extensions import TypedDict
@@ -19,6 +20,7 @@ from djelm.generators import (
     ProgramBuilder,
     ProgramGenerator,
     WidgetModelGenerator,
+    entrypoint_cookie_cutter,
 )
 from watchfiles import awatch
 
@@ -35,10 +37,13 @@ from .utils import (
     get_app_path,
     get_app_src_path,
     is_djelm,
+    is_elm_file_string,
     module_name,
     program_file,
+    scope_name,
     to_program_namespace,
     walk_level,
+    widget_scope_name,
 )
 from .validate import Validations
 
@@ -65,16 +70,47 @@ FlagsCookieExtra = TypedDict(
     },
 )
 
+ParsedFile = TypedDict("ParsedFile", {"base": str, "file": str})
+
 
 class StrategyError(Exception):
     pass
 
 
+@lru_cache()
+def unsafe_find_programs(
+    src_path: str,
+) -> list[ParsedFile]:
+    """
+    Cached result of the FindPrograms._run_helper method.
+
+    WARNING: The list of returned programs may not be representative of the actual programs in the given src_path.
+    """
+    parsed_files = asyncio.run(FindPrograms(src_path)._run_helper(src_path))
+
+    parsed_file_results: list[ParsedFile] = []
+
+    if parsed_files:
+        for f in parsed_files:
+            if f.tag == "Success":
+                parsed_file_results.append(f.value)
+
+    return parsed_file_results
+
+
 @dataclass(slots=True)
 class FindPrograms:
+    """
+    Find elm programs inside the 'src' directory.
+
+    If the 'Widgets' directory exists those programs will also be included.
+    """
+
     app_name: str
 
-    def run(self, logger) -> ExitSuccess[list[str]] | ExitFailure[None, StrategyError]:
+    def run(
+        self, logger
+    ) -> ExitSuccess[list[ParsedFile]] | ExitFailure[None, StrategyError]:
         src_path = get_app_src_path(self.app_name)
 
         if src_path.tag != "Success":
@@ -82,40 +118,75 @@ class FindPrograms:
         if not os.path.isdir(os.path.join(src_path.value, "src")):
             logger.write("No programs found.")
             return ExitSuccess([])
+        parsed_file_results = []
 
-        programs_home = os.path.join(src_path.value, "src")
+        parsed_file_results = asyncio.run(self._run_helper(src_path.value))
 
-        dir_data: Iterable[tuple[str, list[str], list[str]]] = walk_level(programs_home)
-        _, _, files = next(dir_data)
-        elm_files = list(filter(lambda x: x.endswith(".elm"), files))
-        parsed_file_results = asyncio.run(self.parsed_files(programs_home, elm_files))
+        succeeded_files: list[ParsedFile] = []
 
         if parsed_file_results:
             logger.write("I found the following programs:\n")
             for f in parsed_file_results:
                 if f.tag == "Success":
-                    if f.value.endswith(".elm"):
-                        logger.write(f"""    {f.value}""")
+                    succeeded_files.append(f.value)
+                    if f.value["file"].endswith(".elm"):
+                        logger.write(f"""    \033[1mbase:\033[0m {f.value['base']}""")
+                        logger.write(f"""    \033[1mfile:\033[0m {f.value['file']}""")
+                        logger.write("\n")
                 else:
                     logger.write(str(f.err))
 
-        return ExitSuccess(elm_files)
+        return ExitSuccess(succeeded_files)
 
-    async def parsed_files(self, programs_home: str, files: list[str]):
-        parsed_file_exits = [self.parse_file(programs_home, f) for f in files]
-        return await asyncio.gather(*parsed_file_exits)
+    async def _run_helper(self, src_path: str):
+        programs_base_dir = os.path.join(src_path, "src")
 
-    async def parse_file(
-        self, programs_home: str, file: str
-    ) -> ExitSuccess[str] | ExitFailure[None, Exception]:
+        dir_data_src: Iterable[tuple[str, list[str], list[str]]] = walk_level(
+            programs_base_dir
+        )
+        base_src, dirs_src, files_src = next(dir_data_src)
+
+        elm_files_widgets: list[tuple[str, list[str]]] = []
+
+        if "Widgets" in dirs_src:
+            dir_data_widgets: Iterable[tuple[str, list[str], list[str]]] = walk_level(
+                os.path.join(base_src, "Widgets")
+            )
+            base_widgets, _, f_widgets = next(dir_data_widgets)
+            filtered_f_widgets = list(filter(is_elm_file_string, f_widgets))
+            elm_files_widgets.append((base_widgets, filtered_f_widgets))
+
+        all_elm_files: list[tuple[str, list[str]]] = [
+            (base_src, list(filter(is_elm_file_string, files_src))),
+            *elm_files_widgets,
+        ]
+
+        return await self.__parsed_files(all_elm_files)
+
+    async def __parsed_files(self, file_data: list[tuple[str, list[str]]]):
+        coroutines: list[
+            Coroutine[
+                None, None, ExitSuccess[ParsedFile] | ExitFailure[None, Exception]
+            ]
+        ] = []
+        for base_path, files in file_data:
+            coroutine = [self.__parse_file(base_path, file) for file in files]
+            coroutines.extend(coroutine)
+
+        return await asyncio.gather(*coroutines)
+
+    async def __parse_file(
+        self, base_dir: str, file: str
+    ) -> ExitSuccess[ParsedFile] | ExitFailure[None, Exception]:
         try:
-            handle = await aiofiles.open(os.path.join(programs_home, file))
+            handle = await aiofiles.open(os.path.join(base_dir, file))
             content = await handle.read()
             await handle.close()
             if re.search(
                 r"^(main : Program Value Model Msg)", content, flags=re.MULTILINE
             ):
-                return ExitSuccess(file)
+                ret: ParsedFile = {"base": base_dir, "file": file}
+                return ExitSuccess(ret)
             else:
                 return ExitFailure(
                     None, Exception("'main : Program Value Model Msg' not found")
@@ -224,10 +295,61 @@ class CompileStrategy:
     app_name: str
     build: bool = False
     raise_error: bool = True
+    use_cache: bool = False
 
     def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
         src_path = get_app_src_path(self.app_name)
         if src_path.tag == "Success":
+            try:
+                os.makedirs(os.path.join(src_path.value, *STUFF_ENTRYPOINTS))
+            except FileExistsError:
+                pass
+            except FileNotFoundError as err:
+                raise err
+
+            elm_files: list[ParsedFile] = []
+
+            if self.use_cache:
+                elm_files = unsafe_find_programs(src_path.value)
+            else:
+                unsafe_find_programs.cache_clear()
+                elm_files = unsafe_find_programs(src_path.value)
+
+            cookiecutters: list[CookieCutter] = []
+
+            for elm_file in elm_files:
+                basedir = os.path.basename(elm_file["base"])
+                program_name = os.path.splitext(elm_file["file"])[0]
+
+                if basedir == "Widgets":
+                    cookiecutters.append(
+                        entrypoint_cookie_cutter(
+                            base_name="Widgets.",
+                            base_path=f"Widgets{os.path.sep}",
+                            src_path=src_path.value,
+                            program_name=module_name(program_name),
+                            scope=widget_scope_name(self.app_name, program_name),
+                            view_prefix="widget",
+                        )
+                    )
+                else:
+                    cookiecutters.append(
+                        entrypoint_cookie_cutter(
+                            base_name="",
+                            base_path="",
+                            src_path=src_path.value,
+                            program_name=module_name(program_name),
+                            scope=scope_name(self.app_name, program_name),
+                            view_prefix="",
+                        )
+                    )
+
+            for cutter in cookiecutters:
+                cut = cutter.cut(logger)
+
+                if cut.tag == "Failure":
+                    raise cut.err
+
             try:
                 COMPILE_PROGRAM = f"""
                 "use strict";
@@ -287,7 +409,7 @@ class WatchStrategy:
     app_name: str
 
     def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
-        compile = CompileStrategy(self.app_name, raise_error=False)
+        compile = CompileStrategy(self.app_name, raise_error=False, use_cache=True)
         src_path = get_app_src_path(self.app_name)
         app_path = get_app_path(self.app_name)
 
@@ -322,7 +444,7 @@ class WatchStrategy:
         dir: list[str],
         logger,
     ):
-        compile = CompileStrategy(self.app_name, raise_error=False)
+        compile = CompileStrategy(self.app_name, raise_error=False, use_cache=True)
         async for changes in awatch(*dir):
             for change, f in changes:
                 # VIM creates a file to check it can create a file, we want to ignore it
@@ -366,11 +488,13 @@ class WatchStrategy:
                 if change == 1:
                     logger.write(f"FILE ADDED: {f}")
                     # recompile
-                    compile.run(logger)
+                    comp = asyncio.to_thread(compile.run, logger)
+                    await comp
                 if change == 2:
                     logger.write(f"FILE MODIFIED: {f}")
                     # recompile
-                    compile.run(logger)
+                    comp = asyncio.to_thread(compile.run, logger)
+                    await comp
 
         return ExitSuccess(None)
 
