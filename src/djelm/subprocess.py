@@ -27,7 +27,9 @@ class SubProcess:
         for c in iter(lambda: process.stderr.read(), ""):  # type:ignore
             if c.decode("utf-8", "ignore") != "":
                 if self.raise_error:
-                    raise Exception(c.decode("utf-8", "ignore"))
+                    raise Exception(str(process.stderr))
                 else:
                     sys.stdout.write(c.decode("utf-8", "ignore"))
             break
+        if process.returncode != 0:
+            raise Exception(str(process.stderr))

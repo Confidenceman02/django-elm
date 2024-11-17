@@ -43,11 +43,14 @@ GenerateModel = TypedDict(
     "GenerateModel",
     {"command": Literal["generatemodel"], "app_name": str, "program_name": str},
 )
+GenerateModels = TypedDict(
+    "GenerateModels",
+    {"command": Literal["generatemodels"], "app_name": str},
+)
 Compile = TypedDict(
     "Compile",
     {"command": Literal["compile"], "app_name": str, "build": bool},
 )
-
 AddWidget = TypedDict(
     "AddWidget",
     {"command": Literal["addwidget"], "app_name": str, "widget": WIDGET_NAMES_T},
@@ -72,6 +75,7 @@ class Validations:
             | Elm
             | Watch
             | GenerateModel
+            | GenerateModels
             | Compile
             | AddWidget
         ]
@@ -212,6 +216,14 @@ class Validations:
                         )}
 \033[4m\033[1mHint\033[0m: These files are usually automatically generated for you when you run the \033[1mcreate, addprogram\033[0m and \033[1maddwidget\033[0m commands."""
                     )
+            case ["generatemodels", app_name]:
+                validated_app_path = self._validate_app_path(
+                    app_name, self.__not_in_settings("generatemodels", app_name)
+                )
+                if not is_djelm(next(walk_level(validated_app_path))[2]):
+                    raise ValidationError(
+                        Validations.__not_a_djelm_app("generatemodel", app_name)
+                    )
             case ["addwidget", app_name, _]:
                 validated_app_path = self._validate_app_path(
                     app_name, self.__not_in_settings("addwidget", app_name)
@@ -232,6 +244,8 @@ class Validations:
             case ["addwidget", _, _]:
                 return
             case ["generatemodel", _, _]:
+                return
+            case ["generatemodels", _]:
                 return
             case ["list"]:
                 return
@@ -501,6 +515,7 @@ But \033[1m{app_name}\033[0m doesn't look like a djelm app and I can't run comma
             "addwidget",
             "watch",
             "generatemodel",
+            "generatemodels",
             "compile",
             "compilebuild",
         ]:
@@ -520,6 +535,7 @@ But \033[1m{app_name}\033[0m doesn't look like a djelm app and I can't run comma
             | Elm
             | Watch
             | GenerateModel
+            | GenerateModels
             | Compile
             | AddWidget
         ]
@@ -527,41 +543,55 @@ But \033[1m{app_name}\033[0m doesn't look like a djelm app and I can't run comma
     ):
         match xs:
             case ["create", v]:
-                return ExitSuccess({"command": "create", "app_name": v})
+                return ExitSuccess(Create({"command": "create", "app_name": v}))
             case ["watch", v]:
-                return ExitSuccess({"command": "watch", "app_name": v})
+                return ExitSuccess(Watch({"command": "watch", "app_name": v}))
             case ["compile", v]:
                 return ExitSuccess(
-                    {"command": "compile", "app_name": v, "build": False}
+                    Compile({"command": "compile", "app_name": v, "build": False})
                 )
             case ["compilebuild", v]:
-                return ExitSuccess({"command": "compile", "app_name": v, "build": True})
+                return ExitSuccess(
+                    Compile({"command": "compile", "app_name": v, "build": True})
+                )
             case ["addprogram", v, p]:
                 return ExitSuccess(
-                    {"command": "addprogram", "app_name": v, "program_name": p}
+                    AddProgram(
+                        {"command": "addprogram", "app_name": v, "program_name": p}
+                    )
                 )
             case ["generatemodel", v, p]:
                 return ExitSuccess(
-                    {"command": "generatemodel", "app_name": v, "program_name": p}
+                    GenerateModel(
+                        {"command": "generatemodel", "app_name": v, "program_name": p}
+                    )
+                )
+            case ["generatemodels", v]:
+                return ExitSuccess(
+                    GenerateModels({"command": "generatemodels", "app_name": v})
                 )
             case ["npm", v, *rest]:
-                return ExitSuccess({"command": "npm", "app_name": v, "args": rest})
+                return ExitSuccess(Npm({"command": "npm", "app_name": v, "args": rest}))
             case ["elm", v, *rest]:
-                return ExitSuccess({"command": "elm", "app_name": v, "args": rest})
+                return ExitSuccess(Elm({"command": "elm", "app_name": v, "args": rest}))
             case ["list"]:
-                return ExitSuccess({"command": "list"})
+                return ExitSuccess(List({"command": "list"}))
             case ["listwidgets"]:
-                return ExitSuccess({"command": "listwidgets"})
+                return ExitSuccess(ListWidgets({"command": "listwidgets"}))
             case ["addwidget", v, widget_name]:
                 if widget_name not in WIDGET_NAMES:
                     raise ValidationError(
                         Validations.__unknown_widget("addwidget", widget_name)
                     )
                 return ExitSuccess(
-                    {"command": "addwidget", "app_name": v, "widget": widget_name}
+                    AddWidget(
+                        {"command": "addwidget", "app_name": v, "widget": widget_name}
+                    )
                 )
             case ["findprograms", v]:
-                return ExitSuccess({"command": "findprograms", "app_name": v})
+                return ExitSuccess(
+                    FindPrograms({"command": "findprograms", "app_name": v})
+                )
             case _ as cmds:
                 return ExitFailure(
                     cmds,
