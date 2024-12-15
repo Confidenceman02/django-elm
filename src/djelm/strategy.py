@@ -86,7 +86,7 @@ def unsafe_find_programs(
 
     WARNING: The list of returned programs may not be representative of the actual programs in the given src_path.
     """
-    parsed_files = asyncio.run(FindPrograms(src_path)._run_helper(src_path))
+    parsed_files = asyncio.run(FindProgramsStrategy(src_path)._run_helper(src_path))
 
     parsed_file_results: list[ParsedFile] = []
 
@@ -99,7 +99,7 @@ def unsafe_find_programs(
 
 
 @dataclass(slots=True)
-class FindPrograms:
+class FindProgramsStrategy:
     """
     Find elm programs inside the 'src' directory.
 
@@ -185,7 +185,7 @@ class FindPrograms:
             if re.search(
                 r"^(main : Program Value Model Msg)", content, flags=re.MULTILINE
             ):
-                ret: ParsedFile = {"base": base_dir, "file": file}
+                ret: ParsedFile = ParsedFile({"base": base_dir, "file": file})
                 return ExitSuccess(ret)
             else:
                 return ExitFailure(
@@ -377,7 +377,7 @@ class CompileStrategy:
                     process.exit(1);
                   }}
                 }}
-                Main().then(() => process.exit());
+                Main().then(() => process.exit()).catch((err) => {{console.error(err); process.exit(1);}});
                 """
                 process = SubProcess(
                     ["node", "-e", COMPILE_PROGRAM],
@@ -473,16 +473,13 @@ class WatchStrategy:
                     )
                     if is_program:
                         logger.write(f"FLAGS CHANGED: {f}")
-                        try:
-                            GenerateModelStrategy(
-                                self.app_name,
-                                module_name(filename),
-                                generator,
-                                from_source=True,
-                                watch_mode=True,
-                            ).run(logger)
-                        except Exception:
-                            pass
+                        GenerateModelStrategy(
+                            self.app_name,
+                            module_name(filename),
+                            generator,
+                            from_source=True,
+                            watch_mode=True,
+                        ).run(logger)
                     continue
                 # VIM for some reason triggers an ADDED(2) event when saving a buffer
                 if change == 1:
@@ -575,23 +572,23 @@ class GenerateModelStrategy:
         handler = self.handler
 
         if app_path.tag != "Success":
-            raise app_path.err
+            return ExitFailure(meta=None, err=StrategyError(app_path.err))
         if src_path.tag != "Success":
-            raise src_path.err
+            return ExitFailure(meta=None, err=StrategyError(src_path.err))
 
         flags_effect = handler.load_flags(
             app_path.value, self.prog_name, self.from_source, self.watch_mode, logger
         )
 
         if flags_effect.tag != "Success":
-            raise flags_effect.err
+            return ExitFailure(meta=None, err=StrategyError(flags_effect.err))
 
         try:
             os.makedirs(os.path.join(src_path.value, *STUFF_NAMESPACE))
         except FileExistsError:
             pass
         except FileNotFoundError as err:
-            raise err
+            return ExitFailure(meta=None, err=StrategyError(err))
         ck = handler.cookie_cutter(
             flags_effect.value, self.app_name, self.prog_name, src_path.value
         )
@@ -599,7 +596,7 @@ class GenerateModelStrategy:
             cookie_effect = ck.cut(logger)
 
             if cookie_effect.tag != "Success":
-                raise cookie_effect.err
+                return ExitFailure(meta=None, err=StrategyError(cookie_effect.err))
 
             for applicator in handler.applicators(
                 cookie_effect.value,
@@ -613,7 +610,51 @@ class GenerateModelStrategy:
 
             return ExitSuccess(None)
         except OSError as err:
-            raise err
+            return ExitFailure(meta=None, err=StrategyError(err))
+
+
+@dataclass(slots=True)
+class GenerateModelsStrategy:
+    """Generate model and decoder for all djelm elm programs"""
+
+    app_name: str
+
+    def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+        app_path = get_app_path(self.app_name)
+        src_path = get_app_src_path(self.app_name)
+
+        if app_path.tag != "Success":
+            raise app_path.err
+        if src_path.tag != "Success":
+            raise src_path.err
+
+        all_programs: (
+            ExitSuccess[list[ParsedFile]] | ExitFailure[None, StrategyError]
+        ) = FindProgramsStrategy(self.app_name).run(logger)
+
+        if all_programs.tag != "Success":
+            raise all_programs.err
+
+        if not all_programs.value:
+            logger.write("No programs found.")
+            return ExitSuccess(None)
+
+        for program in all_programs.value:
+            baseDir = os.path.basename(program["base"])
+            program_name = os.path.splitext(program["file"])[0]
+            generator = ModelGenerator()
+            if baseDir == "Widgets":
+                generator = program_namespace_to_model_builder([baseDir, program_name])
+
+            GenerateModelStrategy(
+                self.app_name,
+                program_name,
+                generator,
+                from_source=True,
+                watch_mode=False,
+            ).run(logger)
+
+        return ExitSuccess(None)
 
 
 @dataclass(slots=True)
@@ -800,9 +841,10 @@ class Strategy:
         | NpmStrategy
         | WatchStrategy
         | GenerateModelStrategy
+        | GenerateModelsStrategy
         | CompileStrategy
         | AddWidgetStrategy
-        | FindPrograms
+        | FindProgramsStrategy
     ):
         e = Validations().acceptable_command(labels)
         match e:
@@ -839,12 +881,14 @@ class Strategy:
                     from_source=True,
                     watch_mode=False,
                 )
+            case ExitSuccess(value={"command": "generatemodels", "app_name": app_name}):
+                return GenerateModelsStrategy(app_name)
             case ExitSuccess(value={"command": "list"}):
                 return ListStrategy()
             case ExitSuccess(value={"command": "listwidgets"}):
                 return ListWidgetsStrategy()
             case ExitSuccess(value={"command": "findprograms", "app_name": app_name}):
-                return FindPrograms(app_name=app_name)
+                return FindProgramsStrategy(app_name=app_name)
             case ExitSuccess(
                 value={"command": "npm", "app_name": app_name, "args": args}
             ):
@@ -876,12 +920,6 @@ def widget_name_to_program_builder(widget_name: WIDGET_NAMES_T) -> ProgramBuilde
             return ModelChoiceFieldWidgetGenerator()
         case "ModelMultipleChoiceField":
             return ModelChoiceFieldWidgetGenerator()
-        case _:
-            raise StrategyError(
-                f"""The widget name {widget_name} is not supported.
-
-\033[4m\033[1mHint\033[0m: Run \033[1mpython manage.py djelm listwidgets\033[0m to find out what type of widget programs I can add for you."""
-            )
 
 
 def program_namespace_to_model_builder(namespace: list[str]) -> ModelBuilder:
@@ -903,7 +941,7 @@ It looks like you are trying to generate a model for this widget:
 
 But I don't recognize the \033[1m{widget_name}\033[0m widget name.
 
-\033[4m\033[1mHint\033[0m: Run \033[1mpython manage.py djelm listwidgets\033[0m to find out what type of widget programs I can work with."""
+\033[4m\033[1mHint\033[0m: Run \033[1mpython manage.py djelm listwidgets\033[0m to find out the type of widget programs I can work with."""
                 )
 
         case [head, *_]:

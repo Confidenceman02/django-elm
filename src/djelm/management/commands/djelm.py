@@ -8,8 +8,9 @@ from ...strategy import (
     CompileStrategy,
     CreateStrategy,
     ElmStrategy,
-    FindPrograms,
+    FindProgramsStrategy,
     GenerateModelStrategy,
+    GenerateModelsStrategy,
     ListStrategy,
     ListWidgetsStrategy,
     NpmStrategy,
@@ -30,6 +31,7 @@ Command arguments are missing, please add one of the following:
   npm <app-name> [args].. - call your designated NODE_PACKAGE_MANAGER with [args]
   elm <app-name> [args].. - call your designated ELM_BIN_PATH with [args]
   generatemodel <app-name> [args].. - generate a model for the existing program <program-name> in the <app-name> app
+  generatemodel <app-name> - generate a model for all programs in the <app-name> app
   list - to list all your djelm apps
   listwidgets - to list all supported widget programs
   findprograms - to list all Elm programs in src/
@@ -43,6 +45,7 @@ Usage example:
   python manage.py djelm npm djelm_app install
   python manage.py djelm elm djelm_app install <elm-package>
   python manage.py djelm generatemodel djelm_app MyElmProgram
+  python manage.py djelm generatemodels djelm_app
   python manage.py djelm list
   python manage.py djelm listwidgets
   python manage.py djelm findprograms djelm_app
@@ -59,9 +62,10 @@ Usage example:
         | ElmStrategy
         | WatchStrategy
         | GenerateModelStrategy
+        | GenerateModelsStrategy
         | CompileStrategy
         | AddWidgetStrategy
-        | FindPrograms
+        | FindProgramsStrategy
     )
 
     def __init__(self, *args, **kwargs):

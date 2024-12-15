@@ -3,7 +3,7 @@ plugins = [ "mypy_django_plugin.main" ]
 
 [tool.poetry]
 name = "djelm"
-version = "0.16.1"
+version = "0.17.0"
 description = "A framework for using Elm programs in a Django project"
 authors = ["Confidenceman02"]
 readme = "README_pypi.md"
@@ -40,10 +40,10 @@ aiofiles = "^24.1.0"
 pytest = "^8.0.0"
 pytest-django = "^4.5.2"
 hypothesis = "^6.92.2"
-pytest-playwright = "^0.4.4"
+pytest-playwright = "^0.6.2"
 
 [tool.poetry.group.dev.dependencies]
-tox = "^4.11.3"
+tox = "^4.11.4"
 django-browser-reload = "^1.12.1"
 django-stubs = "^4.2.7"
 doit = "^0.36.0"

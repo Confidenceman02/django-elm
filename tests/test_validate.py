@@ -1,11 +1,8 @@
 import uuid
 from unittest import TestCase
-
 from django.core.management import call_command
-
 from djelm.effect import ExitFailure, ExitSuccess
 from djelm.validate import Validations
-
 from .conftest import cleanup_theme_app_dir
 
 
@@ -61,6 +58,12 @@ def test_validate_failure_when_not_app():
         Validations().acceptable_command(["generatemodel", "my_app", "Main"]),
         ExitFailure,
     )
+
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["generatemodels", "my_app"]),
+        ExitFailure,
+    )
+
     TestCase().assertIsInstance(
         Validations().acceptable_command(["npm", "my_app"]), ExitFailure
     )
@@ -97,9 +100,14 @@ def test_after_create_validate_failure(settings):
         Validations().acceptable_command(["addprogram", app_name]), ExitFailure
     )
 
-    # Too few args
+    # generatemodel
     TestCase().assertIsInstance(
         Validations().acceptable_command(["generatemodel", app_name]), ExitFailure
+    )
+
+    TestCase().assertIn(
+        "MISSING APP",
+        str(Validations().acceptable_command(["generatemodels", "my_app"]).err),
     )
 
     # App doesn't exist
@@ -198,6 +206,10 @@ def test_after_create_validate_success(settings):
         Validations().acceptable_command(
             ["addwidget", app_name, "ModelMultipleChoiceField"]
         ),
+        ExitSuccess,
+    )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["generatemodels", app_name]),
         ExitSuccess,
     )
 

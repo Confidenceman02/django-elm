@@ -1,10 +1,9 @@
 import os
 import shutil
 from django.apps import apps
+
 from django.core.management import call_command
-
 from playwright.sync_api import Page, expect
-
 
 call_command("djelm", "compile", "elm_programs")
 # remove parcel-cache

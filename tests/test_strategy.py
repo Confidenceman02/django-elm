@@ -15,8 +15,9 @@ from djelm.strategy import (
     AddProgramStrategy,
     AddWidgetStrategy,
     CreateStrategy,
-    FindPrograms,
+    FindProgramsStrategy,
     GenerateModelStrategy,
+    GenerateModelsStrategy,
     ListStrategy,
     NpmStrategy,
     Strategy,
@@ -48,10 +49,10 @@ def test_findprograms_strategy(settings):
     )
 
     TestCase().assertIsInstance(
-        FindPrograms(app_name).run(LabelCommand().stdout), ExitSuccess
+        FindProgramsStrategy(app_name).run(LabelCommand().stdout), ExitSuccess
     )
 
-    programs = FindPrograms(app_name).run(LabelCommand().stdout).value
+    programs = FindProgramsStrategy(app_name).run(LabelCommand().stdout).value
 
     SUT = [p["file"] for p in programs]
 
@@ -111,7 +112,7 @@ def test_after_create_strategy_success(settings):
     )
     TestCase().assertIsInstance(
         Strategy().create(["findprograms", app_name], {}),
-        FindPrograms,
+        FindProgramsStrategy,
     )
 
     settings.INSTALLED_APPS.remove(app_name)
@@ -127,6 +128,10 @@ def test_after_addprogram_strategy_success(settings):
     TestCase().assertIsInstance(
         Strategy().create(["generatemodel", app_name, "Main"], {}),
         GenerateModelStrategy,
+    )
+    TestCase().assertIsInstance(
+        Strategy().create(["generatemodels", app_name], {}),
+        GenerateModelsStrategy,
     )
 
     settings.INSTALLED_APPS.remove(app_name)
