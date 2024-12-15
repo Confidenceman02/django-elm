@@ -1,3 +1,9 @@
+## [0.17.0] - 2024-12-16
+
+### Added
+
+- generatemodels command
+
 ## [0.16.1] - 2024-09-18
 
 ### Fixed
@@ -265,6 +271,7 @@ type alias A_B__
 
 - First version to pyPI
 
+[0.17.0]: https://github.com/Confidenceman02/django-elm/compare/0.16.1...0.17.0
 [0.16.1]: https://github.com/Confidenceman02/django-elm/compare/0.16.0...0.16.1
 [0.16.0]: https://github.com/Confidenceman02/django-elm/compare/0.15.0...0.16.0
 [0.15.0]: https://github.com/Confidenceman02/django-elm/compare/0.14.0...0.15.0
