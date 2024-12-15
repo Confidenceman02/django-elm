@@ -15,7 +15,7 @@ def task_buildimages():
 def task_install_e2e_browser():
     "Install playwright browser"
 
-    return {"actions": ["playwright install firefox"]}
+    return {"actions": ["playwright install"]}
 
 
 def task_run_example():

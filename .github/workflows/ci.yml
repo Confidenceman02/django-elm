@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11.5"]
+        python-version: ["3.11.10"]
         node-version: ["20"]
 
     steps:
@@ -23,7 +23,7 @@ jobs:
 
       - uses: pnpm/action-setup@v3
         with:
-          version: 8
+          version: 9
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -57,10 +57,11 @@ jobs:
       - name: Install playwright browser
         run: poetry run doit install_e2e_browser
 
+      - name: Prepare browser tests
+        run: poetry run doit prepare_e2e_tests &
+
       - name: Run browser tests
-        run: |
-          poetry run doit prepare_e2e_tests &
-          poetry run tox -e e2e
+        run: poetry run tox -vvv -e e2e
 
       - name: Run browser tests after delete compile
         run: |

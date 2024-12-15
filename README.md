@@ -39,6 +39,7 @@
   - [Flags](#flags)
   - [Flag classes](#flag-classes)
   - [generatemodel Command](#generatemodel-command)
+  - [generatemodels Command](#generatemodels-command)
 - [Widgets](#widgets)
   - [addwidget Command](#addwidget-command)
   - [listwidgets Command](#addwidget-command)
@@ -665,6 +666,11 @@ someObject_Decoder =
 >
 > To help you understand why it failed you can run the [compile](#compile-command) command and experience first hand
 > the beauty that is an Elm compiler message.
+
+## `generatemodels` Command
+
+This command let's you do the same thing as the [generatemodel](#generatemodel-command) command except that
+you don't need to pass it a specific program name. It will generate models for all your programs.
 
 # Widgets
 
