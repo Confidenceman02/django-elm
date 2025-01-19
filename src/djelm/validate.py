@@ -1,11 +1,8 @@
 from typing import Literal
 import os
-
 from django.conf import settings
 from typing_extensions import TypedDict
-
 from djelm.forms.widgets.main import WIDGET_NAMES, WIDGET_NAMES_T
-
 from .effect import ExitFailure, ExitSuccess
 from .utils import (
     get_app_path,
@@ -26,6 +23,14 @@ FindPrograms = TypedDict(
 AddProgram = TypedDict(
     "AddProgram",
     {"command": Literal["addprogram"], "app_name": str, "program_name": str},
+)
+AddProgramHandlers = TypedDict(
+    "AddProgramHandlers",
+    {
+        "command": Literal["addprogramhandlers"],
+        "app_name": str,
+        "program_name": str,
+    },
 )
 Npm = TypedDict(
     "Npm",
@@ -71,6 +76,7 @@ class Validations:
             | ListWidgets
             | FindPrograms
             | AddProgram
+            | AddProgramHandlers
             | Npm
             | Elm
             | Watch
@@ -150,11 +156,14 @@ class Validations:
 
             e.g. \033[93mdjelm addprogram {app_name} ImageCarousel\033[0m"""
                 )
+            case ["addprogramhandlers", app_name]:
+                raise ValidationError(
+                    Validations.__missing_program_name("addprogramhandlers", app_name)
+                )
 
             case ["generatemodel", app_name]:
                 raise ValidationError(
-                    f"""
-{Validations.__missing_program_name("generatemodel", app_name)}"""
+                    Validations.__missing_program_name("generatemodel", app_name)
                 )
 
             case ["addprogram", app_name, _]:
@@ -172,8 +181,37 @@ class Validations:
                             "addprogram",
                             app_name,
                             [
-                                os.path.join(app_name, "static", "elm.json"),
+                                os.path.join(app_name, "static_src", "elm.json"),
                                 os.path.join(app_name, "templatetags"),
+                            ],
+                        )}
+\033[4m\033[1mHint\033[0m: These files are usually automatically generated for you when you run the \033[1mcreate\033[0m commands."""
+                    )
+            case ["addprogramhandlers" as cmd, app_name, prog_name]:
+                validated_app_path = self._validate_app_path(
+                    app_name, self.__not_in_settings(cmd, app_name)
+                )
+                namespace = to_program_namespace(prog_name.split("."))
+                namespace_path, prog_name = namespace
+                if not is_djelm(next(walk_level(validated_app_path))[2]):
+                    raise ValidationError(
+                        f"{Validations.__not_a_djelm_app(cmd, app_name)}\n"
+                    )
+                    # or not is_program(app_name, namespace)
+                if (
+                    not is_init(app_name)
+                    or not is_create(app_name)
+                    or not is_program(app_name, namespace)
+                ):
+                    raise ValidationError(
+                        f"""
+                        {Validations.__missing_files_directories(
+                            cmd,
+                            app_name,
+                            [
+                                os.path.join(app_name, "static_src", "elm.json"),
+                                os.path.join(app_name, "templatetags"),
+                                os.path.join(app_name, "static_src", "src", *namespace_path, prog_name + ".elm"),
                             ],
                         )}
 \033[4m\033[1mHint\033[0m: These files are usually automatically generated for you when you run the \033[1mcreate\033[0m commands."""
@@ -240,6 +278,8 @@ class Validations:
             case ["watch", _]:
                 return
             case ["addprogram", _, _]:
+                return
+            case ["addprogramhandlers", _, _]:
                 return
             case ["addwidget", _, _]:
                 return
@@ -326,7 +366,7 @@ class Validations:
     @staticmethod
     def __app_exists(cmd_verb: str, app_name: str) -> str:
         return f"""
-\033[91m-- APP ALREADY EXISTS ------------------------------------------------------------------------------------------------------------------------- command/{cmd_verb}\033[0m
+\033[91m-- APP ALREADY EXISTS ------------------------------------------------- command/{cmd_verb}\033[0m
 
 It looks like you are trying to run the command:
 
@@ -342,7 +382,7 @@ But according to your \033[1mINSTALLED_APPS\033[0m variable \033[1m{app_name}\03
     def __missing_argument(cmd_verb: str, app_name: str, hint: str) -> str:
         return f"""
 
-\033[91m-- MISSING ARGUMENT ------------------------------------------------------------------------------------------------------------------------- command/{cmd_verb}\033[0m
+\033[91m-- MISSING ARGUMENT --------------------------------------------------- command/{cmd_verb}\033[0m
 
 It looks like you are trying to run the command:
 
@@ -360,7 +400,7 @@ But I was expecting another argument.
     def __unknown_widget(cmd_verb: str, widget_name: str) -> str:
         return f"""
 
-\033[91m-- UNKNOWN WIDGET ------------------------------------------------------------------------------------------------------------------------- command/{cmd_verb}\033[0m
+\033[91m-- UNKNOWN WIDGET ----------------------------------------------------- command/{cmd_verb}\033[0m
 
 It looks like you are trying to add this widget:
 
@@ -377,7 +417,7 @@ But I don't recognize the \033[1m{widget_name}\033[0m widget name.
             extra_args += f"{arg} "
         return f"""
 
-\033[91m-- TOO MANY ARGUMENTS ------------------------------------------------------------------------------------------------------------------------- command/{cmd_verb}\033[0m
+\033[91m-- TOO MANY ARGUMENTS ------------------------------------------------- command/{cmd_verb}\033[0m
 
 It looks like you are trying to run the command:
 
@@ -400,7 +440,7 @@ But the \033[1m{cmd_verb}\033[0m command doesn't take any extra arguments.
         for file in files:
             missing += f"{file}\n    "
         return f"""
-\033[91m-- MISSING FILES/DIRECTORIES ------------------------------------------------------------------------------------------------------------------------- command/{cmd_verb}\033[0m
+\033[91m-- MISSING FILES/DIRECTORIES ------------------------------------------ command/{cmd_verb}\033[0m
 
 It looks like you are trying to run the command:
 
@@ -417,7 +457,7 @@ But the {cmd_verb} command needs these files/directories to be present:
     @staticmethod
     def __missing_program_name(cmd_verb: str, app_name: str) -> str:
         return f"""
-\033[91m-- MISSING PROGRAM NAME ------------------------------------------------------------------------------------------------------------------------- command/{cmd_verb}\033[0m
+\033[91m-- MISSING PROGRAM NAME ----------------------------------------------- command/{cmd_verb}\033[0m
 
 It looks like you are trying to run the command:
 
@@ -434,7 +474,7 @@ Make sure that you include a program name when running the \033[1m{cmd_verb}\033
     def __missing_app_name(cmd_verb: str) -> str:
         return f"""
 
-\033[91m-- MISSING APP NAME ------------------------------------------------------------------------------------------------------------------------- command/{cmd_verb}\033[0m
+\033[91m-- MISSING APP NAME --------------------------------------------------- command/{cmd_verb}\033[0m
         
 It looks like you are trying to run the command:
 
@@ -450,7 +490,7 @@ But you haven't included the name of the djelm app you want me to run this comma
     def __invalid_strategy(cmd_verb: str) -> str:
         return f"""
 
-\033[91m-- INVALID STRATEGY ------------------------------------------------------------------------------------------------------------------------- command/{cmd_verb}\033[0m
+\033[91m-- INVALID STRATEGY --------------------------------------------------- command/{cmd_verb}\033[0m
 
 It looks like you are trying to run the command:
 
@@ -472,7 +512,7 @@ Perhaps you meant one of these?:
     def __not_in_settings(cmd_verb: str, app_name: str) -> str:
         return f"""
 
-\033[91m-- MISSING APP ------------------------------------------------------------------------------------------------------------------------- command/{cmd_verb}\033[0m
+\033[91m-- MISSING APP -------------------------------------------------------- command/{cmd_verb}\033[0m
 
 It looks like you are trying to run the command:
 
@@ -490,7 +530,7 @@ But I cant find the \033[1m{app_name}\033[0m app.
     def __not_a_djelm_app(cmd_verb: str, app_name: str) -> str:
         return f"""
 
-\033[91m-- NOT A DJELM APP ------------------------------------------------------------------------------------------------------------------------- command/{cmd_verb}\033[0m
+\033[91m-- NOT A DJELM APP ---------------------------------------------------- command/{cmd_verb}\033[0m
 
 It looks like you are trying to run the command:
 
@@ -512,6 +552,7 @@ But \033[1m{app_name}\033[0m doesn't look like a djelm app and I can't run comma
             "listwidgets",
             "findprograms",
             "addprogram",
+            "addprogramhandlers",
             "addwidget",
             "watch",
             "generatemodel",
@@ -531,6 +572,7 @@ But \033[1m{app_name}\033[0m doesn't look like a djelm app and I can't run comma
             | ListWidgets
             | FindPrograms
             | AddProgram
+            | AddProgramHandlers
             | Npm
             | Elm
             | Watch
@@ -558,6 +600,16 @@ But \033[1m{app_name}\033[0m doesn't look like a djelm app and I can't run comma
                 return ExitSuccess(
                     AddProgram(
                         {"command": "addprogram", "app_name": v, "program_name": p}
+                    )
+                )
+            case ["addprogramhandlers", v, p]:
+                return ExitSuccess(
+                    AddProgramHandlers(
+                        {
+                            "command": "addprogramhandlers",
+                            "app_name": v,
+                            "program_name": p,
+                        }
                     )
                 )
             case ["generatemodel", v, p]:

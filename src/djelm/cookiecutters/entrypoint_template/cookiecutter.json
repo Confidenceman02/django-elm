@@ -4,5 +4,6 @@
   "dir": "",
   "program_name": "",
   "scope": "",
-  "view_name": ""
+  "view_name": "",
+  "lists": { "imports": [], "extras": [] }
 }

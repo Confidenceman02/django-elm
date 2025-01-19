@@ -3,6 +3,7 @@ import argparse
 from django.core.management.base import LabelCommand
 
 from ...strategy import (
+    AddProgramHandlersStrategy,
     AddProgramStrategy,
     AddWidgetStrategy,
     CompileStrategy,
@@ -55,17 +56,18 @@ Usage example:
     validate = None
     strategy: (
         CreateStrategy
+        | AddProgramHandlersStrategy
         | AddProgramStrategy
+        | AddWidgetStrategy
+        | CompileStrategy
+        | ElmStrategy
+        | FindProgramsStrategy
+        | GenerateModelStrategy
+        | GenerateModelsStrategy
         | ListStrategy
         | ListWidgetsStrategy
         | NpmStrategy
-        | ElmStrategy
         | WatchStrategy
-        | GenerateModelStrategy
-        | GenerateModelsStrategy
-        | CompileStrategy
-        | AddWidgetStrategy
-        | FindProgramsStrategy
     )
 
     def __init__(self, *args, **kwargs):

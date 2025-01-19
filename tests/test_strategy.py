@@ -1,17 +1,17 @@
 import uuid
 import pytest
 from unittest import TestCase
-
 from django.core.management import call_command
 from django.core.management.base import LabelCommand
 from djelm.generators import (
     ModelGenerator,
     ProgramGenerator,
+    ProgramHandlersGenerator,
     WidgetModelGenerator,
 )
-
-from djelm.effect import ExitSuccess
+from djelm.effect import ExitFailure, ExitSuccess
 from djelm.strategy import (
+    AddProgramHandlersStrategy,
     AddProgramStrategy,
     AddWidgetStrategy,
     CreateStrategy,
@@ -25,7 +25,6 @@ from djelm.strategy import (
     WatchStrategy,
     program_namespace_to_model_builder,
 )
-
 from .conftest import cleanup_theme_app_dir
 
 
@@ -36,7 +35,7 @@ def test_strategy_create_when_no_create():
 
 
 def test_findprograms_strategy(settings):
-    app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
+    app_name = f"test_project_{str(uuid.uuid1()).replace('-', '_')}"
     call_command("djelm", "create", app_name)
     settings.INSTALLED_APPS += [app_name]
     call_command("djelm", "addprogram", app_name, "Main1")
@@ -70,12 +69,15 @@ def test_findprograms_strategy(settings):
         set(SUT),
     )
 
+    for p in programs:
+        TestCase().assertSetEqual(set([]), p["supporting_ts_files"])
+
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
 
 
 def test_after_create_strategy_success(settings):
-    app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
+    app_name = f"test_project_{str(uuid.uuid1()).replace('-', '_')}"
     call_command("djelm", "create", app_name)
     settings.INSTALLED_APPS += [app_name]
 
@@ -120,7 +122,7 @@ def test_after_create_strategy_success(settings):
 
 
 def test_after_addprogram_strategy_success(settings):
-    app_name = f'test_project_{str(uuid.uuid1()).replace("-", "_")}'
+    app_name = f"test_project_{str(uuid.uuid1()).replace('-', '_')}"
     call_command("djelm", "create", app_name)
     settings.INSTALLED_APPS += [app_name]
     call_command("djelm", "addprogram", app_name, "Main")
@@ -152,3 +154,22 @@ def test_program_namespace_to_model_builder():
 
     with pytest.raises(StrategyError):
         program_namespace_to_model_builder(["Some", "Program"])
+
+
+def test_add_program_handlers_strategy():
+    with pytest.raises(Exception, match="src path"):
+        AddProgramHandlersStrategy(
+            "blah",
+            "blah",
+            ExitFailure(None, Exception("src path doesnt exist")),
+            ExitFailure(None, Exception("app path doesn't exist")),
+            ProgramHandlersGenerator(base_path=[], target_dir="src"),
+        ).run(LabelCommand().stdout)
+    with pytest.raises(Exception, match="app path"):
+        AddProgramHandlersStrategy(
+            "blah",
+            "blah",
+            ExitSuccess("src/path"),
+            ExitFailure(None, Exception("app path doesn't exist")),
+            ProgramHandlersGenerator(base_path=[], target_dir="src"),
+        ).run(LabelCommand().stdout)
