@@ -20,6 +20,9 @@ def test_validate_failure_when_single_command():
         Validations().acceptable_command(["addprogram"]), ExitFailure
     )
     TestCase().assertIsInstance(
+        Validations().acceptable_command(["addprogramhandlers"]), ExitFailure
+    )
+    TestCase().assertIsInstance(
         Validations().acceptable_command(["generatemodel"]), ExitFailure
     )
     TestCase().assertIsInstance(Validations().acceptable_command(["npm"]), ExitFailure)
@@ -53,6 +56,10 @@ def test_validate_failure_when_too_many_args():
 def test_validate_failure_when_not_app():
     TestCase().assertIsInstance(
         Validations().acceptable_command(["addprogram", "my_app", "Main"]), ExitFailure
+    )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["addprogramhandlers", "my_app", "Main"]),
+        ExitFailure,
     )
     TestCase().assertIsInstance(
         Validations().acceptable_command(["generatemodel", "my_app", "Main"]),
@@ -95,63 +102,68 @@ def test_after_create_validate_failure(settings):
 
     settings.INSTALLED_APPS += [app_name]
 
-    # Too few args
     TestCase().assertIsInstance(
-        Validations().acceptable_command(["addprogram", app_name]), ExitFailure
+        Validations().acceptable_command(["addprogram", app_name]),
+        ExitFailure,
+        msg="Too few args",
     )
-
-    # generatemodel
     TestCase().assertIsInstance(
-        Validations().acceptable_command(["generatemodel", app_name]), ExitFailure
+        Validations().acceptable_command(["addprogramhandlers", app_name]),
+        ExitFailure,
+        msg="Too few args",
     )
-
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["addprogramhandlers", app_name, "Blah"]),
+        ExitFailure,
+        msg="program doesnt exist",
+    )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["generatemodel", app_name]),
+        ExitFailure,
+        msg="Too few args",
+    )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["addwidget", app_name]),
+        ExitFailure,
+        msg="Too few args",
+    )
     TestCase().assertIn(
         "MISSING APP",
         str(Validations().acceptable_command(["generatemodels", "my_app"]).err),
     )
-
-    # App doesn't exist
     TestCase().assertIsInstance(
         Validations().acceptable_command(["generatemodel", "random", "Main"]),
         ExitFailure,
+        msg="App doesn't exist",
     )
-
-    # Too few args
     TestCase().assertIsInstance(
-        Validations().acceptable_command(["addwidget", app_name]), ExitFailure
+        Validations().acceptable_command(["addwidget", "SomeWidget"]),
+        ExitFailure,
+        msg="Unsupported widget name",
     )
-
-    # Unsuppoerted widget name
-    TestCase().assertIsInstance(
-        Validations().acceptable_command(["addwidget", "SomeWidget"]), ExitFailure
-    )
-
     TestCase().assertIsInstance(
         Validations().acceptable_command(["create", app_name]), ExitFailure
     )
-
-    # App already exists
     TestCase().assertIsInstance(
-        Validations().acceptable_command(["create", "djelm"]), ExitFailure
+        Validations().acceptable_command(["create", "djelm"]),
+        ExitFailure,
+        msg="App already exists",
     )
-
-    # App doesn't exists
     TestCase().assertIsInstance(
-        Validations().acceptable_command(["npm", "random", "install"]), ExitFailure
+        Validations().acceptable_command(["npm", "random", "install"]),
+        ExitFailure,
+        msg="App doesn't exist",
     )
-
-    # App doesn't exists
     TestCase().assertIsInstance(
         Validations().acceptable_command(["elm", "random", "install", "elm/json"]),
         ExitFailure,
+        msg="App doesn't exist",
     )
-
-    # App doesn't exists
     TestCase().assertIsInstance(
-        Validations().acceptable_command(["watch", "random"]), ExitFailure
+        Validations().acceptable_command(["watch", "random"]),
+        ExitFailure,
+        msg="App doesn't exist",
     )
-
-    # App doesn't exists
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)
 
@@ -188,6 +200,7 @@ def test_after_create_validate_success(settings):
     TestCase().assertIsInstance(
         Validations().acceptable_command(["addprogram", app_name, "Main"]), ExitSuccess
     )
+
     TestCase().assertIsInstance(
         Validations().acceptable_command(["compile", app_name]), ExitSuccess
     )
@@ -232,6 +245,10 @@ def test_validate_success_when_addprogram_sequence(settings):
         Validations().acceptable_command(
             ["generatemodel", app_name, "Widgets.ModelChoiceField"]
         ),
+        ExitSuccess,
+    )
+    TestCase().assertIsInstance(
+        Validations().acceptable_command(["addprogramhandlers", app_name, "Main"]),
         ExitSuccess,
     )
 

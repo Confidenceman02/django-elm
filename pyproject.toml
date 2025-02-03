@@ -1,13 +1,12 @@
-[tool.mypy]
-plugins = [ "mypy_django_plugin.main" ]
-
-[tool.poetry]
+[project]
 name = "djelm"
 version = "0.17.0"
 description = "A framework for using Elm programs in a Django project"
-authors = ["Confidenceman02"]
 readme = "README_pypi.md"
 keywords = ["django", "elm"]
+authors = [
+  { name = "Confidenceman02", email = "john.terreu@gmail.com" },
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -19,28 +18,37 @@ classifiers = [
     "Environment :: Web Environment",
     "Framework :: Django"
 ]
+requires-python = ">=3.11"
+dependencies = [
+  "django>=4.2.5",
+  "pydantic>=2.4.2",
+  "watchfiles>=0.21.0",
+  "aiofiles>=24.1.0",
+]
 
-[project.urls]
-Repository = "https://github.com/Confidenceman02/django-elm"
-Changelog = "https://github.com/Confidenceman02/django-elm/blob/main/CHANGELOG.md"
-Issues = "https://github.com/Confidenceman02/django-elm/issues"
+[tool.project.dependencies]
+python = ">=3.11,<4.0"
 
+
+[tool.mypy]
+plugins = [ "mypy_django_plugin.main" ]
+
+[tool.poetry]
 packages = [
     { include = "djelm", from = "src" }
 ]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-django = ">=4.2.5"
-watchfiles = "^0.21.0"
-pydantic = "^2.4.2"
-aiofiles = "^24.1.0"
+[project.urls]
+repository = "https://github.com/Confidenceman02/django-elm"
+changelog = "https://github.com/Confidenceman02/django-elm/blob/main/CHANGELOG.md"
+issues = "https://github.com/Confidenceman02/django-elm/issues"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^8.0.0"
 pytest-django = "^4.5.2"
 hypothesis = "^6.92.2"
-pytest-playwright = "^0.6.2"
+pytest-playwright = "^0.7.0"
+playwright = ">1.0.0"
 
 [tool.poetry.group.dev.dependencies]
 tox = "^4.11.4"
