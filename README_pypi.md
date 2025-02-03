@@ -33,6 +33,9 @@
   - [Flags](#flags)
   - [Flag classes](#flag-classes)
   - [generatemodel Command](#generatemodel-command)
+  - [generatemodels Command](#generatemodels-command)
+- [JS Interop](#js-interop)
+  - [addprogramhandlers Command](#addprogramhandlers-command)
 - [Widgets](#widgets)
   - [addwidget Command](#addwidget-command)
   - [listwidgets Command](#addwidget-command)
@@ -659,6 +662,123 @@ someObject_Decoder =
 >
 > To help you understand why it failed you can run the [compile](#compile-command) command and experience first hand
 > the beauty that is an Elm compiler message.
+
+## `generatemodels` Command
+
+This command let's you do the same thing as the [generatemodel](#generatemodel-command) command except that
+you don't need to pass it a specific program name. It will generate models for all your programs.
+
+# JS Interop
+
+Elm isolates your programs from interacting directly with Javascript, but there are numerous reasons why you might need
+to utilise Javascript in your programs.
+
+Perhaps you need to use Javascript libraries, tools or browser API's? Whatever the case, Elm
+provides JS interop through ports which you can read more about [here](https://guide.elm-lang.org/interop/ports).
+
+## `addprogramhandlers` Command
+
+Creates a handler module with callbacks that hook in to Elm's port functionality for a given program.
+Djelm handles bundling the module with the compiled program for you.
+
+Let's assume we have already created an app called `elm_programs` and a program called `Main` inside of it.
+
+The result of calling `python manage.py djelm addprogramhandlers elm_programs Main` adds the module:
+
+```bash
+elm_programs/
+├── apps.py
+├── elm_programs.djelm
+├── flags/
+├── static/
+├── static_src/
+│   ├── .gitignore
+│   ├── elm.json
+│   ├── package.json
+│   └── src/
+│       ├── Main.elm
+│       ├── Main.handlers.ts *
+│       └── Models/
+└── templatetags
+```
+
+If we take a look at the contents of this module we can see a single function:
+
+```ts
+// https://guide.elm-lang.org/interop/ports
+export function handlePorts(ports): void {
+  console.warn("'handlePorts' Not implemented for 'Main.elm'");
+}
+```
+
+This function is where you would send and subscribe to the ports configured for the `Main.elm` program.
+
+Let's subscribe to a port called `sendMessage` and `console.log` the argument in the callback.
+
+```ts
+// https://guide.elm-lang.org/interop/ports
+export function handlePorts(ports): void {
+  ports.sendMessage.subscribe((msg) => {
+    console.log(msg);
+  });
+}
+```
+
+The port `sendMessage` doesn't currently exist in `Main.elm` so let's set it up now.
+
+First we turn the module into a port module, which means it can work with ports:
+
+```elm
+-- Main.elm
+
+module Main exposing (..) -- before
+port module Main exposing (..) -- after
+```
+
+Then we can add our port anywhere we like in the module:
+
+```elm
+-- Main.elm
+port module Main exposing (..)
+
+-- ports
+port sendMessage : String -> Cmd msg
+```
+
+To use our `sendMessage` port, we can call it from our `update` function as a `Cmd`. Let's send it everytime we `Increment` or `Decrement`
+the counter.
+
+```elm
+-- Main.elm
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case model of
+        Ready m ->
+            case msg of
+                Increment ->
+                    ( Ready (m + 1), sendMessage "increment")
+
+                Decrement ->
+                    ( Ready (m - 1), sendMessage "decrement")
+
+        _ ->
+            ( model, Cmd.none )
+
+-- ports
+port sendMessage : String -> Cmd msg
+```
+
+Use the [compile-command](#compile-command) to compile the program.
+
+> [!NOTE]
+> If you have run the `watch` command, djelm will automatically compile the program for you.
+
+Checking the browser we can see our port in action. Nice!
+
+![example](https://Confidenceman02.github.io/djelm/static/django-ports.gif)
+
+This handlers module can also be used to add any other javascript that relates to your given program.
 
 # Widgets
 

@@ -138,3 +138,11 @@ def widget_scope_name(app_name: str, prog_name: str) -> str:
 
 def is_elm_file_string(string_file: str) -> bool:
     return string_file.endswith(".elm")
+
+
+def is_ts_file_string(string_file: str) -> bool:
+    return string_file.endswith(".ts")
+
+
+def supporting_ts_files(prog_name: str) -> list[str]:
+    return [prog_name + ".handlers.ts"]

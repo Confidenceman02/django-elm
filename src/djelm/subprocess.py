@@ -1,6 +1,8 @@
 import subprocess
 import sys
+import threading
 from dataclasses import dataclass
+from typing import IO
 
 
 @dataclass(slots=True)
@@ -15,21 +17,35 @@ class SubProcess:
             cwd=self.cwd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            text=True,
         )
 
-        if process.stdout is None:
-            raise Exception("stdout not available")
-        for c in iter(lambda: process.stdout.read(1), ""):  # type:ignore
-            sys.stdout.write(c.decode("utf-8", "ignore"))
-            sys.stdout.flush()
-            if process.poll() is not None:
-                break
-        for c in iter(lambda: process.stderr.read(), ""):  # type:ignore
-            if c.decode("utf-8", "ignore") != "":
-                if self.raise_error:
-                    raise Exception(str(process.stderr))
-                else:
-                    sys.stdout.write(c.decode("utf-8", "ignore"))
-            break
-        if process.returncode != 0:
-            raise Exception(str(process.stderr))
+        stderr_data = []
+
+        def read_stream(stream: IO[str], buffer: list[str]):
+            while True:
+                char = stream.read(1)
+                if not char:
+                    break
+                sys.stdout.write(char)
+                sys.stdout.flush()
+                if stream == process.stderr:
+                    buffer.append(char)
+
+        stdout_thread = threading.Thread(target=read_stream, args=(process.stdout, []))
+        stderr_thread = threading.Thread(
+            target=read_stream, args=(process.stderr, stderr_data)
+        )
+
+        stdout_thread.start()
+        stderr_thread.start()
+
+        process.wait()
+        stdout_thread.join()
+        stderr_thread.join()
+
+        if process.returncode != 0 or (self.raise_error and stderr_data):
+            error_message = "".join(stderr_data).strip()
+            raise subprocess.CalledProcessError(
+                process.returncode, self.command, output=None, stderr=error_message
+            )

@@ -1,6 +1,7 @@
 import asyncio
 from functools import lru_cache
 import re
+import threading
 import aiofiles
 import os
 import shutil
@@ -9,7 +10,6 @@ import sys
 from dataclasses import dataclass
 from itertools import filterfalse
 from typing import Coroutine, Iterable, cast
-
 from django.conf import settings
 from typing_extensions import TypedDict
 from djelm.forms.widgets.main import WIDGET_NAMES, WIDGET_NAMES_T
@@ -19,14 +19,14 @@ from djelm.generators import (
     ModelChoiceFieldWidgetGenerator,
     ProgramBuilder,
     ProgramGenerator,
+    ProgramHandlersBuilder,
+    ProgramHandlersGenerator,
     WidgetModelGenerator,
     entrypoint_cookie_cutter,
 )
 from watchfiles import awatch
-
 from djelm.cookiecutter import CookieCutter
 from djelm.subprocess import SubProcess
-
 from .effect import ExitFailure, ExitSuccess
 from .elm import Elm
 from .npm import NPM
@@ -38,9 +38,11 @@ from .utils import (
     get_app_src_path,
     is_djelm,
     is_elm_file_string,
+    is_ts_file_string,
     module_name,
     program_file,
     scope_name,
+    supporting_ts_files,
     to_program_namespace,
     walk_level,
     widget_scope_name,
@@ -48,29 +50,9 @@ from .utils import (
 from .validate import Validations
 
 CreateCookieExtra = TypedDict("CreateCookieExtra", {"app_name": str})
-AddProgramCookieExtra = TypedDict(
-    "AddProgramCookieExtra",
-    {
-        "program_name": str,
-        "view_name": str,
-        "tmp_dir": str,
-        "tag_file": str,
-        "scope": str,
-        "app_name": str,
-    },
+ParsedFile = TypedDict(
+    "ParsedFile", {"base": str, "file": str, "supporting_ts_files": set[str]}
 )
-
-FlagsCookieExtra = TypedDict(
-    "FlagsCookieExtra",
-    {
-        "program_name": str,
-        "alias_type": str,
-        "decoder_body": str,
-        "tmp_dir": str,
-    },
-)
-
-ParsedFile = TypedDict("ParsedFile", {"base": str, "file": str})
 
 
 class StrategyError(Exception):
@@ -86,12 +68,30 @@ def unsafe_find_programs(
 
     WARNING: The list of returned programs may not be representative of the actual programs in the given src_path.
     """
-    parsed_files = asyncio.run(FindProgramsStrategy(src_path)._run_helper(src_path))
+    result = []
+    exception = None
+    done = threading.Event()
+
+    def wrapper():
+        nonlocal result, exception
+        try:
+            result = asyncio.run(FindProgramsStrategy(src_path)._run_helper(src_path))
+        except Exception as e:
+            exception = e
+        finally:
+            done.set()
+
+    thread = threading.Thread(target=wrapper)
+    thread.start()
+    done.wait()  # Wait for the thread to finish
+
+    if exception:
+        raise exception  # Re-raise any exception that occurred in the thread
 
     parsed_file_results: list[ParsedFile] = []
 
-    if parsed_files:
-        for f in parsed_files:
+    if result:
+        for f in result:
             if f.tag == "Success":
                 parsed_file_results.append(f.value)
 
@@ -102,8 +102,6 @@ def unsafe_find_programs(
 class FindProgramsStrategy:
     """
     Find elm programs inside the 'src' directory.
-
-    If the 'Widgets' directory exists those programs will also be included.
     """
 
     app_name: str
@@ -130,8 +128,8 @@ class FindProgramsStrategy:
                 if f.tag == "Success":
                     succeeded_files.append(f.value)
                     if f.value["file"].endswith(".elm"):
-                        logger.write(f"""    \033[1mbase:\033[0m {f.value['base']}""")
-                        logger.write(f"""    \033[1mfile:\033[0m {f.value['file']}""")
+                        logger.write(f"""    \033[1mbase:\033[0m {f.value["base"]}""")
+                        logger.write(f"""    \033[1mfile:\033[0m {f.value["file"]}""")
                         logger.write("\n")
                 else:
                     logger.write(str(f.err))
@@ -140,43 +138,60 @@ class FindProgramsStrategy:
 
     async def _run_helper(self, src_path: str):
         programs_base_dir = os.path.join(src_path, "src")
-
+        ## Organized by directory to files in that directory
+        ts_files_lookup: dict[str, list[str]] = {}
         dir_data_src: Iterable[tuple[str, list[str], list[str]]] = walk_level(
             programs_base_dir
         )
         base_src, dirs_src, files_src = next(dir_data_src)
-
+        ts_files_lookup[base_src] = []
         elm_files_widgets: list[tuple[str, list[str]]] = []
 
         if "Widgets" in dirs_src:
             dir_data_widgets: Iterable[tuple[str, list[str], list[str]]] = walk_level(
                 os.path.join(base_src, "Widgets")
             )
-            base_widgets, _, f_widgets = next(dir_data_widgets)
-            filtered_f_widgets = list(filter(is_elm_file_string, f_widgets))
-            elm_files_widgets.append((base_widgets, filtered_f_widgets))
+            base_widget_src, _, widget_file_src = next(dir_data_widgets)
+            ts_files_lookup[base_widget_src] = []
+            widget_files = []
+            for f in widget_file_src:
+                if is_elm_file_string(f):
+                    widget_files.append(f)
+                if is_ts_file_string(f):
+                    ts_files_lookup[base_widget_src].append(f)
+            elm_files_widgets.append((base_widget_src, widget_files))
 
-        all_elm_files: list[tuple[str, list[str]]] = [
-            (base_src, list(filter(is_elm_file_string, files_src))),
-            *elm_files_widgets,
-        ]
+        elm_files: list[str] = []
+        for f in files_src:
+            if is_elm_file_string(f):
+                elm_files.append(f)
+            if is_ts_file_string(f):
+                ts_files_lookup[base_src].append(f)
 
-        return await self.__parsed_files(all_elm_files)
+        return await self.__parsed_files(
+            [(base_src, elm_files), *elm_files_widgets], ts_files_lookup
+        )
 
-    async def __parsed_files(self, file_data: list[tuple[str, list[str]]]):
+    async def __parsed_files(
+        self,
+        elm_file_data: list[tuple[str, list[str]]],
+        ts_files_lookup: dict[str, list[str]],
+    ):
         coroutines: list[
             Coroutine[
                 None, None, ExitSuccess[ParsedFile] | ExitFailure[None, Exception]
             ]
         ] = []
-        for base_path, files in file_data:
-            coroutine = [self.__parse_file(base_path, file) for file in files]
+        for base_path, files in elm_file_data:
+            coroutine = [
+                self.__parse_file(base_path, file, ts_files_lookup) for file in files
+            ]
             coroutines.extend(coroutine)
 
         return await asyncio.gather(*coroutines)
 
     async def __parse_file(
-        self, base_dir: str, file: str
+        self, base_dir: str, file: str, ts_files_lookup: dict[str, list[str]]
     ) -> ExitSuccess[ParsedFile] | ExitFailure[None, Exception]:
         try:
             handle = await aiofiles.open(os.path.join(base_dir, file))
@@ -185,7 +200,18 @@ class FindProgramsStrategy:
             if re.search(
                 r"^(main : Program Value Model Msg)", content, flags=re.MULTILINE
             ):
-                ret: ParsedFile = ParsedFile({"base": base_dir, "file": file})
+                program_name = os.path.splitext(file)[0]
+                supporting_files = supporting_ts_files(program_name)
+                ts_files = ts_files_lookup.get(base_dir, [])
+                ret: ParsedFile = ParsedFile(
+                    {
+                        "base": base_dir,
+                        "file": file,
+                        "supporting_ts_files": (
+                            set(supporting_files).intersection(set(ts_files))
+                        ),
+                    }
+                )
                 return ExitSuccess(ret)
             else:
                 return ExitFailure(
@@ -194,6 +220,146 @@ class FindProgramsStrategy:
 
         except Exception as err:
             return ExitFailure(None, err)
+
+
+@dataclass(slots=True)
+class AddProgramStrategy:
+    """Create a default elm program."""
+
+    app_name: str
+    prog_name: str
+    handler: ProgramBuilder
+
+    def run(
+        self, logger
+    ) -> (
+        ExitSuccess[None]
+        | ExitFailure[None | str, StrategyError | FileNotFoundError | Exception]
+    ):
+        src_path = get_app_src_path(self.app_name)
+        app_path = get_app_path(self.app_name)
+
+        if src_path.tag != "Success":
+            raise src_path.err
+
+        if app_path.tag != "Success":
+            raise app_path.err
+
+        try:
+            os.makedirs(os.path.join(src_path.value, *STUFF_NAMESPACE, "entrypoints"))
+        except FileExistsError:
+            pass
+        except FileNotFoundError as err:
+            raise err
+
+        program_cutters = self.handler.cookie_cutters(
+            self.app_name, self.prog_name, src_path.value, DJELM_VERSION
+        )
+
+        program_ck_effects = [cutter.cut(logger) for cutter in program_cutters]
+
+        for ck_effect in program_ck_effects:
+            if ck_effect.tag != "Success":
+                raise ck_effect.err
+
+        try:
+            for applicator in self.handler.applicators(
+                os.path.join(src_path.value, *STUFF_NAMESPACE),
+                src_path.value,
+                app_path.value,
+                self.prog_name,
+                self.app_name,
+                logger,
+            ):
+                applicator.apply(logger)
+        except OSError as err:
+            raise err
+
+        # Generate model
+        model_strat = GenerateModelStrategy(
+            self.app_name,
+            self.prog_name,
+            ModelGenerator(),
+            from_source=False,
+            watch_mode=False,
+        )
+
+        model_strat_effect = model_strat.run(logger)
+
+        if model_strat_effect.tag != "Success":
+            raise model_strat_effect.err
+
+        logger.write(
+            f"""
+I created the \033[92m{self.prog_name}.elm\033[0m program for you!
+
+Right now it's just a default little program that you can change to your hearts content.
+
+You can find it here:
+
+\033[92m{os.path.join(src_path.value, "src", program_file(self.prog_name))}\033[0m
+
+Check out <https://github.com/Confidenceman02/django-elm/blob/main/README.md> to find out how to compile it and see it in the browser.
+
+"""
+        )
+        return ExitSuccess(None)
+
+
+@dataclass(slots=True)
+class AddProgramHandlersStrategy:
+    """
+    Add JS handlers for a program.
+
+    Adds a <program_name>.handlers.ts module in the base directory of the given program.
+    This module is automatically detected and bundled in with the compiled program.
+    Handle JS interop via ports or include JS that is relevant to the program.
+
+    Djelm looks for the following named export callbacks:
+
+        'handlePorts' :: ports -> void
+         example:        export function handlePorts(ports): void {
+                            // handle port logic
+                         }
+    """
+
+    app_name: str
+    prog_name: str
+    src_path: ExitSuccess[str] | ExitFailure[None, Exception]
+    app_path: ExitSuccess[str] | ExitFailure[None, Exception]
+    handler: ProgramHandlersBuilder
+
+    def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+        if self.src_path.tag != "Success":
+            raise self.src_path.err
+        if self.app_path.tag != "Success":
+            raise self.app_path.err
+
+        cutters = self.handler.cookie_cutters(
+            parent_dir=self.src_path.value,
+            program_name=self.prog_name,
+        )
+
+        cutter_effects = [cutter.cut(logger) for cutter in cutters]
+
+        for ck_effect in cutter_effects:
+            if ck_effect.tag != "Success":
+                raise ck_effect.err
+
+        logger.write(f"""
+I created the \033[92m{self.prog_name}.handlers.ts\033[0m module for you!
+
+You can handle any ports defined in the \033[92m{self.prog_name}.elm\033[0m program with the \033[92mhandlePorts\033[0m function.
+
+You can also include any other JS code related to \033[92m{self.prog_name}.elm\033[0m.
+
+For more information on ports or handlers check out the following resources:
+
+    djelm-docs: \033[1m<https://github.com/Confidenceman02/django-elm/tree/main?tab=readme-ov-file#js-interop>\033[0m
+    elm-docs: \033[1m<https://guide.elm-lang.org/interop/ports>\033[0m
+""")
+
+        return ExitSuccess(None)
 
 
 @dataclass(slots=True)
@@ -245,20 +411,20 @@ class AddWidgetStrategy:
         except FileExistsError:
             pass
 
-        cookie = self.handler.cookie_cutter(
+        cutters = self.handler.cookie_cutters(
             self.app_name, self.widget_name, src_path.value, DJELM_VERSION
         )
 
-        # Cut cookie
-        ck_result = cookie.cut(logger)
+        cutters_effects = [cutter.cut(logger) for cutter in cutters]
 
-        if ck_result.tag != "Success":
-            raise ck_result.err
+        for cutter_effect in cutters_effects:
+            if cutter_effect.tag != "Success":
+                raise cutter_effect.err
 
         # Apply template applicators
         try:
             for applicator in self.handler.applicators(
-                ck_result.value,
+                os.path.join(src_path.value, *STUFF_NAMESPACE, "widgets"),
                 src_path.value,
                 app_path.value,
                 self.widget_name,
@@ -330,6 +496,10 @@ class CompileStrategy:
                             program_name=module_name(program_name),
                             scope=widget_scope_name(self.app_name, program_name),
                             view_prefix="widget",
+                            imports=self.compile_imports(
+                                elm_file["supporting_ts_files"], f"Widgets{os.path.sep}"
+                            ),
+                            extras=self.compile_extras(elm_file["supporting_ts_files"]),
                         )
                     )
                 else:
@@ -341,6 +511,10 @@ class CompileStrategy:
                             program_name=module_name(program_name),
                             scope=scope_name(self.app_name, program_name),
                             view_prefix="",
+                            imports=self.compile_imports(
+                                elm_file["supporting_ts_files"], ""
+                            ),
+                            extras=self.compile_extras(elm_file["supporting_ts_files"]),
                         )
                     )
 
@@ -395,6 +569,22 @@ class CompileStrategy:
             except subprocess.CalledProcessError:
                 sys.exit(1)
         return ExitFailure(None, StrategyError("Error"))
+
+    def compile_imports(self, files: set[str], base_path: str) -> list[str]:
+        imports = []
+        for file in files:
+            if "handlers.ts" in file:
+                imports.append(
+                    f"import {{ handlePorts }} from '../../../src/{base_path}{file}'"
+                )
+        return imports
+
+    def compile_extras(self, files: set[str]) -> list[str]:
+        extras = []
+        for file in files:
+            if "handlers.ts" in file:
+                extras.append("handlePorts(app.ports);")
+        return extras
 
 
 @dataclass(slots=True)
@@ -628,18 +818,10 @@ class GenerateModelsStrategy:
         if src_path.tag != "Success":
             raise src_path.err
 
-        all_programs: (
-            ExitSuccess[list[ParsedFile]] | ExitFailure[None, StrategyError]
-        ) = FindProgramsStrategy(self.app_name).run(logger)
+        unsafe_find_programs.cache_clear()
+        all_programs = unsafe_find_programs(src_path.value)
 
-        if all_programs.tag != "Success":
-            raise all_programs.err
-
-        if not all_programs.value:
-            logger.write("No programs found.")
-            return ExitSuccess(None)
-
-        for program in all_programs.value:
+        for program in all_programs:
             baseDir = os.path.basename(program["base"])
             program_name = os.path.splitext(program["file"])[0]
             generator = ModelGenerator()
@@ -654,93 +836,6 @@ class GenerateModelsStrategy:
                 watch_mode=False,
             ).run(logger)
 
-        return ExitSuccess(None)
-
-
-@dataclass(slots=True)
-class AddProgramStrategy:
-    """Create a default elm program.
-
-    The program model is static and get's generated from the ProgramBuilder.
-    """
-
-    app_name: str
-    prog_name: str
-    handler: ProgramBuilder
-
-    def run(
-        self, logger
-    ) -> (
-        ExitSuccess[None]
-        | ExitFailure[None | str, StrategyError | FileNotFoundError | Exception]
-    ):
-        src_path = get_app_src_path(self.app_name)
-        app_path = get_app_path(self.app_name)
-
-        if src_path.tag != "Success":
-            raise src_path.err
-
-        if app_path.tag != "Success":
-            raise app_path.err
-
-        try:
-            os.makedirs(os.path.join(src_path.value, *STUFF_NAMESPACE, "entrypoints"))
-        except FileExistsError:
-            pass
-        except FileNotFoundError as err:
-            raise err
-
-        program_ck = self.handler.cookie_cutter(
-            self.app_name, self.prog_name, src_path.value, DJELM_VERSION
-        )
-
-        program_ck_effect = program_ck.cut(logger)
-
-        if program_ck_effect.tag != "Success":
-            raise program_ck_effect.err
-
-        # Apply program applicators
-        try:
-            for applicator in self.handler.applicators(
-                program_ck_effect.value,
-                src_path.value,
-                app_path.value,
-                self.prog_name,
-                self.app_name,
-                logger,
-            ):
-                applicator.apply(logger)
-        except OSError as err:
-            raise err
-
-        # Generate model
-        model_strat = GenerateModelStrategy(
-            self.app_name,
-            self.prog_name,
-            ModelGenerator(),
-            from_source=False,
-            watch_mode=False,
-        )
-
-        model_strat_effect = model_strat.run(logger)
-
-        if model_strat_effect.tag != "Success":
-            raise model_strat_effect.err
-
-        logger.write(
-            f"""
-I created the \033[92m{self.prog_name}.elm\033[0m program for you!
-
-Right now it's just a default little program that you can change to your hearts content.
-
-You can find it here:
-
-\033[92m{os.path.join(src_path.value, 'src', program_file(self.prog_name))}\033[0m
-
-Check out <https://github.com/Confidenceman02/django-elm/blob/main/README.md> to find out how to compile it and see it in the browser.
-
-"""
-        )
         return ExitSuccess(None)
 
 
@@ -800,7 +895,7 @@ class CreateStrategy:
         ck = CookieCutter[CreateCookieExtra](
             file_dir=os.path.dirname(__file__),
             output_dir=os.getcwd(),
-            cookie_dir_name="project_template",
+            cookie_template_name="project_template",
             extra={
                 "app_name": self.app_name.strip(),
             },
@@ -838,6 +933,7 @@ class Strategy:
         | ListStrategy
         | ListWidgetsStrategy
         | AddProgramStrategy
+        | AddProgramHandlersStrategy
         | NpmStrategy
         | WatchStrategy
         | GenerateModelStrategy
@@ -863,6 +959,23 @@ class Strategy:
             ):
                 return AddProgramStrategy(
                     cast(str, app_name), cast(str, pn), handler=ProgramGenerator()
+                )
+            case ExitSuccess(
+                value={
+                    "command": "addprogramhandlers",
+                    "app_name": app_name,
+                    "program_name": pn,
+                }
+            ):
+                program_path, program_name = to_program_namespace(pn.split("."))
+                return AddProgramHandlersStrategy(
+                    cast(str, app_name),
+                    program_name,
+                    get_app_src_path(app_name),
+                    get_app_path(app_name),
+                    handler=program_namespace_to_handlers_builder(
+                        [*program_path, program_name]
+                    ),
                 )
             case ExitSuccess(
                 value={
@@ -922,6 +1035,34 @@ def widget_name_to_program_builder(widget_name: WIDGET_NAMES_T) -> ProgramBuilde
             return ModelChoiceFieldWidgetGenerator()
 
 
+def program_namespace_to_handlers_builder(
+    namespace: list[str],
+) -> ProgramHandlersBuilder:
+    match namespace:
+        case [_]:
+            return ProgramHandlersGenerator(base_path=[], target_dir="src")
+        case ["Widgets", widget_name]:
+            if widget_name in WIDGET_NAMES:
+                return ProgramHandlersGenerator(["src"], "Widgets")
+            else:
+                raise StrategyError(__unknown_widget("addprogramhandlers", widget_name))
+        case [_, *_]:
+            raise StrategyError(
+                f"""\033[91m-- INVALID PROGRAM ----------------------------- command/addprogramhandlers\033[0m
+
+It looks like you are trying to run the command addprogramhandlers for this program:
+
+    \033[93m{".".join(namespace)}\033[0m
+
+\033[4m\033[1mHint\033[0m: Make sure the program you are targeting exists.
+"""
+            )
+        case _:
+            raise StrategyError(
+                f"I can't resolve a {ProgramHandlersBuilder.__name__} for {'.'.join(namespace)}"
+            )
+
+
 def program_namespace_to_model_builder(namespace: list[str]) -> ModelBuilder:
     match namespace:
         case [_]:
@@ -930,27 +1071,15 @@ def program_namespace_to_model_builder(namespace: list[str]) -> ModelBuilder:
             if widget_name in WIDGET_NAMES:
                 return WidgetModelGenerator()
             else:
-                raise StrategyError(
-                    f"""
-
-\033[91m-- UNKNOWN WIDGET ------------------------------------------------------------------------------------------------------------------------- command/generatemodel\033[0m
-
-It looks like you are trying to generate a model for this widget:
-
-    \033[93m{widget_name}\033[0m
-
-But I don't recognize the \033[1m{widget_name}\033[0m widget name.
-
-\033[4m\033[1mHint\033[0m: Run \033[1mpython manage.py djelm listwidgets\033[0m to find out the type of widget programs I can work with."""
-                )
+                raise StrategyError(__unknown_widget("generatemodel", widget_name))
 
         case [head, *_]:
             raise StrategyError(
-                f"""\033[91m-- INVALID PROGRAM NAMESPACE ------------------------------------------------------------------------------------------------------------------------- command/generatemodel\033[0m
+                f"""\033[91m-- INVALID PROGRAM NAMESPACE ----------------------------- command/generatemodel\033[0m
 
 I can't generate a model for programs in the {head} namespace.
 
-\033[4m\033[1mHint\033[0m: Make sure the program you are trying to generate a model for exists in one of the following directories.
+\033[4m\033[1mHint\033[0m: Make sure the program you are generating a model for exists in one of the following directories.
 
 \033[1msrc\033[0m - python manage.py djelm generatemodel <app> <program_name>
 \033[1mWidgets\033[0m  - python manage.py djelm generatemodel <app> Widgets.<widget_program>
@@ -958,3 +1087,17 @@ I can't generate a model for programs in the {head} namespace.
             )
         case _:
             raise StrategyError(f"I can't resolve a ModelBuilder for {namespace}")
+
+
+def __unknown_widget(command: str, widget_name: str) -> str:
+    return f"""
+
+\033[91m-- UNKNOWN WIDGET --------------------------------- command/{command}\033[0m
+
+It looks like you are trying to run the command {command} for this widget:
+
+    \033[93m{widget_name}\033[0m
+
+But I don't recognize the \033[1m{widget_name}\033[0m widget name.
+
+\033[4m\033[1mHint\033[0m: Run \033[1mpython manage.py djelm listwidgets\033[0m to list the type of widget programs I can work with."""

@@ -14,7 +14,7 @@ T = TypeVar("T")
 class CookieCutter(Generic[T]):
     file_dir: str
     output_dir: str
-    cookie_dir_name: str
+    cookie_template_name: str
     extra: T
     overwrite: bool = False
 
@@ -32,7 +32,7 @@ class CookieCutter(Generic[T]):
             app_path = cookiecutter(
                 self.file_dir,
                 output_dir=self.output_dir,
-                directory=self.cookie_dir_name,
+                directory=self.cookie_template_name,
                 no_input=True,
                 overwrite_if_exists=self.overwrite,
                 extra_context=self.extra,
