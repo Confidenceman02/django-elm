@@ -40,6 +40,7 @@
   - [Flag classes](#flag-classes)
   - [generatemodel Command](#generatemodel-command)
   - [generatemodels Command](#generatemodels-command)
+  - [findprograms Command](#findprograms-command)
 - [JS Interop](#js-interop)
   - [addprogramhandlers Command](#addprogramhandlers-command)
 - [Widgets](#widgets)
@@ -98,6 +99,12 @@ Djelm will expect the Elm binary to be in your `PATH`.
 
 Head on over to the [installation guide](https://guide.elm-lang.org/install/elm.html) to get the Elm binary on your
 system.
+
+Alternatively, you can use `npm` to get the binary:
+
+```bash
+npm install -g elm
+```
 
 After installing, let's make sure Elm is ready to go. In your terminal run the command:
 
@@ -203,7 +210,7 @@ python manage.py djelm create elm_programs
 ```
 
 > [!TIP]
-> The `elm_programs` argument is just a name that I give the app that all my Elm programs live in, feel free to
+> The `elm_programs` argument is just a name that I give the django app that all my Elm programs live in, feel free to
 > call it something else for your project. For the purposes of this tutorial I will refer to the `elm_programs` app.
 
 If we take a look at our `elm_programs` app directory let's see what was created for us.
@@ -271,8 +278,7 @@ elm_programs
 ```
 
 Jump in to the `static_src/src/Main.elm` file in the `elm_programs` directory and what you will see is a simple Elm
-program. You
-might be able to work out what this program does just by looking at the `Msg` type!
+program. You might be able to work out what this program does just by looking at the `Msg` type!
 
 ```elm
 type Msg
@@ -379,11 +385,6 @@ From the command line run:
 ```bash
 python manage.py djelm compilebuild elm_programs
 ```
-
-> [!TIP]
-> After you have compiled your Elm programs for a production environment, it is advised that you
-> remove the `static_src` directory as it will contain cache files and node modules that you probably
-> don't want sitting on your Django production server taking up space.
 
 ## Template tags
 
@@ -669,10 +670,22 @@ someObject_Decoder =
 > To help you understand why it failed you can run the [compile](#compile-command) command and experience first hand
 > the beauty that is an Elm compiler message.
 
-## `generatemodels` Command
+## `generatemodels` command
 
 This command let's you do the same thing as the [generatemodel](#generatemodel-command) command except that
 you don't need to pass it a specific program name. It will generate models for all your programs.
+
+```bash
+python manage.py djelm generatemodels elm_programs
+```
+
+## `findprograms` Command
+
+Print out all the elm programs in your app.
+
+```bash
+python manage.py djelm findprograms elm_programs
+```
 
 # JS Interop
 
