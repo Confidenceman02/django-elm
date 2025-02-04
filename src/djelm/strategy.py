@@ -253,7 +253,7 @@ class AddProgramStrategy:
             raise err
 
         program_cutters = self.handler.cookie_cutters(
-            self.app_name, self.prog_name, src_path.value, DJELM_VERSION
+            self.app_name, self.prog_name, app_path.value, src_path.value, DJELM_VERSION
         )
 
         program_ck_effects = [cutter.cut(logger) for cutter in program_cutters]
@@ -261,19 +261,6 @@ class AddProgramStrategy:
         for ck_effect in program_ck_effects:
             if ck_effect.tag != "Success":
                 raise ck_effect.err
-
-        try:
-            for applicator in self.handler.applicators(
-                os.path.join(src_path.value, *STUFF_NAMESPACE),
-                src_path.value,
-                app_path.value,
-                self.prog_name,
-                self.app_name,
-                logger,
-            ):
-                applicator.apply(logger)
-        except OSError as err:
-            raise err
 
         # Generate model
         model_strat = GenerateModelStrategy(
@@ -412,7 +399,11 @@ class AddWidgetStrategy:
             pass
 
         cutters = self.handler.cookie_cutters(
-            self.app_name, self.widget_name, src_path.value, DJELM_VERSION
+            self.app_name,
+            self.widget_name,
+            app_path.value,
+            src_path.value,
+            DJELM_VERSION,
         )
 
         cutters_effects = [cutter.cut(logger) for cutter in cutters]
@@ -420,21 +411,6 @@ class AddWidgetStrategy:
         for cutter_effect in cutters_effects:
             if cutter_effect.tag != "Success":
                 raise cutter_effect.err
-
-        # Apply template applicators
-        try:
-            for applicator in self.handler.applicators(
-                os.path.join(src_path.value, *STUFF_NAMESPACE, "widgets"),
-                src_path.value,
-                app_path.value,
-                self.widget_name,
-                self.app_name,
-                logger,
-            ):
-                applicator.apply(logger)
-
-        except OSError as err:
-            raise err
 
         # Generate model
         model_strat = GenerateModelStrategy(
@@ -788,16 +764,6 @@ class GenerateModelStrategy:
             if cookie_effect.tag != "Success":
                 return ExitFailure(meta=None, err=StrategyError(cookie_effect.err))
 
-            for applicator in handler.applicators(
-                cookie_effect.value,
-                src_path.value,
-                app_path.value,
-                self.prog_name,
-                self.app_name,
-                logger,
-            ):
-                applicator.apply(logger)
-
             return ExitSuccess(None)
         except OSError as err:
             return ExitFailure(meta=None, err=StrategyError(err))
@@ -893,7 +859,7 @@ class CreateStrategy:
 
     def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
         ck = CookieCutter[CreateCookieExtra](
-            file_dir=os.path.dirname(__file__),
+            file_dir=os.path.join(os.path.dirname(__file__), "cookiecutters"),
             output_dir=os.getcwd(),
             cookie_template_name="project_template",
             extra={

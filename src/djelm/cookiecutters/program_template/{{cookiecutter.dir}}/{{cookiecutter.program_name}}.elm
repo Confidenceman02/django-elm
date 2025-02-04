@@ -1,11 +1,11 @@
-module {{cookiecutter.program_name}} exposing (..)
+module {{cookiecutter.module_namespace}}{{cookiecutter.program_name}} exposing (..)
 
 import Browser
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick)
 import Json.Decode exposing (decodeValue)
 import Json.Encode exposing (Value)
-import Models.{{cookiecutter.program_name}} exposing (ToModel, toModel)
+import {{cookiecutter.module_model_namespace}}.{{cookiecutter.program_name}} exposing (ToModel, toModel)
 
 
 type Msg

@@ -1,8 +1,6 @@
 import os
-import shutil
-from typing import Protocol, Sequence, cast
+from typing import Protocol
 from typing_extensions import TypedDict
-
 from djelm.cookiecutter import CookieCutter
 from djelm.effect import ExitFailure, ExitSuccess
 from djelm.flags import Flags
@@ -25,24 +23,6 @@ from djelm.utils import (
 # |  ___/ '__/ _ \| __/ _ \ / __/ _ \| / __|
 # | |   | | | (_) | || (_) | (_| (_) | \__ \
 # |_|   |_|  \___/ \__\___/ \___\___/|_|___/
-
-
-class TemplateApplicator(Protocol):
-    def apply(self, logger) -> None: ...
-
-
-class SupportsApplyTemplates(Protocol):
-    def applicators(
-        self,
-        template_dir: str,
-        src_dir: str,
-        app_dir: str,
-        program_name,
-        app_name: str,
-        logger,
-    ) -> Sequence[TemplateApplicator]:
-        """Support moving template files to their respective targets."""
-        ...
 
 
 class SupportsElmDependencies(Protocol):
@@ -86,21 +66,23 @@ class SupportsModelCookieCutter(Protocol):
 
 class SupportsProgramCookieCutter(Protocol):
     def cookie_cutters(
-        self, app_name: str, program_name: str, src_path: str, version: str
+        self,
+        app_name: str,
+        program_name: str,
+        app_path: str,
+        src_path: str,
+        version: str,
     ) -> list[CookieCutter]:
         """Support generating a cookie cutter config for an Elm program"""
         ...
 
 
-class ModelBuilder(
-    SupportsModelCookieCutter, SupportsFlagLoader, SupportsApplyTemplates
-):
+class ModelBuilder(SupportsModelCookieCutter, SupportsFlagLoader):
     pass
 
 
 class ProgramBuilder(
     SupportsProgramCookieCutter,
-    SupportsApplyTemplates,
     SupportsElmDependencies,
 ):
     pass
@@ -162,6 +144,47 @@ ModelCookieExtra = TypedDict(
 ProgramCookieExtra = TypedDict(
     "ProgramCookieExtra",
     {
+        "module_namespace": str,
+        "module_model_namespace": str,
+        "dir": str,
+        "program_name": str,
+    },
+)
+
+ProgramFlagsCookieExtra = TypedDict(
+    "ProgramFlagsCookieExtra",
+    {
+        "dir": str,
+        "flag_file": str,
+        "program_name": str,
+        "scope": str,
+        "view_name": str,
+        "version": str,
+    },
+)
+
+ProgramTagsCookieExtra = TypedDict(
+    "ProgramTagsCookieExtra",
+    {
+        "program_name": str,
+        "tag_name": str,
+    },
+)
+
+ProgramModelCookieExtra = TypedDict(
+    "ProgramModelCookieExtra",
+    {
+        "alias_type": str,
+        "decoder_body": str,
+        "dir": str,
+        "module_model_namespace": str,
+        "program_name": str,
+    },
+)
+
+ProgramInitCookieExtra = TypedDict(
+    "ProgramInitCookieExtra",
+    {
         "program_name": str,
         "view_name": str,
         "tmp_dir": str,
@@ -222,20 +245,29 @@ def entrypoint_cookie_cutter(
 
 
 def model_cookie_cutter(
-    flags: Flags, program_name: str, tmp_dir: str, output_dir: str, module_path: str
+    flags: Flags,
+    app_name: str,
+    program_name: str,
+    dir: str,
+    output_dir: str,
+    module_model_namespace: str,
 ):
-    return CookieCutter[ModelCookieExtra](
-        file_dir=os.path.dirname(__file__),
+    return CookieCutter[ProgramModelCookieExtra](
+        file_dir=os.path.join((os.path.dirname(__file__)), "cookiecutters"),
         output_dir=(output_dir),
-        cookie_template_name="model_template",
+        cookie_template_name="program_model_template",
         extra={
             "program_name": module_name(program_name),
-            "tmp_dir": tmp_dir,
+            "dir": dir,
             "alias_type": flags.to_elm_parser_data()["alias_type"],
             "decoder_body": flags.to_elm_parser_data()["decoder_body"],
-            "module_path": module_path,
+            "module_model_namespace": module_model_namespace,
         },
         overwrite=True,
+        log_lines=[
+            f"""\n-- GENERATED MODEL --------------------------------------------- {module_model_namespace}.{program_name}.elm""",
+            f"\t\033[93m{app_name}/static_src/src/{module_model_namespace.replace('.', os.path.sep)}/{program_name}.elm\033[0m",
+        ],
     )
 
 
@@ -264,11 +296,61 @@ class ModelChoiceFieldWidgetGenerator(ProgramBuilder):
         return ExitSuccess(None)
 
     def cookie_cutters(
-        self, app_name: str, program_name: str, src_path: str, version: str
+        self,
+        app_name: str,
+        program_name: str,
+        app_path: str,
+        src_path: str,
+        version: str,
     ) -> list[CookieCutter]:
         return [
-            widget_cookie_cutter(
-                app_name, src_path, cast(WIDGET_NAMES_T, program_name), version
+            CookieCutter[ProgramCookieExtra](
+                file_dir=os.path.join(os.path.dirname(__file__), "cookiecutters"),
+                output_dir=os.path.join(src_path, "src"),
+                cookie_template_name=f"program_widget_{program_name}_template",
+                extra={
+                    "module_namespace": "Widgets.",
+                    "module_model_namespace": "Widgets.Models",
+                    "dir": "Widgets",
+                    "program_name": program_name,
+                },
+                overwrite=True,
+                log_lines=[
+                    f"""\n-- GENERATED WIDGET PROGRAM --------------------------------------------- Widgets.{program_name}.elm""",
+                    f"\t\033[93m{app_name}/static_src/src/Widgets/{program_name}.elm\033[0m",
+                ],
+            ),
+            CookieCutter[ProgramTagsCookieExtra](
+                file_dir=os.path.join(os.path.dirname(__file__), "cookiecutters"),
+                output_dir=app_path,
+                cookie_template_name=f"program_widget_{program_name}_tags_template",
+                extra={
+                    "program_name": module_name(program_name),
+                    "tag_name": tag_file_name(program_name),
+                },
+                overwrite=True,
+                log_lines=[
+                    f"""\n-- GENERATED WIDGET TAGS --------------------------------------------- {tag_file_name(program_name)}_widget_tags.py""",
+                    f"\t\033[93m{app_name}/templatetags/{tag_file_name(program_name)}_widget_tags.py\033[0m",
+                ],
+            ),
+            CookieCutter[ProgramFlagsCookieExtra](
+                file_dir=os.path.join(os.path.dirname(__file__), "cookiecutters"),
+                output_dir=os.path.join(app_path, "flags"),
+                cookie_template_name=f"program_widget_{program_name}_flags_template",
+                extra={
+                    "dir": "widgets",
+                    "flag_file": tag_file_name(program_name),
+                    "program_name": program_name,
+                    "scope": widget_scope_name(app_name, program_name),
+                    "view_name": view_name(program_name),
+                    "version": version,
+                },
+                overwrite=True,
+                log_lines=[
+                    f"""\n-- GENERATED WIDGET FLAGS --------------------------------------------- {tag_file_name(program_name)}.py""",
+                    f"\t\033[93m{app_name}/flags/widgets/{tag_file_name(program_name)}.py\033[0m",
+                ],
             ),
             entrypoint_cookie_cutter(
                 base_name="Widgets.",
@@ -280,49 +362,6 @@ class ModelChoiceFieldWidgetGenerator(ProgramBuilder):
             ),
         ]
 
-    def applicators(
-        self,
-        template_dir: str,
-        src_dir: str,
-        app_dir: str,
-        program_name: str,
-        app_name: str,
-        logger,
-    ) -> Sequence[TemplateApplicator]:
-        """Apply all generated templates to their respective targets"""
-
-        logger.write(
-            """\n-- GENERATING TEMPLATES ------------------------------------------------ widget/ModelChoiceField"""
-        )
-        return [
-            # Program file
-            TemplateCopyer(
-                os.path.join(template_dir, module_name(program_name) + ".elmw"),
-                os.path.join(
-                    src_dir, "src", "Widgets", module_name(program_name) + ".elm"
-                ),
-            ),
-            # Flags
-            TemplateCopyer(
-                os.path.join(template_dir, tag_file_name(program_name) + ".pyf"),
-                os.path.join(
-                    app_dir,
-                    "flags",
-                    "widgets",
-                    tag_file_name(program_name) + ".py",
-                ),
-            ),
-            # Tags
-            TemplateCopyer(
-                os.path.join(template_dir, f"{tag_file_name(program_name)}_tags.py"),
-                os.path.join(
-                    app_dir,
-                    "templatetags",
-                    f"{tag_file_name(program_name)}_widget_tags.py",
-                ),
-            ),
-        ]
-
 
 class ModelGenerator(ModelBuilder):
     def cookie_cutter(
@@ -330,9 +369,10 @@ class ModelGenerator(ModelBuilder):
     ) -> CookieCutter:
         return model_cookie_cutter(
             flags,
+            app_name,
             program_name,
-            STUFF_NAMESPACE[1],
-            os.path.join(src_path, STUFF_NAMESPACE[0]),
+            "Models",
+            os.path.join(src_path, "src"),
             "Models",
         )
 
@@ -381,27 +421,6 @@ class ModelGenerator(ModelBuilder):
             # Return default flags for a new program
             return ExitSuccess(Flags(IntFlag()))  # type:ignore
 
-    def applicators(
-        self,
-        template_dir: str,
-        src_dir: str,
-        app_dir: str,
-        program_name: str,
-        app_name: str,
-        logger,
-    ) -> Sequence[TemplateApplicator]:
-        logger.write(
-            f"""\n-- GENERATING MODEL ----------------------------------------------------- model/{module_name(program_name)}"""
-        )
-        return [
-            TemplateCopyer(
-                os.path.join(template_dir, module_name(program_name) + ".elmf"),
-                os.path.join(
-                    src_dir, "src", "Models", module_name(program_name) + ".elm"
-                ),
-            )
-        ]
-
 
 class ProgramGenerator(ProgramBuilder):
     """Generate an Elm program"""
@@ -412,72 +431,76 @@ class ProgramGenerator(ProgramBuilder):
         return ExitSuccess(None)
 
     def cookie_cutters(
-        self, app_name: str, program_name: str, src_path: str, version: str
-    ) -> list[CookieCutter]:
-        cutters = []
-        cutters.extend(
-            [
-                CookieCutter[ProgramCookieExtra](
-                    file_dir=os.path.dirname(__file__),
-                    output_dir=os.path.join(src_path, "elm-stuff"),
-                    cookie_template_name="program_template",
-                    extra={
-                        "program_name": module_name(program_name),
-                        "view_name": view_name(program_name),
-                        "tmp_dir": STUFF_NAMESPACE[1],
-                        "tag_file": tag_file_name(program_name),
-                        "scope": scope_name(app_name, program_name),
-                        "app_name": app_name,
-                        "version": version,
-                    },
-                    overwrite=True,
-                ),
-                CookieCutter[EntrypointCookieExtra](
-                    file_dir=os.path.join(os.path.dirname(__file__), "cookiecutters"),
-                    output_dir=os.path.join(src_path, *STUFF_NAMESPACE),
-                    cookie_template_name="entrypoint_template",
-                    extra={
-                        "base_name": "",
-                        "base_path": "",
-                        "dir": "entrypoints",
-                        "program_name": program_name,
-                        "scope": scope_name(app_name, program_name),
-                        "view_name": "",
-                        "lists": {"imports": [], "extras": []},
-                    },
-                    overwrite=True,
-                ),
-            ]
-        )
-        return cutters
-
-    def applicators(
         self,
-        template_dir: str,
-        src_dir: str,
-        app_dir: str,
-        program_name,
         app_name: str,
-        logger,
-    ) -> Sequence[TemplateApplicator]:
-        logger.write(
-            f"""\n-- GENERATING TEMPLATES -------------------------------------------------------- {module_name(program_name)}"""
-        )
+        program_name: str,
+        app_path: str,
+        src_path: str,
+        version: str,
+    ) -> list[CookieCutter]:
         return [
-            # Program file
-            TemplateCopyer(
-                os.path.join(template_dir, module_name(program_name) + ".elm"),
-                os.path.join(src_dir, "src"),
+            CookieCutter[ProgramCookieExtra](
+                file_dir=os.path.join(os.path.dirname(__file__), "cookiecutters"),
+                output_dir=src_path,
+                cookie_template_name="program_template",
+                extra={
+                    "module_namespace": "",
+                    "module_model_namespace": "Models",
+                    "dir": "src",
+                    "program_name": module_name(program_name),
+                },
+                overwrite=True,
+                log_lines=[
+                    f"""\n-- GENERATED PROGRAM --------------------------------------------- {module_name(program_name)}.elm""",
+                    f"\t\033[93m{app_name}/static_src/src/{module_name(program_name)}.elm\033[0m",
+                ],
             ),
-            # Template tags
-            TemplateCopyer(
-                os.path.join(template_dir, tag_file_name(program_name) + "_tags.py"),
-                os.path.join(app_dir, "templatetags"),
+            CookieCutter[ProgramTagsCookieExtra](
+                file_dir=os.path.join(os.path.dirname(__file__), "cookiecutters"),
+                output_dir=app_path,
+                cookie_template_name="program_tags_template",
+                extra={
+                    "program_name": module_name(program_name),
+                    "tag_name": tag_file_name(program_name),
+                },
+                overwrite=True,
+                log_lines=[
+                    f"""\n-- GENERATED TAGS --------------------------------------------- {tag_file_name(program_name)}_tags.py""",
+                    f"\t\033[93m{app_name}/templatetags/{tag_file_name(program_name)}_tags.py\033[0m",
+                ],
             ),
-            # Flags
-            TemplateCopyer(
-                os.path.join(template_dir, tag_file_name(program_name) + ".pyf"),
-                os.path.join(app_dir, "flags", tag_file_name(program_name) + ".py"),
+            CookieCutter[ProgramFlagsCookieExtra](
+                file_dir=os.path.join(os.path.dirname(__file__), "cookiecutters"),
+                output_dir=app_path,
+                cookie_template_name="program_flags_template",
+                extra={
+                    "dir": "flags",
+                    "flag_file": tag_file_name(program_name),
+                    "program_name": module_name(program_name),
+                    "scope": scope_name(app_name, program_name),
+                    "view_name": view_name(program_name),
+                    "version": version,
+                },
+                overwrite=True,
+                log_lines=[
+                    f"""\n-- GENERATED FLAGS --------------------------------------------- {tag_file_name(program_name)}.py""",
+                    f"\t\033[93m{app_name}/flags/{tag_file_name(program_name)}.py\033[0m",
+                ],
+            ),
+            CookieCutter[EntrypointCookieExtra](
+                file_dir=os.path.join(os.path.dirname(__file__), "cookiecutters"),
+                output_dir=os.path.join(src_path, *STUFF_NAMESPACE),
+                cookie_template_name="entrypoint_template",
+                extra={
+                    "base_name": "",
+                    "base_path": "",
+                    "dir": "entrypoints",
+                    "program_name": program_name,
+                    "scope": scope_name(app_name, program_name),
+                    "view_name": "",
+                    "lists": {"imports": [], "extras": []},
+                },
+                overwrite=True,
             ),
         ]
 
@@ -541,9 +564,10 @@ class WidgetModelGenerator(ModelBuilder):
     ) -> CookieCutter:
         return model_cookie_cutter(
             flags,
+            app_name,
             program_name,
             "Models",
-            os.path.join(src_path, *STUFF_NAMESPACE, "Widgets"),
+            os.path.join(src_path, "src", "Widgets"),
             "Widgets.Models",
         )
 
@@ -602,43 +626,3 @@ class WidgetModelGenerator(ModelBuilder):
             return ExitSuccess(getattr(mod, program_name + "Flags"))
         else:
             return ExitSuccess(Flags(WIDGET_NAME_TO_DEFAULT_FLAG[program_name]()))  # type:ignore
-
-    def applicators(
-        self,
-        template_dir: str,
-        src_dir: str,
-        app_dir: str,
-        program_name,
-        app_name: str,
-        logger,
-    ) -> Sequence[TemplateApplicator]:
-        logger.write(
-            f"""\n-- GENERATING WIDGET MODEL --------------------------------------------- widget/{module_name(program_name)}"""
-        )
-        """Move the generated Elm model to their target location"""
-        return [
-            TemplateCopyer(
-                os.path.join(template_dir, module_name(program_name) + ".elmf"),
-                os.path.join(
-                    src_dir,
-                    "src",
-                    "Widgets",
-                    "Models",
-                    module_name(program_name) + ".elm",
-                ),
-            )
-        ]
-
-
-class TemplateCopyer(TemplateApplicator):
-    """Copy a template file to a given destination"""
-
-    def __init__(self, src: str, destination: str, log: bool = True) -> None:
-        self.src = src
-        self.destination = destination
-        self.log = log
-
-    def apply(self, logger) -> None:
-        shutil.copy(self.src, self.destination)
-        if self.log:
-            logger.write(f"\t\033[93m{self.destination}\033[0m")
