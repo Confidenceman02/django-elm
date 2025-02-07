@@ -21,9 +21,7 @@ exclude = [
     "dist",
     "node_modules",
     "venv",
-    "src/djelm/program_template",
-    "src/djelm/project_template",
-    "src/djelm/widget_templates"
+    "src/djelm/cookiecutters",
 ]
 
 # Same as Black.
