@@ -1,3 +1,10 @@
+## [0.18.1] - 2025-02-07
+
+### Improved
+
+- All cookiecutter templates now live in the cookiecutters directory.
+- cookiecutter templates directly create individual files in the app avoiding unecessary IO.
+
 ## [0.18.0] - 2025-02-03
 
 ### Added
@@ -277,6 +284,7 @@ type alias A_B__
 
 - First version to pyPI
 
+[0.18.1]: https://github.com/Confidenceman02/django-elm/compare/0.18.0...0.18.1
 [0.18.0]: https://github.com/Confidenceman02/django-elm/compare/0.17.0...0.18.0
 [0.17.0]: https://github.com/Confidenceman02/django-elm/compare/0.16.1...0.17.0
 [0.16.1]: https://github.com/Confidenceman02/django-elm/compare/0.16.0...0.16.1
