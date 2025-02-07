@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 from django.conf import settings
 import sys
-from typing import Generic, TypeVar
-
+from typing import Generic, Optional, TypeVar
 from djelm.effect import ExitFailure, ExitSuccess
 from djelm.subprocess import SubProcess
 
@@ -17,6 +16,7 @@ class CookieCutter(Generic[T]):
     cookie_template_name: str
     extra: T
     overwrite: bool = False
+    log_lines: Optional[list[str]] = None
 
     def cut(self, logger) -> ExitSuccess[str] | ExitFailure[None, Exception]:
         try:
@@ -37,6 +37,11 @@ class CookieCutter(Generic[T]):
                 overwrite_if_exists=self.overwrite,
                 extra_context=self.extra,
             )
+
+            if self.log_lines:
+                for line in self.log_lines:
+                    logger.write(line)
+
             return ExitSuccess(app_path)
         except Exception as err:
             return ExitFailure(None, err)
