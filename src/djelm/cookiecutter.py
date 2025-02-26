@@ -1,9 +1,7 @@
 from dataclasses import dataclass
-from django.conf import settings
-import sys
 from typing import Generic, Optional, TypeVar
 from djelm.effect import ExitFailure, ExitSuccess
-from djelm.subprocess import SubProcess
+from cookiecutter.main import cookiecutter
 
 
 T = TypeVar("T")
@@ -19,15 +17,6 @@ class CookieCutter(Generic[T]):
     log_lines: Optional[list[str]] = None
 
     def cut(self, logger) -> ExitSuccess[str] | ExitFailure[None, Exception]:
-        try:
-            from cookiecutter.main import cookiecutter
-        except (ImportError, ModuleNotFoundError):
-            logger.write("Couldn't find cookie cutter, installing...")
-            SubProcess(
-                [sys.executable, "-m", "pip", "install", "cookiecutter"],
-                settings.BASE_DIR,
-            ).open()
-            from cookiecutter.main import cookiecutter
         try:
             app_path = cookiecutter(
                 self.file_dir,
