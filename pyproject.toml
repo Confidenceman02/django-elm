@@ -24,6 +24,7 @@ dependencies = [
   "pydantic>=2.4.2",
   "watchfiles>=0.21.0",
   "aiofiles>=24.1.0",
+  "cookiecutter (>=2.6.0,<3.0.0)",
 ]
 
 [tool.project.dependencies]
