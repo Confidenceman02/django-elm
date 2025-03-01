@@ -55,10 +55,10 @@ Usage example:
 """
     validate = None
     strategy: (
-        CreateStrategy
-        | AddProgramHandlersStrategy
+        AddProgramHandlersStrategy
         | AddProgramStrategy
         | AddWidgetStrategy
+        | CreateStrategy
         | CompileStrategy
         | ElmStrategy
         | FindProgramsStrategy

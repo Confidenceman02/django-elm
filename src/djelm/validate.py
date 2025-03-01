@@ -14,12 +14,6 @@ from .utils import (
     walk_level,
 )
 
-Create = TypedDict("Create", {"command": Literal["create"], "app_name": str})
-List = TypedDict("List", {"command": Literal["list"]})
-ListWidgets = TypedDict("ListWidgets", {"command": Literal["listwidgets"]})
-FindPrograms = TypedDict(
-    "FindPrograms", {"command": Literal["findprograms"], "app_name": str}
-)
 AddProgram = TypedDict(
     "AddProgram",
     {"command": Literal["addprogram"], "app_name": str, "program_name": str},
@@ -32,17 +26,21 @@ AddProgramHandlers = TypedDict(
         "program_name": str,
     },
 )
-Npm = TypedDict(
-    "Npm",
-    {"command": Literal["npm"], "app_name": str, "args": list[str]},
+AddWidget = TypedDict(
+    "AddWidget",
+    {"command": Literal["addwidget"], "app_name": str, "widget": WIDGET_NAMES_T},
+)
+Create = TypedDict("Create", {"command": Literal["create"], "app_name": str})
+Compile = TypedDict(
+    "Compile",
+    {"command": Literal["compile"], "app_name": str, "build": bool},
 )
 Elm = TypedDict(
     "Elm",
     {"command": Literal["elm"], "app_name": str, "args": list[str]},
 )
-Watch = TypedDict(
-    "Watch",
-    {"command": Literal["watch"], "app_name": str},
+FindPrograms = TypedDict(
+    "FindPrograms", {"command": Literal["findprograms"], "app_name": str}
 )
 GenerateModel = TypedDict(
     "GenerateModel",
@@ -52,13 +50,19 @@ GenerateModels = TypedDict(
     "GenerateModels",
     {"command": Literal["generatemodels"], "app_name": str},
 )
-Compile = TypedDict(
-    "Compile",
-    {"command": Literal["compile"], "app_name": str, "build": bool},
+List = TypedDict("List", {"command": Literal["list"]})
+ListWidgets = TypedDict("ListWidgets", {"command": Literal["listwidgets"]})
+Npm = TypedDict(
+    "Npm",
+    {"command": Literal["npm"], "app_name": str, "args": list[str]},
 )
-AddWidget = TypedDict(
-    "AddWidget",
-    {"command": Literal["addwidget"], "app_name": str, "widget": WIDGET_NAMES_T},
+RemoveProgram = TypedDict(
+    "RemoveProgram",
+    {"command": Literal["removeprogram"], "app_name": str, "program_name": str},
+)
+Watch = TypedDict(
+    "Watch",
+    {"command": Literal["watch"], "app_name": str},
 )
 
 
@@ -71,19 +75,20 @@ class Validations:
         self, labels: list[str], *_
     ) -> (
         ExitSuccess[
-            Create
-            | List
-            | ListWidgets
-            | FindPrograms
-            | AddProgram
+            AddProgram
             | AddProgramHandlers
-            | Npm
+            | AddWidget
+            | Create
+            | Compile
             | Elm
-            | Watch
+            | FindPrograms
             | GenerateModel
             | GenerateModels
-            | Compile
-            | AddWidget
+            | List
+            | ListWidgets
+            | Npm
+            | RemoveProgram
+            | Watch
         ]
         | ExitFailure[list[str], ValidationError]
     ):
@@ -97,55 +102,6 @@ class Validations:
 
     def __check_existing(self, xs: list[str]) -> None:
         match xs:
-            case ["create", app_name]:
-                app_path_exit = get_app_path(app_name)
-
-                if app_path_exit.tag == "Success" and is_djelm(
-                    next(walk_level(app_path_exit.value))[2]
-                ):
-                    raise ValidationError(self.__app_exists("create", app_name))
-
-                if app_name in settings.INSTALLED_APPS:
-                    raise ValidationError(
-                        Validations.__not_a_djelm_app("create", app_name)
-                    )
-            case ["npm", app_name, *_]:
-                validated_app_path = self._validate_app_path(
-                    app_name, self.__not_in_settings("npm", app_name)
-                )
-
-                if not is_djelm(next(walk_level(validated_app_path))[2]):
-                    raise ValidationError(
-                        Validations.__not_a_djelm_app("npm", app_name)
-                    )
-            case ["elm", app_name, *_]:
-                validated_app_path = self._validate_app_path(
-                    app_name, self.__not_in_settings("elm", app_name)
-                )
-                if not is_djelm(next(walk_level(validated_app_path))[2]):
-                    raise ValidationError(
-                        Validations.__not_a_djelm_app("elm", app_name)
-                    )
-            case ["watch", app_name]:
-                validated_app_path = self._validate_app_path(
-                    app_name, self.__not_in_settings("watch", app_name)
-                )
-                if not is_djelm(next(walk_level(validated_app_path))[2]):
-                    raise ValidationError(self.__not_a_djelm_app("watch", app_name))
-            case ["compile", app_name]:
-                validated_app_path = self._validate_app_path(
-                    app_name, self.__not_in_settings("compile", app_name)
-                )
-                if not is_djelm(next(walk_level(validated_app_path))[2]):
-                    raise ValidationError(self.__not_a_djelm_app("compile", app_name))
-            case ["compilebuild", app_name]:
-                validated_app_path = self._validate_app_path(
-                    app_name, self.__not_in_settings("compilebuild", app_name)
-                )
-                if not is_djelm(next(walk_level(validated_app_path))[2]):
-                    raise ValidationError(
-                        self.__not_a_djelm_app("compilebuild", app_name)
-                    )
             case ["addprogram", app_name]:
                 raise ValidationError(
                     f"""
@@ -156,37 +112,33 @@ class Validations:
 
             e.g. \033[93mdjelm addprogram {app_name} ImageCarousel\033[0m"""
                 )
-            case ["addprogramhandlers", app_name]:
-                raise ValidationError(
-                    Validations.__missing_program_name("addprogramhandlers", app_name)
-                )
-
-            case ["generatemodel", app_name]:
-                raise ValidationError(
-                    Validations.__missing_program_name("generatemodel", app_name)
-                )
-
             case ["addprogram", app_name, _]:
                 validated_app_path = self._validate_app_path(
                     app_name, self.__not_in_settings("addprogram", app_name)
                 )
                 if not is_djelm(next(walk_level(validated_app_path))[2]):
                     raise ValidationError(
-                        f'{Validations.__not_a_djelm_app("addprogram", app_name)}\n'
+                        f"{Validations.__not_a_djelm_app('addprogram', app_name)}\n"
                     )
                 if not is_init(app_name) or not is_create(app_name):
                     raise ValidationError(
                         f"""
-                        {Validations.__missing_files_directories(
-                            "addprogram",
-                            app_name,
-                            [
-                                os.path.join(app_name, "static_src", "elm.json"),
-                                os.path.join(app_name, "templatetags"),
-                            ],
-                        )}
+                        {
+                            Validations.__missing_files_directories(
+                                "addprogram",
+                                app_name,
+                                [
+                                    os.path.join(app_name, "static_src", "elm.json"),
+                                    os.path.join(app_name, "templatetags"),
+                                ],
+                            )
+                        }
 \033[4m\033[1mHint\033[0m: These files are usually automatically generated for you when you run the \033[1mcreate\033[0m commands."""
                     )
+            case ["addprogramhandlers", app_name]:
+                raise ValidationError(
+                    Validations.__missing_program_name("addprogramhandlers", app_name)
+                )
             case ["addprogramhandlers" as cmd, app_name, prog_name]:
                 validated_app_path = self._validate_app_path(
                     app_name, self.__not_in_settings(cmd, app_name)
@@ -205,16 +157,67 @@ class Validations:
                 ):
                     raise ValidationError(
                         f"""
-                        {Validations.__missing_files_directories(
-                            cmd,
-                            app_name,
-                            [
-                                os.path.join(app_name, "static_src", "elm.json"),
-                                os.path.join(app_name, "templatetags"),
-                                os.path.join(app_name, "static_src", "src", *namespace_path, prog_name + ".elm"),
-                            ],
-                        )}
+                        {
+                            Validations.__missing_files_directories(
+                                cmd,
+                                app_name,
+                                [
+                                    os.path.join(app_name, "static_src", "elm.json"),
+                                    os.path.join(app_name, "templatetags"),
+                                    os.path.join(
+                                        app_name,
+                                        "static_src",
+                                        "src",
+                                        *namespace_path,
+                                        prog_name + ".elm",
+                                    ),
+                                ],
+                            )
+                        }
 \033[4m\033[1mHint\033[0m: These files are usually automatically generated for you when you run the \033[1mcreate\033[0m commands."""
+                    )
+            case ["addwidget", app_name, _]:
+                validated_app_path = self._validate_app_path(
+                    app_name, self.__not_in_settings("addwidget", app_name)
+                )
+                if not is_djelm(next(walk_level(validated_app_path))[2]):
+                    raise ValidationError(
+                        Validations.__not_a_djelm_app("addwidget", app_name)
+                    )
+            case ["create", app_name]:
+                app_path_exit = get_app_path(app_name)
+
+                if app_path_exit.tag == "Success" and is_djelm(
+                    next(walk_level(app_path_exit.value))[2]
+                ):
+                    raise ValidationError(self.__app_exists("create", app_name))
+
+                if app_name in settings.INSTALLED_APPS:
+                    raise ValidationError(
+                        Validations.__not_a_djelm_app("create", app_name)
+                    )
+            case ["compile", app_name]:
+                validated_app_path = self._validate_app_path(
+                    app_name, self.__not_in_settings("compile", app_name)
+                )
+                if not is_djelm(next(walk_level(validated_app_path))[2]):
+                    raise ValidationError(self.__not_a_djelm_app("compile", app_name))
+            case ["compilebuild", app_name]:
+                validated_app_path = self._validate_app_path(
+                    app_name, self.__not_in_settings("compilebuild", app_name)
+                )
+                if not is_djelm(next(walk_level(validated_app_path))[2]):
+                    raise ValidationError(
+                        self.__not_a_djelm_app("compilebuild", app_name)
+                    )
+
+            case ["elm", app_name, *_]:
+                validated_app_path = self._validate_app_path(
+                    app_name, self.__not_in_settings("elm", app_name)
+                )
+                if not is_djelm(next(walk_level(validated_app_path))[2]):
+                    raise ValidationError(
+                        Validations.__not_a_djelm_app("elm", app_name)
                     )
             case ["findprograms", app_name]:
                 validated_app_path = self._validate_app_path(
@@ -222,9 +225,12 @@ class Validations:
                 )
                 if not is_djelm(next(walk_level(validated_app_path))[2]):
                     raise ValidationError(
-                        f'{Validations.__not_a_djelm_app("findprograms", app_name)}\n'
+                        f"{Validations.__not_a_djelm_app('findprograms', app_name)}\n"
                     )
-
+            case ["generatemodel", app_name]:
+                raise ValidationError(
+                    Validations.__missing_program_name("generatemodel", app_name)
+                )
             case ["generatemodel", app_name, p]:
                 namespace = to_program_namespace(p.split("."))
                 namespace_path, prog_name = namespace
@@ -243,15 +249,23 @@ class Validations:
                 ):
                     raise ValidationError(
                         f"""
-                        {Validations.__missing_files_directories(
-                            "generatemodel",
-                            app_name,
-                            [
-                                os.path.join(app_name, "static_src", "elm.json"),
-                                os.path.join(app_name, "templatetags"),
-                                os.path.join(app_name, "static_src", "src", *namespace_path, prog_name + ".elm"),
-                            ],
-                        )}
+                        {
+                            Validations.__missing_files_directories(
+                                "generatemodel",
+                                app_name,
+                                [
+                                    os.path.join(app_name, "static_src", "elm.json"),
+                                    os.path.join(app_name, "templatetags"),
+                                    os.path.join(
+                                        app_name,
+                                        "static_src",
+                                        "src",
+                                        *namespace_path,
+                                        prog_name + ".elm",
+                                    ),
+                                ],
+                            )
+                        }
 \033[4m\033[1mHint\033[0m: These files are usually automatically generated for you when you run the \033[1mcreate, addprogram\033[0m and \033[1maddwidget\033[0m commands."""
                     )
             case ["generatemodels", app_name]:
@@ -262,88 +276,61 @@ class Validations:
                     raise ValidationError(
                         Validations.__not_a_djelm_app("generatemodel", app_name)
                     )
-            case ["addwidget", app_name, _]:
+
+            case ["npm", app_name, *_]:
                 validated_app_path = self._validate_app_path(
-                    app_name, self.__not_in_settings("addwidget", app_name)
+                    app_name, self.__not_in_settings("npm", app_name)
+                )
+
+                if not is_djelm(next(walk_level(validated_app_path))[2]):
+                    raise ValidationError(
+                        Validations.__not_a_djelm_app("npm", app_name)
+                    )
+            case ["watch", app_name]:
+                validated_app_path = self._validate_app_path(
+                    app_name, self.__not_in_settings("watch", app_name)
+                )
+                if not is_djelm(next(walk_level(validated_app_path))[2]):
+                    raise ValidationError(self.__not_a_djelm_app("watch", app_name))
+            case ["removeprogram", app_name]:
+                raise ValidationError(
+                    f"""
+
+{Validations.__missing_program_name("removeprogram", app_name)}
+"""
+                )
+            case ["removeprogram", app_name, _]:
+                validated_app_path = self._validate_app_path(
+                    app_name, self.__not_in_settings("removeprogram", app_name)
                 )
                 if not is_djelm(next(walk_level(validated_app_path))[2]):
                     raise ValidationError(
-                        Validations.__not_a_djelm_app("addwidget", app_name)
+                        f"{Validations.__not_a_djelm_app('removeprogram', app_name)}\n"
+                    )
+                if not is_init(app_name) or not is_create(app_name):
+                    raise ValidationError(
+                        f"""
+                        {
+                            Validations.__missing_files_directories(
+                                "removeprogram",
+                                app_name,
+                                [
+                                    os.path.join(app_name, "static_src", "elm.json"),
+                                    os.path.join(app_name, "templatetags"),
+                                ],
+                            )
+                        }
+\033[4m\033[1mHint\033[0m: These files are usually automatically generated for you when you run the \033[1mcreate\033[0m commands."""
                     )
 
     def __check_command_combos(self, xs: list[str]) -> None:
         match xs:
-            case ["create", _]:
-                return
-            case ["watch", _]:
-                return
             case ["addprogram", _, _]:
                 return
             case ["addprogramhandlers", _, _]:
                 return
             case ["addwidget", _, _]:
                 return
-            case ["generatemodel", _, _]:
-                return
-            case ["generatemodels", _]:
-                return
-            case ["list"]:
-                return
-            case ["listwidgets"]:
-                return
-            case ["findprograms", _]:
-                return
-            case ["compile", _]:
-                return
-            case ["compilebuild", _]:
-                return
-            case ["list", *rest]:
-                raise ValidationError(
-                    Validations.__too_many_command_args("list", list(rest))
-                )
-            case ["listwidgets", *rest]:
-                raise ValidationError(
-                    Validations.__too_many_command_args("listwidgets", list(rest))
-                )
-            case [
-                "npm",
-            ]:
-                raise ValidationError(Validations.__missing_app_name("npm"))
-            case [
-                "compile",
-            ]:
-                raise ValidationError(Validations.__missing_app_name("compile"))
-            case [
-                "compilebuild",
-            ]:
-                raise ValidationError(Validations.__missing_app_name("compilebuild"))
-            case ["compile", app_name, *rest]:
-                raise ValidationError(
-                    Validations.__too_many_command_args(
-                        "compile " + app_name, list(rest)
-                    )
-                )
-            case ["compilebuild", app_name, *rest]:
-                raise ValidationError(
-                    Validations.__too_many_command_args(
-                        "compilebuild " + app_name, list(rest)
-                    )
-                )
-            case [
-                "elm",
-            ]:
-                raise ValidationError(Validations.__missing_app_name("elm"))
-            case ["findprograms"]:
-                raise ValidationError(Validations.__missing_app_name("findprograms"))
-            case ["npm", _, *_]:
-                return
-            case ["elm", _, *_]:
-                return
-            case ["watch"] as command_verb:
-                raise ValidationError(Validations.__missing_app_name(command_verb[0]))
-
-            case ["create"] as command_verb:
-                raise ValidationError(Validations.__missing_app_name(command_verb[0]))
             case ["addwidget", app_name]:
                 raise ValidationError(
                     Validations.__missing_argument(
@@ -362,6 +349,72 @@ class Validations:
                         f"addwidget {app_name} {widget_name}", list(rest)
                     )
                 )
+            case ["create", _]:
+                return
+            case ["create"] as command_verb:
+                raise ValidationError(Validations.__missing_app_name(command_verb[0]))
+            case ["compile", _]:
+                return
+            case ["compile", app_name, *rest]:
+                raise ValidationError(
+                    Validations.__too_many_command_args(
+                        "compile " + app_name, list(rest)
+                    )
+                )
+            case [
+                "compile",
+            ]:
+                raise ValidationError(Validations.__missing_app_name("compile"))
+            case ["compilebuild", _]:
+                return
+            case [
+                "compilebuild",
+            ]:
+                raise ValidationError(Validations.__missing_app_name("compilebuild"))
+            case ["compilebuild", app_name, *rest]:
+                raise ValidationError(
+                    Validations.__too_many_command_args(
+                        "compilebuild " + app_name, list(rest)
+                    )
+                )
+            case ["elm", _, *_]:
+                return
+            case [
+                "elm",
+            ]:
+                raise ValidationError(Validations.__missing_app_name("elm"))
+            case ["findprograms", _]:
+                return
+            case ["findprograms"]:
+                raise ValidationError(Validations.__missing_app_name("findprograms"))
+            case ["generatemodel", _, _]:
+                return
+            case ["generatemodels", _]:
+                return
+            case ["list"]:
+                return
+            case ["list", *rest]:
+                raise ValidationError(
+                    Validations.__too_many_command_args("list", list(rest))
+                )
+            case ["listwidgets"]:
+                return
+            case ["listwidgets", *rest]:
+                raise ValidationError(
+                    Validations.__too_many_command_args("listwidgets", list(rest))
+                )
+            case ["npm", _, *_]:
+                return
+            case [
+                "npm",
+            ]:
+                raise ValidationError(Validations.__missing_app_name("npm"))
+            case ["watch", _]:
+                return
+            case ["watch"] as command_verb:
+                raise ValidationError(Validations.__missing_app_name(command_verb[0]))
+            case ["removeprogram", _, _]:
+                return
 
     @staticmethod
     def __app_exists(cmd_verb: str, app_name: str) -> str:
@@ -545,20 +598,21 @@ But \033[1m{app_name}\033[0m doesn't look like a djelm app and I can't run comma
     @staticmethod
     def __check_command_verb(s: str) -> None:
         if s not in [
-            "create",
-            "npm",
-            "elm",
-            "list",
-            "listwidgets",
-            "findprograms",
             "addprogram",
             "addprogramhandlers",
             "addwidget",
-            "watch",
-            "generatemodel",
-            "generatemodels",
+            "create",
             "compile",
             "compilebuild",
+            "elm",
+            "findprograms",
+            "generatemodel",
+            "generatemodels",
+            "list",
+            "listwidgets",
+            "npm",
+            "removeprogram",
+            "watch",
         ]:
             raise ValidationError(Validations.__invalid_strategy(s))
 
@@ -567,35 +621,24 @@ But \033[1m{app_name}\033[0m doesn't look like a djelm app and I can't run comma
         xs: list[str],
     ) -> (
         ExitSuccess[
-            Create
-            | List
-            | ListWidgets
-            | FindPrograms
-            | AddProgram
+            AddProgram
             | AddProgramHandlers
-            | Npm
+            | AddWidget
+            | Create
+            | Compile
             | Elm
-            | Watch
+            | FindPrograms
             | GenerateModel
             | GenerateModels
-            | Compile
-            | AddWidget
+            | List
+            | ListWidgets
+            | Npm
+            | RemoveProgram
+            | Watch
         ]
         | ExitFailure[list[str], ValidationError]
     ):
         match xs:
-            case ["create", v]:
-                return ExitSuccess(Create({"command": "create", "app_name": v}))
-            case ["watch", v]:
-                return ExitSuccess(Watch({"command": "watch", "app_name": v}))
-            case ["compile", v]:
-                return ExitSuccess(
-                    Compile({"command": "compile", "app_name": v, "build": False})
-                )
-            case ["compilebuild", v]:
-                return ExitSuccess(
-                    Compile({"command": "compile", "app_name": v, "build": True})
-                )
             case ["addprogram", v, p]:
                 return ExitSuccess(
                     AddProgram(
@@ -612,24 +655,6 @@ But \033[1m{app_name}\033[0m doesn't look like a djelm app and I can't run comma
                         }
                     )
                 )
-            case ["generatemodel", v, p]:
-                return ExitSuccess(
-                    GenerateModel(
-                        {"command": "generatemodel", "app_name": v, "program_name": p}
-                    )
-                )
-            case ["generatemodels", v]:
-                return ExitSuccess(
-                    GenerateModels({"command": "generatemodels", "app_name": v})
-                )
-            case ["npm", v, *rest]:
-                return ExitSuccess(Npm({"command": "npm", "app_name": v, "args": rest}))
-            case ["elm", v, *rest]:
-                return ExitSuccess(Elm({"command": "elm", "app_name": v, "args": rest}))
-            case ["list"]:
-                return ExitSuccess(List({"command": "list"}))
-            case ["listwidgets"]:
-                return ExitSuccess(ListWidgets({"command": "listwidgets"}))
             case ["addwidget", v, widget_name]:
                 if widget_name not in WIDGET_NAMES:
                     raise ValidationError(
@@ -640,10 +665,46 @@ But \033[1m{app_name}\033[0m doesn't look like a djelm app and I can't run comma
                         {"command": "addwidget", "app_name": v, "widget": widget_name}
                     )
                 )
+            case ["create", v]:
+                return ExitSuccess(Create({"command": "create", "app_name": v}))
+            case ["compile", v]:
+                return ExitSuccess(
+                    Compile({"command": "compile", "app_name": v, "build": False})
+                )
+            case ["compilebuild", v]:
+                return ExitSuccess(
+                    Compile({"command": "compile", "app_name": v, "build": True})
+                )
+            case ["elm", v, *rest]:
+                return ExitSuccess(Elm({"command": "elm", "app_name": v, "args": rest}))
             case ["findprograms", v]:
                 return ExitSuccess(
                     FindPrograms({"command": "findprograms", "app_name": v})
                 )
+            case ["generatemodel", v, p]:
+                return ExitSuccess(
+                    GenerateModel(
+                        {"command": "generatemodel", "app_name": v, "program_name": p}
+                    )
+                )
+            case ["generatemodels", v]:
+                return ExitSuccess(
+                    GenerateModels({"command": "generatemodels", "app_name": v})
+                )
+            case ["list"]:
+                return ExitSuccess(List({"command": "list"}))
+            case ["listwidgets"]:
+                return ExitSuccess(ListWidgets({"command": "listwidgets"}))
+            case ["npm", v, *rest]:
+                return ExitSuccess(Npm({"command": "npm", "app_name": v, "args": rest}))
+            case ["removeprogram", v, p]:
+                return ExitSuccess(
+                    RemoveProgram(
+                        {"command": "removeprogram", "app_name": v, "program_name": p}
+                    )
+                )
+            case ["watch", v]:
+                return ExitSuccess(Watch({"command": "watch", "app_name": v}))
             case _ as cmds:
                 return ExitFailure(
                     cmds,
