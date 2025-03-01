@@ -1,6 +1,7 @@
 import os
 import uuid
 from django.core.management import call_command
+from djelm.generators import ModelChoiceFieldWidgetGenerator, ProgramGenerator
 from djelm.utils import STUFF_ENTRYPOINTS, get_app_path, get_app_src_path
 from .conftest import cleanup_theme_app_dir
 
@@ -278,6 +279,183 @@ def test_addwidget(settings):
             "Widgets.ModelMultipleChoiceField.ts",
         )
     ), "The Widgets.ModelMultipleChoiceField ts entrypoint gets generated"
+
+    settings.INSTALLED_APPS.remove(app_name)
+    cleanup_theme_app_dir(app_name)
+
+
+def test_remove_widget_program_with_handler(settings):
+    app_name = f"test_project_{str(uuid.uuid1()).replace('-', '_')}"
+    call_command("djelm", "create", app_name)
+    settings.INSTALLED_APPS += [app_name]
+
+    call_command("djelm", "addwidget", app_name, "ModelChoiceField", "--no-deps")
+    call_command("djelm", "addprogramhandlers", app_name, "Widgets.ModelChoiceField")
+
+    app_path = get_app_path(app_name)
+    file_details = ModelChoiceFieldWidgetGenerator().file_type_details(
+        "ModelChoiceField",
+        app_path.value,  # type:ignore
+    )  # type: ignore
+
+    for details in file_details:
+        print(details)
+        assert os.path.isfile(details["path"])
+
+    assert os.path.isfile(
+        os.path.join(
+            get_app_path(app_name).value,  # type:ignore
+            "static_src",
+            "src",
+            "Widgets",
+            "Models",
+            "ModelChoiceField.elm",
+        )
+    ), "The elm program flags have been generated"
+    assert os.path.isfile(
+        os.path.join(
+            get_app_src_path(app_name).value,  # type:ignore
+            "src",
+            "Widgets",
+            "ModelChoiceField.handlers.ts",
+        )
+    ), "The widget handlers file has been created"
+
+    call_command("djelm", "removeprogram", app_name, "Widgets.ModelChoiceField")
+
+    for details in file_details:
+        assert os.path.exists(details["path"]) is False
+
+    assert (
+        os.path.isfile(
+            os.path.join(
+                get_app_src_path(app_name).value,  # type:ignore
+                "src",
+                "Widgets",
+                "ModelChoiceField.handlers.ts",
+            )
+        )
+        is False
+    ), "The widget handlers file has been removed"
+    assert (
+        os.path.isfile(
+            os.path.join(
+                get_app_path(app_name).value,  # type:ignore
+                "static_src",
+                "src",
+                "Widgets",
+                "Models",
+                "ModelChoiceField.elm",
+            )
+        )
+        is False
+    ), "The elm widget program model has been removed"
+
+    settings.INSTALLED_APPS.remove(app_name)
+    cleanup_theme_app_dir(app_name)
+
+
+def test_remove_program_with_handler(settings):
+    app_name = f"test_project_{str(uuid.uuid1()).replace('-', '_')}"
+    call_command("djelm", "create", app_name)
+    settings.INSTALLED_APPS += [app_name]
+
+    call_command("djelm", "addprogram", app_name, "Main")
+    call_command("djelm", "addprogramhandlers", app_name, "Main")
+
+    app_path = get_app_path(app_name)
+    file_details = ProgramGenerator().file_type_details("Main", app_path.value)  # type: ignore
+
+    for details in file_details:
+        print(details)
+        assert os.path.isfile(details["path"])
+    assert os.path.isfile(
+        os.path.join(
+            get_app_path(app_name).value,  # type:ignore
+            "static_src",
+            "src",
+            "Models",
+            "Main.elm",
+        )
+    ), "The elm program flags have been generated"
+    assert os.path.isfile(
+        os.path.join(
+            get_app_src_path(app_name).value,  # type:ignore
+            "src",
+            "Main.handlers.ts",
+        )
+    ), "The widget handlers file has been created"
+
+    call_command("djelm", "removeprogram", app_name, "Main")
+
+    for details in file_details:
+        assert os.path.exists(details["path"]) is False
+    assert (
+        os.path.isfile(
+            os.path.join(
+                get_app_src_path(app_name).value,  # type:ignore
+                "src",
+                "Main.handlers.ts",
+            )
+        )
+        is False
+    ), "The handlers file has been removed"
+    assert (
+        os.path.isfile(
+            os.path.join(
+                get_app_path(app_name).value,  # type:ignore
+                "static_src",
+                "src",
+                "Models",
+                "Main.elm",
+            )
+        )
+        is False
+    ), "The elm programs model has been removed"
+
+    settings.INSTALLED_APPS.remove(app_name)
+    cleanup_theme_app_dir(app_name)
+
+
+def test_remove_program(settings):
+    app_name = f"test_project_{str(uuid.uuid1()).replace('-', '_')}"
+    call_command("djelm", "create", app_name)
+    settings.INSTALLED_APPS += [app_name]
+
+    call_command("djelm", "addprogram", app_name, "Main")
+
+    app_path = get_app_path(app_name)
+    file_details = ProgramGenerator().file_type_details("Main", app_path.value)  # type: ignore
+
+    for details in file_details:
+        print(details)
+        assert os.path.isfile(details["path"])
+    assert os.path.isfile(
+        os.path.join(
+            get_app_path(app_name).value,  # type:ignore
+            "static_src",
+            "src",
+            "Models",
+            "Main.elm",
+        )
+    ), "The elm program flags have been generated"
+
+    call_command("djelm", "removeprogram", app_name, "Main")
+
+    for details in file_details:
+        assert os.path.exists(details["path"]) is False
+    assert (
+        os.path.isfile(
+            os.path.join(
+                get_app_path(app_name).value,  # type:ignore
+                "static_src",
+                "src",
+                "Models",
+                "Main.elm",
+            )
+        )
+        is False
+    ), "The elm program flags have been removed generated"
 
     settings.INSTALLED_APPS.remove(app_name)
     cleanup_theme_app_dir(app_name)

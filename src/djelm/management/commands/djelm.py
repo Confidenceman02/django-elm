@@ -15,6 +15,7 @@ from ...strategy import (
     ListStrategy,
     ListWidgetsStrategy,
     NpmStrategy,
+    RemoveProgramStrategy,
     Strategy,
     WatchStrategy,
 )
@@ -27,6 +28,7 @@ class Command(LabelCommand):
 Command arguments are missing, please add one of the following:
   create <app-name> - to create a djelm app
   addprogram <app-name> <program-name> - create an Elm program called <program-name> in the <app-name> app
+  removeprogram <app-name> <program-name> - remove all files associated with an Elm program called <program-name> in the <app-name> app
   addwidget <app-name> <widget-name> - create a widget program in the <app-name> app
   watch <app-name> - will watch the app's src file for Elm code changes and compile
   npm <app-name> [args].. - call your designated NODE_PACKAGE_MANAGER with [args]
@@ -41,6 +43,7 @@ Command arguments are missing, please add one of the following:
 Usage example:
   python manage.py djelm create djelm_app
   python manage.py djelm addprogram djelm_app MyElmProgram
+  python manage.py djelm removeprogram djelm_app MyElmProgram
   python manage.py djelm addwidget djelm_app ModelChoiceField
   python manage.py djelm watch djelm_app
   python manage.py djelm npm djelm_app install
@@ -55,10 +58,10 @@ Usage example:
 """
     validate = None
     strategy: (
-        CreateStrategy
-        | AddProgramHandlersStrategy
+        AddProgramHandlersStrategy
         | AddProgramStrategy
         | AddWidgetStrategy
+        | CreateStrategy
         | CompileStrategy
         | ElmStrategy
         | FindProgramsStrategy
@@ -67,6 +70,7 @@ Usage example:
         | ListStrategy
         | ListWidgetsStrategy
         | NpmStrategy
+        | RemoveProgramStrategy
         | WatchStrategy
     )
 
