@@ -1,14 +1,18 @@
 import os
+from enum import Enum
 from typing import Protocol
+
 from typing_extensions import TypedDict
+
+import djelm.flag_loader as FlagLoader
 from djelm.cookiecutter import CookieCutter
 from djelm.effect import ExitFailure, ExitSuccess
 from djelm.flags import Flags
 from djelm.flags.primitives import IntFlag
 from djelm.forms.widgets.main import WIDGET_NAME_TO_DEFAULT_FLAG, WIDGET_NAMES_T
 from djelm.npm import NPM, NPMError
-import djelm.flag_loader as FlagLoader
 from djelm.utils import (
+    STUFF_ENTRYPOINTS,
     STUFF_NAMESPACE,
     module_name,
     scope_name,
@@ -16,6 +20,21 @@ from djelm.utils import (
     view_name,
     widget_scope_name,
 )
+
+
+class ProgramFileType(Enum):
+    Entrypoint = "entrypoint"
+    Flag = "flag"
+    Program = "program"
+    TemplateTag = "templatetag"
+    Handler = "handler"
+    Model = "model"
+
+
+ProgramConfig = TypedDict(
+    "ProgramConfig", {"file_type": ProgramFileType, "template_name": str, "path": str}
+)
+
 
 #  _____           _                  _
 # |  __ \         | |                | |
@@ -47,19 +66,20 @@ class SupportsFlagLoader(Protocol):
 
 
 class SupportsProgramHandlersCookieCutter(Protocol):
-    def cookie_cutters(self, parent_dir: str, program_name: str) -> list[CookieCutter]:
+    def cookie_cutters(self, src_dir: str, program_name: str) -> list[CookieCutter]:
         """Support adding a handlers JS module to a program"""
         ...
 
 
 class SupportsModelCookieCutter(Protocol):
-    def cookie_cutter(
+    def cookie_cutters(
         self,
         flags: Flags,
         app_name: str,
         program_name: str,
+        app_path: str,
         src_path: str,
-    ) -> CookieCutter:
+    ) -> list[CookieCutter]:
         """Support generating a cookie cutter config for an Elm program Model"""
         ...
 
@@ -77,19 +97,28 @@ class SupportsProgramCookieCutter(Protocol):
         ...
 
 
-class ModelBuilder(SupportsModelCookieCutter, SupportsFlagLoader):
+class SupportsProgramFileTypeDetails(Protocol):
+    def file_type_details(
+        self, program_name: str, app_path: str
+    ) -> list[ProgramConfig]:
+        """All the file type information for a program"""
+        ...
+
+
+class ModelBuilder(
+    SupportsModelCookieCutter, SupportsFlagLoader, SupportsProgramFileTypeDetails
+):
     pass
 
 
 class ProgramBuilder(
-    SupportsProgramCookieCutter,
-    SupportsElmDependencies,
+    SupportsProgramCookieCutter, SupportsElmDependencies, SupportsProgramFileTypeDetails
 ):
     pass
 
 
 class ProgramHandlersBuilder(
-    SupportsProgramHandlersCookieCutter,
+    SupportsProgramHandlersCookieCutter, SupportsProgramFileTypeDetails
 ):
     pass
 
@@ -195,6 +224,8 @@ ProgramInitCookieExtra = TypedDict(
     },
 )
 
+DEFAULT_WIDGET_IMPORTS = ['import defo from "@icelab/defo";']
+
 
 def widget_cookie_cutter(
     app_name: str, src_path: str, program_name: WIDGET_NAMES_T, version: str
@@ -226,7 +257,6 @@ def entrypoint_cookie_cutter(
     imports: list[str] = [],
     extras: list[str] = [],
 ) -> CookieCutter:
-    default_imports = ['import defo from "@icelab/defo";']
     return CookieCutter[EntrypointCookieExtra](
         file_dir=os.path.join(os.path.dirname(__file__), "cookiecutters"),
         output_dir=os.path.join(src_path, *STUFF_NAMESPACE),
@@ -238,7 +268,7 @@ def entrypoint_cookie_cutter(
             "program_name": program_name,
             "scope": scope,
             "view_name": view_prefix + view_name(program_name),
-            "lists": {"imports": default_imports + imports, "extras": extras},
+            "lists": {"imports": DEFAULT_WIDGET_IMPORTS + imports, "extras": extras},
         },
         overwrite=True,
     )
@@ -248,6 +278,7 @@ def model_cookie_cutter(
     flags: Flags,
     app_name: str,
     program_name: str,
+    cookie_template_name: str,
     dir: str,
     output_dir: str,
     module_model_namespace: str,
@@ -255,7 +286,7 @@ def model_cookie_cutter(
     return CookieCutter[ProgramModelCookieExtra](
         file_dir=os.path.join((os.path.dirname(__file__)), "cookiecutters"),
         output_dir=(output_dir),
-        cookie_template_name="program_model_template",
+        cookie_template_name=cookie_template_name,
         extra={
             "program_name": module_name(program_name),
             "dir": dir,
@@ -295,6 +326,67 @@ class ModelChoiceFieldWidgetGenerator(ProgramBuilder):
             return ExitFailure(None, effect.err)
         return ExitSuccess(None)
 
+    def file_type_details(
+        self, program_name: str, app_path: str
+    ) -> list[ProgramConfig]:
+        configs = []
+        for pft in ProgramFileType:
+            match pft:
+                case ProgramFileType.Entrypoint:
+                    configs.append(
+                        {
+                            "file_type": ProgramFileType.Entrypoint,
+                            "template_name": "entrypoint_template",
+                            "path": os.path.join(
+                                app_path,
+                                "static_src",
+                                *STUFF_ENTRYPOINTS,
+                                f"Widgets.{module_name(program_name)}.ts",
+                            ),
+                        }
+                    )
+                case ProgramFileType.Flag:
+                    configs.append(
+                        {
+                            "file_type": ProgramFileType.Flag,
+                            "template_name": f"program_widget_{program_name}_flags_template",
+                            "path": os.path.join(
+                                app_path,
+                                "flags",
+                                "widgets",
+                                tag_file_name(program_name) + ".py",
+                            ),
+                        }
+                    )
+                case ProgramFileType.Program:
+                    configs.append(
+                        {
+                            "file_type": ProgramFileType.Program,
+                            "template_name": f"program_widget_{program_name}_template",
+                            "path": os.path.join(
+                                app_path,
+                                "static_src",
+                                "src",
+                                "Widgets",
+                                module_name(program_name) + ".elm",
+                            ),
+                        }
+                    )
+                case ProgramFileType.TemplateTag:
+                    configs.append(
+                        {
+                            "file_type": ProgramFileType.TemplateTag,
+                            "template_name": f"program_widget_{program_name}_tags_template",
+                            "path": os.path.join(
+                                app_path,
+                                "templatetags",
+                                f"{tag_file_name(program_name)}_widget_tags.py",
+                            ),
+                        }
+                    )
+
+        return configs
+
     def cookie_cutters(
         self,
         app_name: str,
@@ -303,78 +395,140 @@ class ModelChoiceFieldWidgetGenerator(ProgramBuilder):
         src_path: str,
         version: str,
     ) -> list[CookieCutter]:
-        return [
-            CookieCutter[ProgramCookieExtra](
-                file_dir=os.path.join(os.path.dirname(__file__), "cookiecutters"),
-                output_dir=os.path.join(src_path, "src"),
-                cookie_template_name=f"program_widget_{program_name}_template",
-                extra={
-                    "module_namespace": "Widgets.",
-                    "module_model_namespace": "Widgets.Models",
-                    "dir": "Widgets",
-                    "program_name": program_name,
-                },
-                overwrite=True,
-                log_lines=[
-                    f"""\n-- GENERATED WIDGET PROGRAM --------------------------------------------- Widgets.{program_name}.elm""",
-                    f"\t\033[93m{app_name}/static_src/src/Widgets/{program_name}.elm\033[0m",
-                ],
-            ),
-            CookieCutter[ProgramTagsCookieExtra](
-                file_dir=os.path.join(os.path.dirname(__file__), "cookiecutters"),
-                output_dir=app_path,
-                cookie_template_name=f"program_widget_{program_name}_tags_template",
-                extra={
-                    "program_name": module_name(program_name),
-                    "tag_name": tag_file_name(program_name),
-                },
-                overwrite=True,
-                log_lines=[
-                    f"""\n-- GENERATED WIDGET TAGS --------------------------------------------- {tag_file_name(program_name)}_widget_tags.py""",
-                    f"\t\033[93m{app_name}/templatetags/{tag_file_name(program_name)}_widget_tags.py\033[0m",
-                ],
-            ),
-            CookieCutter[ProgramFlagsCookieExtra](
-                file_dir=os.path.join(os.path.dirname(__file__), "cookiecutters"),
-                output_dir=os.path.join(app_path, "flags"),
-                cookie_template_name=f"program_widget_{program_name}_flags_template",
-                extra={
-                    "dir": "widgets",
-                    "flag_file": tag_file_name(program_name),
-                    "program_name": program_name,
-                    "scope": widget_scope_name(app_name, program_name),
-                    "view_name": view_name(program_name),
-                    "version": version,
-                },
-                overwrite=True,
-                log_lines=[
-                    f"""\n-- GENERATED WIDGET FLAGS --------------------------------------------- {tag_file_name(program_name)}.py""",
-                    f"\t\033[93m{app_name}/flags/widgets/{tag_file_name(program_name)}.py\033[0m",
-                ],
-            ),
-            entrypoint_cookie_cutter(
-                base_name="Widgets.",
-                base_path=f"Widgets{os.path.sep}",
-                src_path=src_path,
-                program_name=module_name(program_name),
-                scope=widget_scope_name(app_name, program_name),
-                view_prefix="widget",
-            ),
-        ]
+        cookies: list[CookieCutter] = []
+        for detail in self.file_type_details(program_name, app_path):
+            match detail["file_type"]:
+                case ProgramFileType.Program:
+                    cookies.append(
+                        CookieCutter[ProgramCookieExtra](
+                            file_dir=os.path.join(
+                                os.path.dirname(__file__), "cookiecutters"
+                            ),
+                            output_dir=os.path.join(src_path, "src"),
+                            cookie_template_name=detail["template_name"],
+                            extra={
+                                "module_namespace": "Widgets.",
+                                "module_model_namespace": "Widgets.Models",
+                                "dir": "Widgets",
+                                "program_name": program_name,
+                            },
+                            overwrite=True,
+                            log_lines=[
+                                f"""\n-- GENERATED WIDGET PROGRAM --------------------------------------------- Widgets.{program_name}.elm""",
+                                f"\t\033[93m{app_name}/static_src/src/Widgets/{program_name}.elm\033[0m",
+                            ],
+                        )
+                    )
+                case ProgramFileType.TemplateTag:
+                    cookies.append(
+                        CookieCutter[ProgramTagsCookieExtra](
+                            file_dir=os.path.join(
+                                os.path.dirname(__file__), "cookiecutters"
+                            ),
+                            output_dir=app_path,
+                            cookie_template_name=detail["template_name"],
+                            extra={
+                                "program_name": module_name(program_name),
+                                "tag_name": tag_file_name(program_name),
+                            },
+                            overwrite=True,
+                            log_lines=[
+                                f"""\n-- GENERATED WIDGET TAGS --------------------------------------------- {tag_file_name(program_name)}_widget_tags.py""",
+                                f"\t\033[93m{app_name}/templatetags/{tag_file_name(program_name)}_widget_tags.py\033[0m",
+                            ],
+                        )
+                    )
+                case ProgramFileType.Flag:
+                    cookies.append(
+                        CookieCutter[ProgramFlagsCookieExtra](
+                            file_dir=os.path.join(
+                                os.path.dirname(__file__), "cookiecutters"
+                            ),
+                            output_dir=os.path.join(app_path, "flags"),
+                            cookie_template_name=detail["template_name"],
+                            extra={
+                                "dir": "widgets",
+                                "flag_file": tag_file_name(program_name),
+                                "program_name": program_name,
+                                "scope": widget_scope_name(app_name, program_name),
+                                "view_name": view_name(program_name),
+                                "version": version,
+                            },
+                            overwrite=True,
+                            log_lines=[
+                                f"""\n-- GENERATED WIDGET FLAGS --------------------------------------------- {tag_file_name(program_name)}.py""",
+                                f"\t\033[93m{app_name}/flags/widgets/{tag_file_name(program_name)}.py\033[0m",
+                            ],
+                        )
+                    )
+                case ProgramFileType.Entrypoint:
+                    cookies.append(
+                        CookieCutter[EntrypointCookieExtra](
+                            file_dir=os.path.join(
+                                os.path.dirname(__file__), "cookiecutters"
+                            ),
+                            output_dir=os.path.join(src_path, *STUFF_NAMESPACE),
+                            cookie_template_name=detail["template_name"],
+                            extra={
+                                "base_name": "Widgets.",
+                                "base_path": f"Widgets{os.path.sep}",
+                                "dir": "entrypoints",
+                                "program_name": module_name(program_name),
+                                "scope": widget_scope_name(app_name, program_name),
+                                "view_name": "widget" + view_name(program_name),
+                                "lists": {
+                                    "imports": DEFAULT_WIDGET_IMPORTS,
+                                    "extras": [],
+                                },
+                            },
+                            overwrite=True,
+                        )
+                    )
+        return cookies
 
 
 class ModelGenerator(ModelBuilder):
-    def cookie_cutter(
-        self, flags: Flags, app_name: str, program_name: str, src_path: str
-    ) -> CookieCutter:
-        return model_cookie_cutter(
-            flags,
-            app_name,
-            program_name,
-            "Models",
-            os.path.join(src_path, "src"),
-            "Models",
-        )
+    def file_type_details(
+        self, program_name: str, app_path: str
+    ) -> list[ProgramConfig]:
+        return [
+            {
+                "file_type": ProgramFileType.Model,
+                "template_name": "program_model_template",
+                "path": os.path.join(
+                    app_path,
+                    "static_src",
+                    "src",
+                    "Models",
+                    module_name(program_name) + ".elm",
+                ),
+            }
+        ]
+
+    def cookie_cutters(
+        self,
+        flags: Flags,
+        app_name: str,
+        program_name: str,
+        app_path: str,
+        src_path: str,
+    ) -> list[CookieCutter]:
+        configs = []
+        for detail in self.file_type_details(program_name, app_path):
+            match detail["file_type"]:
+                case ProgramFileType.Model:
+                    configs.append(
+                        model_cookie_cutter(
+                            flags,
+                            app_name,
+                            program_name,
+                            detail["template_name"],
+                            "Models",
+                            os.path.join(src_path, "src"),
+                            "Models",
+                        )
+                    )
+        return configs
 
     def load_flags(
         self,
@@ -425,6 +579,64 @@ class ModelGenerator(ModelBuilder):
 class ProgramGenerator(ProgramBuilder):
     """Generate an Elm program"""
 
+    def file_type_details(
+        self, program_name: str, app_path: str
+    ) -> list[ProgramConfig]:
+        configs: list[ProgramConfig] = []
+
+        for pft in ProgramFileType:
+            match pft:
+                case ProgramFileType.Entrypoint:
+                    configs.append(
+                        {
+                            "file_type": ProgramFileType.Entrypoint,
+                            "template_name": "entrypoint_template",
+                            "path": os.path.join(
+                                app_path,
+                                "static_src",
+                                *STUFF_ENTRYPOINTS,
+                                module_name(program_name) + ".ts",
+                            ),
+                        }
+                    )
+                case ProgramFileType.Flag:
+                    configs.append(
+                        {
+                            "file_type": ProgramFileType.Flag,
+                            "template_name": "program_flags_template",
+                            "path": os.path.join(
+                                app_path, "flags", tag_file_name(program_name) + ".py"
+                            ),
+                        }
+                    )
+                case ProgramFileType.Program:
+                    configs.append(
+                        {
+                            "file_type": ProgramFileType.Program,
+                            "template_name": "program_template",
+                            "path": os.path.join(
+                                app_path,
+                                "static_src",
+                                "src",
+                                module_name(program_name) + ".elm",
+                            ),
+                        }
+                    )
+                case ProgramFileType.TemplateTag:
+                    configs.append(
+                        {
+                            "file_type": ProgramFileType.TemplateTag,
+                            "template_name": "program_tags_template",
+                            "path": os.path.join(
+                                app_path,
+                                "templatetags",
+                                f"{tag_file_name(program_name)}_tags.py",
+                            ),
+                        }
+                    )
+
+        return configs
+
     def install_elm_deps(
         self, working_dir: str, logger
     ) -> ExitSuccess[None] | ExitFailure[None, NPMError]:
@@ -438,71 +650,94 @@ class ProgramGenerator(ProgramBuilder):
         src_path: str,
         version: str,
     ) -> list[CookieCutter]:
-        return [
-            CookieCutter[ProgramCookieExtra](
-                file_dir=os.path.join(os.path.dirname(__file__), "cookiecutters"),
-                output_dir=src_path,
-                cookie_template_name="program_template",
-                extra={
-                    "module_namespace": "",
-                    "module_model_namespace": "Models",
-                    "dir": "src",
-                    "program_name": module_name(program_name),
-                },
-                overwrite=True,
-                log_lines=[
-                    f"""\n-- GENERATED PROGRAM --------------------------------------------- {module_name(program_name)}.elm""",
-                    f"\t\033[93m{app_name}/static_src/src/{module_name(program_name)}.elm\033[0m",
-                ],
-            ),
-            CookieCutter[ProgramTagsCookieExtra](
-                file_dir=os.path.join(os.path.dirname(__file__), "cookiecutters"),
-                output_dir=app_path,
-                cookie_template_name="program_tags_template",
-                extra={
-                    "program_name": module_name(program_name),
-                    "tag_name": tag_file_name(program_name),
-                },
-                overwrite=True,
-                log_lines=[
-                    f"""\n-- GENERATED TAGS --------------------------------------------- {tag_file_name(program_name)}_tags.py""",
-                    f"\t\033[93m{app_name}/templatetags/{tag_file_name(program_name)}_tags.py\033[0m",
-                ],
-            ),
-            CookieCutter[ProgramFlagsCookieExtra](
-                file_dir=os.path.join(os.path.dirname(__file__), "cookiecutters"),
-                output_dir=app_path,
-                cookie_template_name="program_flags_template",
-                extra={
-                    "dir": "flags",
-                    "flag_file": tag_file_name(program_name),
-                    "program_name": module_name(program_name),
-                    "scope": scope_name(app_name, program_name),
-                    "view_name": view_name(program_name),
-                    "version": version,
-                },
-                overwrite=True,
-                log_lines=[
-                    f"""\n-- GENERATED FLAGS --------------------------------------------- {tag_file_name(program_name)}.py""",
-                    f"\t\033[93m{app_name}/flags/{tag_file_name(program_name)}.py\033[0m",
-                ],
-            ),
-            CookieCutter[EntrypointCookieExtra](
-                file_dir=os.path.join(os.path.dirname(__file__), "cookiecutters"),
-                output_dir=os.path.join(src_path, *STUFF_NAMESPACE),
-                cookie_template_name="entrypoint_template",
-                extra={
-                    "base_name": "",
-                    "base_path": "",
-                    "dir": "entrypoints",
-                    "program_name": program_name,
-                    "scope": scope_name(app_name, program_name),
-                    "view_name": "",
-                    "lists": {"imports": [], "extras": []},
-                },
-                overwrite=True,
-            ),
-        ]
+        cookies: list[CookieCutter] = []
+        for detail in self.file_type_details(program_name, app_path):
+            match detail["file_type"]:
+                case ProgramFileType.Program:
+                    cookies.append(
+                        CookieCutter[ProgramCookieExtra](
+                            file_dir=os.path.join(
+                                os.path.dirname(__file__), "cookiecutters"
+                            ),
+                            output_dir=src_path,
+                            cookie_template_name=detail["template_name"],
+                            extra={
+                                "module_namespace": "",
+                                "module_model_namespace": "Models",
+                                "dir": "src",
+                                "program_name": module_name(program_name),
+                            },
+                            overwrite=True,
+                            log_lines=[
+                                f"""\n-- GENERATED PROGRAM --------------------------------------------- {module_name(program_name)}.elm""",
+                                f"\t\033[93m{app_name}/static_src/src/{module_name(program_name)}.elm\033[0m",
+                            ],
+                        )
+                    )
+                case ProgramFileType.TemplateTag:
+                    cookies.append(
+                        CookieCutter[ProgramTagsCookieExtra](
+                            file_dir=os.path.join(
+                                os.path.dirname(__file__), "cookiecutters"
+                            ),
+                            output_dir=app_path,
+                            cookie_template_name=detail["template_name"],
+                            extra={
+                                "program_name": module_name(program_name),
+                                "tag_name": tag_file_name(program_name),
+                            },
+                            overwrite=True,
+                            log_lines=[
+                                f"""\n-- GENERATED TAGS --------------------------------------------- {tag_file_name(program_name)}_tags.py""",
+                                f"\t\033[93m{app_name}/templatetags/{tag_file_name(program_name)}_tags.py\033[0m",
+                            ],
+                        )
+                    )
+                case ProgramFileType.Flag:
+                    cookies.append(
+                        CookieCutter[ProgramFlagsCookieExtra](
+                            file_dir=os.path.join(
+                                os.path.dirname(__file__), "cookiecutters"
+                            ),
+                            output_dir=app_path,
+                            cookie_template_name=detail["template_name"],
+                            extra={
+                                "dir": "flags",
+                                "flag_file": tag_file_name(program_name),
+                                "program_name": module_name(program_name),
+                                "scope": scope_name(app_name, program_name),
+                                "view_name": view_name(program_name),
+                                "version": version,
+                            },
+                            overwrite=True,
+                            log_lines=[
+                                f"""\n-- GENERATED FLAGS --------------------------------------------- {tag_file_name(program_name)}.py""",
+                                f"\t\033[93m{app_name}/flags/{tag_file_name(program_name)}.py\033[0m",
+                            ],
+                        )
+                    )
+                case ProgramFileType.Entrypoint:
+                    cookies.append(
+                        CookieCutter[EntrypointCookieExtra](
+                            file_dir=os.path.join(
+                                os.path.dirname(__file__), "cookiecutters"
+                            ),
+                            output_dir=os.path.join(src_path, *STUFF_NAMESPACE),
+                            cookie_template_name=detail["template_name"],
+                            extra={
+                                "base_name": "",
+                                "base_path": "",
+                                "dir": "entrypoints",
+                                "program_name": program_name,
+                                "scope": scope_name(app_name, program_name),
+                                "view_name": "",
+                                "lists": {"imports": [], "extras": []},
+                            },
+                            overwrite=True,
+                        )
+                    )
+
+        return cookies
 
 
 class ProgramHandlersGenerator(ProgramHandlersBuilder):
@@ -534,7 +769,29 @@ class ProgramHandlersGenerator(ProgramHandlersBuilder):
         self.base_path = base_path
         self.target_dir = target_dir
 
-    def cookie_cutters(self, parent_dir: str, program_name: str) -> list[CookieCutter]:
+    def file_type_details(
+        self, program_name: str, app_path: str
+    ) -> list[ProgramConfig]:
+        resolved_base_path = []
+        if self.base_path:
+            resolved_base_path = [*self.base_path, self.target_dir]
+        else:
+            resolved_base_path = ["src"]
+
+        return [
+            {
+                "file_type": ProgramFileType.Handler,
+                "template_name": "handlers_template",
+                "path": os.path.join(
+                    app_path,
+                    "static_src",
+                    *resolved_base_path,
+                    f"{module_name(program_name)}.handlers.ts",
+                ),
+            }
+        ]
+
+    def cookie_cutters(self, src_dir: str, program_name: str) -> list[CookieCutter]:
         """
         parent_dir: parent directory of the generated cookiecutters
 
@@ -546,7 +803,7 @@ class ProgramHandlersGenerator(ProgramHandlersBuilder):
         return [
             CookieCutter[HandlersCookieExtra](
                 file_dir=os.path.join(os.path.dirname(__file__), "cookiecutters"),
-                output_dir=os.path.join(parent_dir, *self.base_path),
+                output_dir=os.path.join(src_dir, *self.base_path),
                 cookie_template_name="handlers_template",
                 extra=HandlersCookieExtra(
                     {"dir": self.target_dir, "program_name": program_name}
@@ -559,17 +816,49 @@ class ProgramHandlersGenerator(ProgramHandlersBuilder):
 class WidgetModelGenerator(ModelBuilder):
     """Generates models for widget programs"""
 
-    def cookie_cutter(
-        self, flags: Flags, app_name: str, program_name: str, src_path: str
-    ) -> CookieCutter:
-        return model_cookie_cutter(
-            flags,
-            app_name,
-            program_name,
-            "Models",
-            os.path.join(src_path, "src", "Widgets"),
-            "Widgets.Models",
-        )
+    def file_type_details(
+        self, program_name: str, app_path: str
+    ) -> list[ProgramConfig]:
+        return [
+            {
+                "file_type": ProgramFileType.Model,
+                "template_name": "program_model_template",
+                "path": os.path.join(
+                    app_path,
+                    "static_src",
+                    "src",
+                    "Widgets",
+                    "Models",
+                    module_name(program_name) + ".elm",
+                ),
+            }
+        ]
+
+    def cookie_cutters(
+        self,
+        flags: Flags,
+        app_name: str,
+        program_name: str,
+        app_path: str,
+        src_path: str,
+    ) -> list[CookieCutter]:
+        configs = []
+
+        for detail in self.file_type_details(program_name, app_path):
+            match detail["file_type"]:
+                case ProgramFileType.Model:
+                    configs.append(
+                        model_cookie_cutter(
+                            flags,
+                            app_name,
+                            program_name,
+                            "program_model_template",
+                            "Models",
+                            os.path.join(src_path, "src", "Widgets"),
+                            "Widgets.Models",
+                        )
+                    )
+        return configs
 
     def load_flags(
         self,

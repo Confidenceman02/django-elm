@@ -1,32 +1,36 @@
 import asyncio
-from functools import lru_cache
-import re
-import threading
-import aiofiles
 import os
+import re
 import shutil
 import subprocess
 import sys
+import threading
 from dataclasses import dataclass
+from functools import lru_cache
 from itertools import filterfalse
 from typing import Coroutine, Iterable, cast
+
+import aiofiles
 from django.conf import settings
 from typing_extensions import TypedDict
+from watchfiles import awatch
+
+from djelm.cookiecutter import CookieCutter
 from djelm.forms.widgets.main import WIDGET_NAMES, WIDGET_NAMES_T
 from djelm.generators import (
-    ModelGenerator,
     ModelBuilder,
     ModelChoiceFieldWidgetGenerator,
+    ModelGenerator,
     ProgramBuilder,
+    ProgramConfig,
     ProgramGenerator,
     ProgramHandlersBuilder,
     ProgramHandlersGenerator,
     WidgetModelGenerator,
     entrypoint_cookie_cutter,
 )
-from watchfiles import awatch
-from djelm.cookiecutter import CookieCutter
 from djelm.subprocess import SubProcess
+
 from .effect import ExitFailure, ExitSuccess
 from .elm import Elm
 from .npm import NPM
@@ -96,130 +100,6 @@ def unsafe_find_programs(
                 parsed_file_results.append(f.value)
 
     return parsed_file_results
-
-
-@dataclass(slots=True)
-class FindProgramsStrategy:
-    """
-    Find elm programs inside the 'src' directory.
-    """
-
-    app_name: str
-
-    def run(
-        self, logger
-    ) -> ExitSuccess[list[ParsedFile]] | ExitFailure[None, StrategyError]:
-        src_path = get_app_src_path(self.app_name)
-
-        if src_path.tag != "Success":
-            raise src_path.err
-        if not os.path.isdir(os.path.join(src_path.value, "src")):
-            logger.write("No programs found.")
-            return ExitSuccess([])
-        parsed_file_results = []
-
-        parsed_file_results = asyncio.run(self._run_helper(src_path.value))
-
-        succeeded_files: list[ParsedFile] = []
-
-        if parsed_file_results:
-            logger.write("I found the following programs:\n")
-            for f in parsed_file_results:
-                if f.tag == "Success":
-                    succeeded_files.append(f.value)
-                    if f.value["file"].endswith(".elm"):
-                        logger.write(f"""    \033[1mbase:\033[0m {f.value["base"]}""")
-                        logger.write(f"""    \033[1mfile:\033[0m {f.value["file"]}""")
-                        logger.write("\n")
-                else:
-                    logger.write(str(f.err))
-
-        return ExitSuccess(succeeded_files)
-
-    async def _run_helper(self, src_path: str):
-        programs_base_dir = os.path.join(src_path, "src")
-        ## Organized by directory to files in that directory
-        ts_files_lookup: dict[str, list[str]] = {}
-        dir_data_src: Iterable[tuple[str, list[str], list[str]]] = walk_level(
-            programs_base_dir
-        )
-        base_src, dirs_src, files_src = next(dir_data_src)
-        ts_files_lookup[base_src] = []
-        elm_files_widgets: list[tuple[str, list[str]]] = []
-
-        if "Widgets" in dirs_src:
-            dir_data_widgets: Iterable[tuple[str, list[str], list[str]]] = walk_level(
-                os.path.join(base_src, "Widgets")
-            )
-            base_widget_src, _, widget_file_src = next(dir_data_widgets)
-            ts_files_lookup[base_widget_src] = []
-            widget_files = []
-            for f in widget_file_src:
-                if is_elm_file_string(f):
-                    widget_files.append(f)
-                if is_ts_file_string(f):
-                    ts_files_lookup[base_widget_src].append(f)
-            elm_files_widgets.append((base_widget_src, widget_files))
-
-        elm_files: list[str] = []
-        for f in files_src:
-            if is_elm_file_string(f):
-                elm_files.append(f)
-            if is_ts_file_string(f):
-                ts_files_lookup[base_src].append(f)
-
-        return await self.__parsed_files(
-            [(base_src, elm_files), *elm_files_widgets], ts_files_lookup
-        )
-
-    async def __parsed_files(
-        self,
-        elm_file_data: list[tuple[str, list[str]]],
-        ts_files_lookup: dict[str, list[str]],
-    ):
-        coroutines: list[
-            Coroutine[
-                None, None, ExitSuccess[ParsedFile] | ExitFailure[None, Exception]
-            ]
-        ] = []
-        for base_path, files in elm_file_data:
-            coroutine = [
-                self.__parse_file(base_path, file, ts_files_lookup) for file in files
-            ]
-            coroutines.extend(coroutine)
-
-        return await asyncio.gather(*coroutines)
-
-    async def __parse_file(
-        self, base_dir: str, file: str, ts_files_lookup: dict[str, list[str]]
-    ) -> ExitSuccess[ParsedFile] | ExitFailure[None, Exception]:
-        try:
-            handle = await aiofiles.open(os.path.join(base_dir, file))
-            content = await handle.read()
-            await handle.close()
-            if re.search(
-                r"^(main : Program Value Model Msg)", content, flags=re.MULTILINE
-            ):
-                program_name = os.path.splitext(file)[0]
-                supporting_files = supporting_ts_files(program_name)
-                ts_files = ts_files_lookup.get(base_dir, [])
-                ret: ParsedFile = ParsedFile(
-                    {
-                        "base": base_dir,
-                        "file": file,
-                        "supporting_ts_files": (
-                            set(supporting_files).intersection(set(ts_files))
-                        ),
-                    }
-                )
-                return ExitSuccess(ret)
-            else:
-                return ExitFailure(
-                    None, Exception("'main : Program Value Model Msg' not found")
-                )
-
-        except Exception as err:
-            return ExitFailure(None, err)
 
 
 @dataclass(slots=True)
@@ -323,7 +203,7 @@ class AddProgramHandlersStrategy:
             raise self.app_path.err
 
         cutters = self.handler.cookie_cutters(
-            parent_dir=self.src_path.value,
+            src_dir=self.src_path.value,
             program_name=self.prog_name,
         )
 
@@ -426,6 +306,42 @@ class AddWidgetStrategy:
             raise model_strat_effect.err
 
         return ExitSuccess(None)
+
+
+@dataclass(slots=True)
+class CreateStrategy:
+    app_name: str
+
+    def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+        ck = CookieCutter[CreateCookieExtra](
+            file_dir=os.path.join(os.path.dirname(__file__), "cookiecutters"),
+            output_dir=os.getcwd(),
+            cookie_template_name="project_template",
+            extra={
+                "app_name": self.app_name.strip(),
+            },
+        )
+
+        cut_cookie = ck.cut(logger)
+
+        if cut_cookie.tag == "Success":
+            app_name = os.path.basename(cut_cookie.value)
+            logger.write(
+                f"""
+
+Hi there! I have created the \033[92m{f"{app_name}"}\033[0m djelm app for you. This is where all your Elm programs will live.
+
+Now you may be wondering, what will be in this app? Where do I add Elm files?
+How does it work with django so I can see it in the browser? How will my code grow? Do I need
+more directories?
+
+Check out <https://github.com/Confidenceman02/django-elm/blob/main/README.md> for all the answers!
+
+For now, make sure you add \033[92m"{f"{app_name}"}"\033[0m to the \033[1mINSTALLED_APPS\033[0m variable in \033[1msettings.py\033[0m.
+"""
+            )
+            return ExitSuccess(None)
+        return ExitFailure(None, StrategyError(cut_cookie.err))
 
 
 @dataclass(slots=True)
@@ -564,6 +480,347 @@ class CompileStrategy:
 
 
 @dataclass(slots=True)
+class ElmStrategy:
+    """
+    A Helper class to call an elm binary on the given djelm app.
+
+    The commands passed will execute in the directory of the djelm app that contains the elm.json file.
+    """
+
+    app_name: str
+    args: list[str]
+
+    def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+        elm: Elm = Elm()
+        src_path = get_app_src_path(self.app_name)
+        if src_path.tag == "Success":
+            elm_exit = elm.command(self.args, target_dir=src_path.value)
+
+            if elm_exit.tag == "Success":
+                return ExitSuccess(None)
+            else:
+                return ExitFailure(None, err=StrategyError(elm_exit.err))
+        return ExitFailure(None, err=StrategyError())
+
+
+@dataclass(slots=True)
+class FindProgramsStrategy:
+    """
+    Find elm programs inside the 'src' directory.
+    """
+
+    app_name: str
+
+    def run(
+        self, logger
+    ) -> ExitSuccess[list[ParsedFile]] | ExitFailure[None, StrategyError]:
+        src_path = get_app_src_path(self.app_name)
+
+        if src_path.tag != "Success":
+            raise src_path.err
+        if not os.path.isdir(os.path.join(src_path.value, "src")):
+            logger.write("No programs found.")
+            return ExitSuccess([])
+        parsed_file_results = []
+
+        parsed_file_results = asyncio.run(self._run_helper(src_path.value))
+
+        succeeded_files: list[ParsedFile] = []
+
+        if parsed_file_results:
+            logger.write("I found the following programs:\n")
+            for f in parsed_file_results:
+                if f.tag == "Success":
+                    succeeded_files.append(f.value)
+                    if f.value["file"].endswith(".elm"):
+                        logger.write(f"""    \033[1mbase:\033[0m {f.value["base"]}""")
+                        logger.write(f"""    \033[1mfile:\033[0m {f.value["file"]}""")
+                        logger.write("\n")
+                else:
+                    logger.write(str(f.err))
+
+        return ExitSuccess(succeeded_files)
+
+    async def _run_helper(self, src_path: str):
+        programs_base_dir = os.path.join(src_path, "src")
+        ## Organized by directory to files in that directory
+        ts_files_lookup: dict[str, list[str]] = {}
+        dir_data_src: Iterable[tuple[str, list[str], list[str]]] = walk_level(
+            programs_base_dir
+        )
+        base_src, dirs_src, files_src = next(dir_data_src)
+        ts_files_lookup[base_src] = []
+        elm_files_widgets: list[tuple[str, list[str]]] = []
+
+        if "Widgets" in dirs_src:
+            dir_data_widgets: Iterable[tuple[str, list[str], list[str]]] = walk_level(
+                os.path.join(base_src, "Widgets")
+            )
+            base_widget_src, _, widget_file_src = next(dir_data_widgets)
+            ts_files_lookup[base_widget_src] = []
+            widget_files = []
+            for f in widget_file_src:
+                if is_elm_file_string(f):
+                    widget_files.append(f)
+                if is_ts_file_string(f):
+                    ts_files_lookup[base_widget_src].append(f)
+            elm_files_widgets.append((base_widget_src, widget_files))
+
+        elm_files: list[str] = []
+        for f in files_src:
+            if is_elm_file_string(f):
+                elm_files.append(f)
+            if is_ts_file_string(f):
+                ts_files_lookup[base_src].append(f)
+
+        return await self.__parsed_files(
+            [(base_src, elm_files), *elm_files_widgets], ts_files_lookup
+        )
+
+    async def __parsed_files(
+        self,
+        elm_file_data: list[tuple[str, list[str]]],
+        ts_files_lookup: dict[str, list[str]],
+    ):
+        coroutines: list[
+            Coroutine[
+                None, None, ExitSuccess[ParsedFile] | ExitFailure[None, Exception]
+            ]
+        ] = []
+        for base_path, files in elm_file_data:
+            coroutine = [
+                self.__parse_file(base_path, file, ts_files_lookup) for file in files
+            ]
+            coroutines.extend(coroutine)
+
+        return await asyncio.gather(*coroutines)
+
+    async def __parse_file(
+        self, base_dir: str, file: str, ts_files_lookup: dict[str, list[str]]
+    ) -> ExitSuccess[ParsedFile] | ExitFailure[None, Exception]:
+        try:
+            handle = await aiofiles.open(os.path.join(base_dir, file))
+            content = await handle.read()
+            await handle.close()
+            if re.search(
+                r"^(main : Program Value Model Msg)", content, flags=re.MULTILINE
+            ):
+                program_name = os.path.splitext(file)[0]
+                supporting_files = supporting_ts_files(program_name)
+                ts_files = ts_files_lookup.get(base_dir, [])
+                ret: ParsedFile = ParsedFile(
+                    {
+                        "base": base_dir,
+                        "file": file,
+                        "supporting_ts_files": (
+                            set(supporting_files).intersection(set(ts_files))
+                        ),
+                    }
+                )
+                return ExitSuccess(ret)
+            else:
+                return ExitFailure(
+                    None, Exception("'main : Program Value Model Msg' not found")
+                )
+
+        except Exception as err:
+            return ExitFailure(None, err)
+
+
+class GenerateModelStrategy:
+    """Generate a model and decoders for an Elm program"""
+
+    def __init__(
+        self,
+        app_name,
+        prog_name,
+        handler: ModelBuilder,
+        from_source: bool,
+        watch_mode: bool,
+    ) -> None:
+        self.app_name = app_name
+        self.prog_name = prog_name
+        self.handler = handler
+        self.from_source = from_source
+        self.watch_mode = watch_mode
+
+    def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+        app_path = get_app_path(self.app_name)
+        src_path = get_app_src_path(self.app_name)
+        handler = self.handler
+
+        if app_path.tag != "Success":
+            return ExitFailure(meta=None, err=StrategyError(app_path.err))
+        if src_path.tag != "Success":
+            return ExitFailure(meta=None, err=StrategyError(src_path.err))
+
+        flags_effect = handler.load_flags(
+            app_path.value, self.prog_name, self.from_source, self.watch_mode, logger
+        )
+
+        if flags_effect.tag != "Success":
+            return ExitFailure(meta=None, err=StrategyError(flags_effect.err))
+
+        try:
+            os.makedirs(os.path.join(src_path.value, *STUFF_NAMESPACE))
+        except FileExistsError:
+            pass
+        except FileNotFoundError as err:
+            return ExitFailure(meta=None, err=StrategyError(err))
+        cookies = handler.cookie_cutters(
+            flags_effect.value,
+            self.app_name,
+            self.prog_name,
+            app_path.value,
+            src_path.value,
+        )
+        try:
+            for cookie in cookies:
+                cookie_effect = cookie.cut(logger)
+
+                if cookie_effect.tag != "Success":
+                    return ExitFailure(meta=None, err=StrategyError(cookie_effect.err))
+
+            return ExitSuccess(None)
+        except OSError as err:
+            return ExitFailure(meta=None, err=StrategyError(err))
+
+
+@dataclass(slots=True)
+class GenerateModelsStrategy:
+    """Generate model and decoder for all djelm elm programs"""
+
+    app_name: str
+
+    def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+        app_path = get_app_path(self.app_name)
+        src_path = get_app_src_path(self.app_name)
+
+        if app_path.tag != "Success":
+            raise app_path.err
+        if src_path.tag != "Success":
+            raise src_path.err
+
+        unsafe_find_programs.cache_clear()
+        all_programs = unsafe_find_programs(src_path.value)
+
+        for program in all_programs:
+            baseDir = os.path.basename(program["base"])
+            program_name = os.path.splitext(program["file"])[0]
+            generator = ModelGenerator()
+            if baseDir == "Widgets":
+                generator = program_namespace_to_model_builder([baseDir, program_name])
+
+            GenerateModelStrategy(
+                self.app_name,
+                program_name,
+                generator,
+                from_source=True,
+                watch_mode=False,
+            ).run(logger)
+
+        return ExitSuccess(None)
+
+
+class ListStrategy:
+    apps: list[str] = settings.INSTALLED_APPS
+
+    def run(self, logger) -> ExitSuccess[list[str]] | ExitFailure[None, StrategyError]:
+        app_path_exits = filterfalse(
+            lambda x: x.tag == "Failure", map(get_app_path, self.apps)
+        )
+
+        dir_data: Iterable[tuple[str, list[str], list[str]]] = map(
+            next,
+            map(lambda p: walk_level(p.value), app_path_exits),  # type:ignore
+        )
+
+        django_elm_apps = [os.path.basename(r) for r, _, f in dir_data if is_djelm(f)]
+
+        apps = ""
+
+        for app in django_elm_apps:
+            apps += f"\033[93m{app}\033[0m\n\t"
+
+        logger.write(
+            f"""
+Here are all the djelm apps I found:
+
+        {apps}"""
+        )
+        return ExitSuccess(django_elm_apps)
+
+
+class ListWidgetsStrategy:
+    widgets = WIDGET_NAMES
+
+    def run(
+        self, logger
+    ) -> ExitSuccess[list[WIDGET_NAMES_T]] | ExitFailure[None, StrategyError]:
+        widgets = ""
+        for w in self.widgets:
+            widgets += f"\033[93m{w}\033[0m\n\t"
+
+        logger.write(
+            f"""
+Here are all the widgets I support:
+
+        {widgets}"""
+        )
+        return ExitSuccess(self.widgets)
+
+
+@dataclass(slots=True)
+class NpmStrategy:
+    """
+    A helper class to call the node package manager binary on the given djelm app.
+
+    The commands passed will execute in the directory of the djelm app that contains the package.json file.
+    """
+
+    app_name: str
+    args: list[str]
+
+    def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+        npm = NPM()
+        src_path = get_app_src_path(self.app_name)
+
+        if src_path.tag != "Success":
+            # TODO Better error
+            raise src_path.err
+
+        npm_exit = npm.command(src_path.value, self.args)
+
+        if npm_exit.tag != "Success":
+            # TODO Better error
+            raise npm_exit.err
+
+        logger.write("\033[92mCompleted successfully.\033[0m")
+        return ExitSuccess(None)
+
+
+@dataclass(slots=True)
+class RemoveProgramStrategy:
+    """Remove an Elm program and it's associated files."""
+
+    file_details: list[ProgramConfig]
+
+    def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
+        for detail in self.file_details:
+            try:
+                os.remove(detail["path"])
+                logger.write(f"Deleted {detail['path']}")
+            except FileNotFoundError:
+                logger.write(f"File not found: {detail['path']}")
+            except PermissionError:
+                logger.write(f"Permission denied: {detail['path']}")
+            except Exception as e:
+                logger.write(f"Error deleting {detail['path']}: {str(e)}")
+
+        return ExitSuccess(None)
+
+
+@dataclass(slots=True)
 class WatchStrategy:
     """
     Sets up the file watcher for the given djelm app.
@@ -663,250 +920,24 @@ class WatchStrategy:
 
 
 @dataclass(slots=True)
-class NpmStrategy:
-    """
-    A helper class to call the node package manager binary on the given djelm app.
-
-    The commands passed will execute in the directory of the djelm app that contains the package.json file.
-    """
-
-    app_name: str
-    args: list[str]
-
-    def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
-        npm = NPM()
-        src_path = get_app_src_path(self.app_name)
-
-        if src_path.tag != "Success":
-            # TODO Better error
-            raise src_path.err
-
-        npm_exit = npm.command(src_path.value, self.args)
-
-        if npm_exit.tag != "Success":
-            # TODO Better error
-            raise npm_exit.err
-
-        logger.write("\033[92mCompleted successfully.\033[0m")
-        return ExitSuccess(None)
-
-
-@dataclass(slots=True)
-class ElmStrategy:
-    """
-    A Helper class to call an elm binary on the given djelm app.
-
-    The commands passed will execute in the directory of the djelm app that contains the elm.json file.
-    """
-
-    app_name: str
-    args: list[str]
-
-    def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
-        elm: Elm = Elm()
-        src_path = get_app_src_path(self.app_name)
-        if src_path.tag == "Success":
-            elm_exit = elm.command(self.args, target_dir=src_path.value)
-
-            if elm_exit.tag == "Success":
-                return ExitSuccess(None)
-            else:
-                return ExitFailure(None, err=StrategyError(elm_exit.err))
-        return ExitFailure(None, err=StrategyError())
-
-
-class GenerateModelStrategy:
-    """Generate a model and decoders for an Elm program"""
-
-    def __init__(
-        self,
-        app_name,
-        prog_name,
-        handler: ModelBuilder,
-        from_source: bool,
-        watch_mode: bool,
-    ) -> None:
-        self.app_name = app_name
-        self.prog_name = prog_name
-        self.handler = handler
-        self.from_source = from_source
-        self.watch_mode = watch_mode
-
-    def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
-        app_path = get_app_path(self.app_name)
-        src_path = get_app_src_path(self.app_name)
-        handler = self.handler
-
-        if app_path.tag != "Success":
-            return ExitFailure(meta=None, err=StrategyError(app_path.err))
-        if src_path.tag != "Success":
-            return ExitFailure(meta=None, err=StrategyError(src_path.err))
-
-        flags_effect = handler.load_flags(
-            app_path.value, self.prog_name, self.from_source, self.watch_mode, logger
-        )
-
-        if flags_effect.tag != "Success":
-            return ExitFailure(meta=None, err=StrategyError(flags_effect.err))
-
-        try:
-            os.makedirs(os.path.join(src_path.value, *STUFF_NAMESPACE))
-        except FileExistsError:
-            pass
-        except FileNotFoundError as err:
-            return ExitFailure(meta=None, err=StrategyError(err))
-        ck = handler.cookie_cutter(
-            flags_effect.value, self.app_name, self.prog_name, src_path.value
-        )
-        try:
-            cookie_effect = ck.cut(logger)
-
-            if cookie_effect.tag != "Success":
-                return ExitFailure(meta=None, err=StrategyError(cookie_effect.err))
-
-            return ExitSuccess(None)
-        except OSError as err:
-            return ExitFailure(meta=None, err=StrategyError(err))
-
-
-@dataclass(slots=True)
-class GenerateModelsStrategy:
-    """Generate model and decoder for all djelm elm programs"""
-
-    app_name: str
-
-    def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
-        app_path = get_app_path(self.app_name)
-        src_path = get_app_src_path(self.app_name)
-
-        if app_path.tag != "Success":
-            raise app_path.err
-        if src_path.tag != "Success":
-            raise src_path.err
-
-        unsafe_find_programs.cache_clear()
-        all_programs = unsafe_find_programs(src_path.value)
-
-        for program in all_programs:
-            baseDir = os.path.basename(program["base"])
-            program_name = os.path.splitext(program["file"])[0]
-            generator = ModelGenerator()
-            if baseDir == "Widgets":
-                generator = program_namespace_to_model_builder([baseDir, program_name])
-
-            GenerateModelStrategy(
-                self.app_name,
-                program_name,
-                generator,
-                from_source=True,
-                watch_mode=False,
-            ).run(logger)
-
-        return ExitSuccess(None)
-
-
-class ListStrategy:
-    apps: list[str] = settings.INSTALLED_APPS
-
-    def run(self, logger) -> ExitSuccess[list[str]] | ExitFailure[None, StrategyError]:
-        app_path_exits = filterfalse(
-            lambda x: x.tag == "Failure", map(get_app_path, self.apps)
-        )
-
-        dir_data: Iterable[tuple[str, list[str], list[str]]] = map(
-            next,
-            map(lambda p: walk_level(p.value), app_path_exits),  # type:ignore
-        )
-
-        django_elm_apps = [os.path.basename(r) for r, _, f in dir_data if is_djelm(f)]
-
-        apps = ""
-
-        for app in django_elm_apps:
-            apps += f"\033[93m{app}\033[0m\n\t"
-
-        logger.write(
-            f"""
-Here are all the djelm apps I found:
-
-        {apps}"""
-        )
-        return ExitSuccess(django_elm_apps)
-
-
-class ListWidgetsStrategy:
-    widgets = WIDGET_NAMES
-
-    def run(
-        self, logger
-    ) -> ExitSuccess[list[WIDGET_NAMES_T]] | ExitFailure[None, StrategyError]:
-        widgets = ""
-        for w in self.widgets:
-            widgets += f"\033[93m{w}\033[0m\n\t"
-
-        logger.write(
-            f"""
-Here are all the widgets I support:
-
-        {widgets}"""
-        )
-        return ExitSuccess(self.widgets)
-
-
-@dataclass(slots=True)
-class CreateStrategy:
-    app_name: str
-
-    def run(self, logger) -> ExitSuccess[None] | ExitFailure[None, StrategyError]:
-        ck = CookieCutter[CreateCookieExtra](
-            file_dir=os.path.join(os.path.dirname(__file__), "cookiecutters"),
-            output_dir=os.getcwd(),
-            cookie_template_name="project_template",
-            extra={
-                "app_name": self.app_name.strip(),
-            },
-        )
-
-        cut_cookie = ck.cut(logger)
-
-        if cut_cookie.tag == "Success":
-            app_name = os.path.basename(cut_cookie.value)
-            logger.write(
-                f"""
-
-Hi there! I have created the \033[92m{f"{app_name}"}\033[0m djelm app for you. This is where all your Elm programs will live.
-
-Now you may be wondering, what will be in this app? Where do I add Elm files?
-How does it work with django so I can see it in the browser? How will my code grow? Do I need
-more directories?
-
-Check out <https://github.com/Confidenceman02/django-elm/blob/main/README.md> for all the answers!
-
-For now, make sure you add \033[92m"{f"{app_name}"}"\033[0m to the \033[1mINSTALLED_APPS\033[0m variable in \033[1msettings.py\033[0m.
-"""
-            )
-            return ExitSuccess(None)
-        return ExitFailure(None, StrategyError(cut_cookie.err))
-
-
-@dataclass(slots=True)
 class Strategy:
     def create(
         self, labels, options: dict[str, bool]
     ) -> (
-        ElmStrategy
-        | CreateStrategy
-        | ListStrategy
-        | ListWidgetsStrategy
-        | AddProgramStrategy
+        AddProgramStrategy
         | AddProgramHandlersStrategy
-        | NpmStrategy
-        | WatchStrategy
+        | AddWidgetStrategy
+        | CreateStrategy
+        | CompileStrategy
+        | ElmStrategy
+        | FindProgramsStrategy
         | GenerateModelStrategy
         | GenerateModelsStrategy
-        | CompileStrategy
-        | AddWidgetStrategy
-        | FindProgramsStrategy
+        | ListStrategy
+        | ListWidgetsStrategy
+        | NpmStrategy
+        | RemoveProgramStrategy
+        | WatchStrategy
     ):
         e = Validations().acceptable_command(labels)
         match e:
@@ -969,6 +1000,63 @@ class Strategy:
             case ExitSuccess(value={"command": "findprograms", "app_name": app_name}):
                 return FindProgramsStrategy(app_name=app_name)
             case ExitSuccess(
+                value={
+                    "command": "removeprogram",
+                    "app_name": app_name,
+                    "program_name": program_name,
+                }
+            ):
+                app_path = get_app_path(app_name)
+                if app_path.tag != "Success":
+                    raise app_path.err
+                details: list[ProgramConfig] = []
+                program_path, program_name = to_program_namespace(
+                    program_name.split(".")
+                )
+                handler_generator = program_namespace_to_handlers_builder(
+                    [*program_path, program_name]
+                )
+                details.extend(
+                    handler_generator.file_type_details(program_name, app_name)
+                )
+                match program_path:
+                    # Regular program
+                    case []:
+                        program_generator = ProgramGenerator()
+                        model_generator = ModelGenerator()
+                        details.extend(
+                            program_generator.file_type_details(
+                                program_name, app_path.value
+                            )
+                        )
+                        details.extend(
+                            model_generator.file_type_details(
+                                program_name, app_path.value
+                            )
+                        )
+                        details.extend(
+                            handler_generator.file_type_details(
+                                program_name, app_path.value
+                            )
+                        )
+                    # Widget program
+                    case ["Widgets"]:
+                        program_generator = widget_name_to_program_generator(
+                            program_name  # type: ignore
+                        )
+                        model_generator = WidgetModelGenerator()
+                        details.extend(
+                            program_generator.file_type_details(
+                                program_name, app_path.value
+                            )
+                        )
+                        details.extend(
+                            model_generator.file_type_details(
+                                program_name, app_path.value
+                            )
+                        )
+                return RemoveProgramStrategy(file_details=details)
+            case ExitSuccess(
                 value={"command": "npm", "app_name": app_name, "args": args}
             ):
                 return NpmStrategy(cast(str, app_name), cast(list[str], args))
@@ -986,14 +1074,14 @@ class Strategy:
                 return AddWidgetStrategy(
                     cast(str, app_name),
                     cast(WIDGET_NAMES_T, widget),
-                    handler=widget_name_to_program_builder(widget),
+                    handler=widget_name_to_program_generator(widget),
                     no_deps=options.get("no_deps", False),
                 )
             case _ as x:
                 raise StrategyError(f"Unable to handle {x}")
 
 
-def widget_name_to_program_builder(widget_name: WIDGET_NAMES_T) -> ProgramBuilder:
+def widget_name_to_program_generator(widget_name: WIDGET_NAMES_T) -> ProgramBuilder:
     match widget_name:
         case "ModelChoiceField":
             return ModelChoiceFieldWidgetGenerator()
@@ -1009,7 +1097,7 @@ def program_namespace_to_handlers_builder(
             return ProgramHandlersGenerator(base_path=[], target_dir="src")
         case ["Widgets", widget_name]:
             if widget_name in WIDGET_NAMES:
-                return ProgramHandlersGenerator(["src"], "Widgets")
+                return ProgramHandlersGenerator(base_path=["src"], target_dir="Widgets")
             else:
                 raise StrategyError(__unknown_widget("addprogramhandlers", widget_name))
         case [_, *_]:
