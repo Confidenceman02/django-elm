@@ -35,6 +35,7 @@
   - [generatemodel Command](#generatemodel-command)
   - [generatemodels Command](#generatemodels-command)
   - [findprograms Command](#findprograms-command)
+  - [removeprogram Command](#removeprogram-command)
 - [JS Interop](#js-interop)
   - [addprogramhandlers Command](#addprogramhandlers-command)
 - [Widgets](#widgets)
@@ -679,6 +680,46 @@ Print out all the elm programs in your app.
 
 ```bash
 python manage.py djelm findprograms elm_programs
+```
+
+## `removeprogram` Command
+
+Remove a given program
+
+```bash
+python manage.py djelm removeprogram elm_programs Main
+```
+
+The result of this command removes all files created by the [addprogram](#addprogram-command) command as well as any handlers that were generated.
+
+```bash
+elm_programs
+├── apps.py
+├── elm_programs.djelm
+├── flags
+├── static
+│   └── dist
+│   │   └── Main.47ea7fa8.js
+│   │   └── Main.47ea7fa8.js.map
+│   │   └── Main.js
+│   │   └── Main.js.map
+├── static_src
+│   ├── .gitignore
+│   ├── elm.json
+│   ├── package.json
+│   └── src
+│       └── Models
+└── templatetags
+    ├── __init__.py
+```
+
+> [!NOTE]
+> The removeprogram command will not remove compiled assets as seen in the dist directory above. You need to remove them manually.
+
+To remove Widget programs use:
+
+```bash
+python manage.py djelm removeprogram elm_programs Widgets.ModelChoiceField # Adjust for the widget program you want to remove
 ```
 
 # JS Interop
