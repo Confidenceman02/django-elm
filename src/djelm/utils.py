@@ -1,4 +1,5 @@
 import os
+import re
 
 from django.apps import apps
 
@@ -146,3 +147,8 @@ def is_ts_file_string(string_file: str) -> bool:
 
 def supporting_ts_files(prog_name: str) -> list[str]:
     return [prog_name + ".handlers.ts"]
+
+
+def is_elm_entrypoint(content: str) -> bool:
+    pattern = r"\bmain\s*:[^\n]*\n\s*main\s*="
+    return bool(re.search(pattern, content, re.DOTALL))
