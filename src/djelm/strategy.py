@@ -1,6 +1,5 @@
 import asyncio
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -41,6 +40,7 @@ from .utils import (
     get_app_path,
     get_app_src_path,
     is_djelm,
+    is_elm_entrypoint,
     is_elm_file_string,
     is_ts_file_string,
     module_name,
@@ -602,9 +602,7 @@ class FindProgramsStrategy:
             handle = await aiofiles.open(os.path.join(base_dir, file))
             content = await handle.read()
             await handle.close()
-            if re.search(
-                r"^(main : Program Value Model Msg)", content, flags=re.MULTILINE
-            ):
+            if is_elm_entrypoint(content):
                 program_name = os.path.splitext(file)[0]
                 supporting_files = supporting_ts_files(program_name)
                 ts_files = ts_files_lookup.get(base_dir, [])
