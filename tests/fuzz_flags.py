@@ -15,6 +15,7 @@ from djelm.flags.main import (
     ObjectFlag,
     StringFlag,
 )
+from djelm.flags.primitives import AliasFlag
 
 ALL_FLAGS = [
     ObjectFlag,
@@ -35,15 +36,45 @@ ALL_FLAGS = [
 def generate_alias_keys() -> list[str]:
     keys = st.lists(
         # Added lookahead for reserved keywords
-        st.from_regex(regex=r"^(?!\bif\W*$)[a-z][A-Za-z0-9_]*$"),
+        st.from_regex(regex=r"^(?!\b(if|in)\W*$)[a-z][A-Za-z0-9_]*$"),
         min_size=1,
         max_size=5,
     ).example()
     return keys
 
 
+def generate_alias_names() -> list[str]:
+    keys = st.lists(
+        # Added lookahead for reserved keywords
+        st.from_regex(regex=r"^[A-Z][A-Za-z0-9_]*$"),
+        min_size=1,
+        max_size=5,
+        unique=True,
+    ).example()
+    return keys
+
+
+def fuzz_alias_flags() -> list[AliasFlag]:
+    names = generate_alias_names()
+    result = []
+    keys = generate_alias_keys()
+
+    for name in names:
+        name = name.replace("\n", "")
+        obj = {}
+
+        for key in keys:
+            obj[key] = StringFlag()
+        result.append(AliasFlag(name, ObjectFlag(obj)))
+
+    return result
+
+
+ALL_ALIAS_FLAGS = fuzz_alias_flags()
+
+
 def fuzz_flag():
-    choice = random.choice(ALL_FLAGS)
+    choice = random.choice([*ALL_FLAGS, ALL_ALIAS_FLAGS])
 
     if choice is ObjectFlag:
         keys = generate_alias_keys()
@@ -60,6 +91,9 @@ def fuzz_flag():
 
     if choice is NullableFlag:
         return NullableFlag(fuzz_flag())
+
+    if isinstance(choice, list):
+        return random.choice(choice)
 
     # TODO solve constructor name clashes
     # if choice is CustomTypeFlag:

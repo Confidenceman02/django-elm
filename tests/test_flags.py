@@ -11,6 +11,7 @@ from djelm.flags.form.primitives import (
     ModelMultipleChoiceFieldFlag,
 )
 from djelm.flags.primitives import (
+    AliasFlag,
     BoolFlag,
     CustomTypeFlag,
     FloatFlag,
@@ -115,7 +116,7 @@ def basic_form():
             help_text="Do I detect.. Multiple Elm's?",
         )
 
-        class Meta:
+        class Meta:  # type:ignore
             model = Enthusiast
             fields = ("username", "extras")
 
@@ -138,7 +139,7 @@ def basic_form_no_empty_label():
             help_text="Do I detect.. Multiple Elm's?",
         )
 
-        class Meta:
+        class Meta:  # type:ignore
             model = Enthusiast
             fields = ("username",)
 
@@ -158,7 +159,7 @@ def basic_team_form():
             help_text="Do I detect.. Multiple Elm's?",
         )
 
-        class Meta:
+        class Meta:  # type:ignore
             model = Team
             fields = ("driver",)
 
@@ -178,7 +179,7 @@ def blanks_form():
             help_text="SOS Multi",
         )
 
-        class Meta:
+        class Meta:  # type:ignore
             model = Blanks
             fields = ("blank", "blanks")
 
@@ -191,7 +192,7 @@ def test_program_fuzzer():
 
     programs = []
 
-    for i in range(1, 15):
+    for i in range(1, 20):
         flags = fuzz_flag()
 
         class MockHandler(ModelGenerator):
@@ -383,6 +384,111 @@ b_options__Decoder =
 
         with pytest.raises(Exception):
             Flags(d)
+
+
+class TestAliasFlags:
+    @pytest.mark.parametrize(
+        "flag,expected",
+        [
+            (
+                AliasFlag("SomeAlias", ObjectFlag({"hello": StringFlag()})),
+                {
+                    "alias_type": """SomeAlias_
+
+type alias SomeAlias_ =
+    { hello : String }""",
+                    "decoder_body": """toModel : Decode.Decoder ToModel
+toModel =
+    someAlias_Decoder
+
+someAlias_Decoder : Decode.Decoder SomeAlias_
+someAlias_Decoder =
+    Decode.succeed SomeAlias_
+        |> required "hello" Decode.string""",
+                },
+            ),
+            (
+                AliasFlag(
+                    "SomeAlias",
+                    ObjectFlag(
+                        {"hello": CustomTypeFlag(variants=[("Hello", StringFlag())])}
+                    ),
+                ),
+                {
+                    "alias_type": """SomeAlias_
+
+type alias SomeAlias_ =
+    { hello : SomeAlias_Hello__ }
+
+type SomeAlias_Hello__
+    = Hello String
+""",
+                    "decoder_body": """toModel : Decode.Decoder ToModel
+toModel =
+    someAlias_Decoder
+
+someAlias_Decoder : Decode.Decoder SomeAlias_
+someAlias_Decoder =
+    Decode.succeed SomeAlias_
+        |> required "hello" (Decode.oneOf [Decode.map Hello Decode.string])""",
+                },
+            ),
+            (
+                AliasFlag(
+                    "SomeAlias",
+                    CustomTypeFlag(variants=[("Hello", StringFlag())]),
+                ),
+                {
+                    "alias_type": """SomeAlias_
+
+type SomeAlias_
+    = Hello String
+""",
+                    "decoder_body": """toModel : Decode.Decoder ToModel
+toModel =
+    (Decode.oneOf [Decode.map Hello Decode.string])""",
+                },
+            ),
+            (
+                ObjectFlag(
+                    {
+                        "some_field": AliasFlag(
+                            "Field",
+                            ObjectFlag({"value": StringFlag(), "scope": StringFlag()}),
+                        ),
+                        "some_other_field": AliasFlag(
+                            "Field",
+                            ObjectFlag({"value": StringFlag(), "scope": StringFlag()}),
+                        ),
+                    }
+                ),
+                {
+                    "alias_type": """{ some_field : Field_
+    , some_other_field : Field_
+    }
+
+type alias Field_ =
+    { value : String
+    , scope : String
+    }""",
+                    "decoder_body": """toModel : Decode.Decoder ToModel
+toModel =
+    Decode.succeed ToModel
+        |> required "some_field" field_Decoder
+        |> required "some_other_field" field_Decoder
+
+field_Decoder : Decode.Decoder Field_
+field_Decoder =
+    Decode.succeed Field_
+        |> required "value" Decode.string
+        |> required "scope" Decode.string""",
+                },
+            ),
+        ],
+    )
+    def test_to_elm_parser_data_success(self, flag, expected):
+        SUT = Flags(flag)
+        assert SUT.to_elm_parser_data() == expected
 
 
 class TestStringFlags:
@@ -1053,192 +1159,233 @@ toModel =
 
 
 class TestObjectFlags:
-    def test_with_illegal_alias_key(self):
-        d = ObjectFlag({"hello$": StringFlag()})
+    @pytest.mark.parametrize("flag", [(ObjectFlag({"hello$": StringFlag()}))])
+    def test_instance_errors(self, flag):
         with pytest.raises(ValidationError):
-            Flags(d)
+            Flags(flag)
 
-    def test_with_newline(self):
-        d = ObjectFlag({"hello\n": StringFlag()})
-        SUT = Flags(d)
+    @pytest.mark.parametrize(
+        "flag,value,error_value,expected",
+        [
+            (
+                ObjectFlag({"hello\n": StringFlag()}),
+                {"hello": "world"},
+                {"hello": 2},
+                '{"hello":"world"}',
+            ),
+            (
+                ObjectFlag(
+                    {
+                        "hello": ObjectFlag({"world": StringFlag()}),
+                        "someList": ListFlag(StringFlag()),
+                    }
+                ),
+                {"hello": {"world": "I'm here"}, "someList": ["hello", "world"]},
+                {"hello": 2},
+                '{"hello":{"world":"I\'m here"},"someList":["hello","world"]}',
+            ),
+            (
+                ObjectFlag({"hello": StringFlag()}),
+                {"hello": "world"},
+                {"hello": 2},
+                '{"hello":"world"}',
+            ),
+            (
+                ObjectFlag({"hello": ObjectFlag({"world": StringFlag()})}),
+                {"hello": {"world": "I have arrived"}},
+                {"hello": 22},
+                '{"hello":{"world":"I have arrived"}}',
+            ),
+            (
+                ObjectFlag({"hello": IntFlag()}),
+                {"hello": 22},
+                {"hello": "22"},
+                '{"hello":22}',
+            ),
+            (
+                ObjectFlag({"hello": ObjectFlag({"world": IntFlag()})}),
+                {"hello": {"world": 22}},
+                {"hello": {"world": "22"}},
+                '{"hello":{"world":22}}',
+            ),
+            (
+                ObjectFlag({"hello": FloatFlag()}),
+                {"hello": 22.22},
+                {"hello": {"world": "22.22"}},
+                '{"hello":22.22}',
+            ),
+            (
+                ObjectFlag({"hello": FloatFlag()}),
+                {"hello": 22},
+                {"hello": {"world": "22.22"}},
+                '{"hello":22.0}',
+            ),
+            (
+                ObjectFlag({"hello": ObjectFlag({"world": FloatFlag()})}),
+                {"hello": {"world": 22.22}},
+                {"hello": {"world": "22.22"}},
+                '{"hello":{"world":22.22}}',
+            ),
+            (
+                ObjectFlag({"hello": ObjectFlag({"world": FloatFlag()})}),
+                {"hello": {"world": 22}},
+                {"hello": {"world": "22.22"}},
+                '{"hello":{"world":22.0}}',
+            ),
+            (
+                ObjectFlag({"hello": BoolFlag()}),
+                {"hello": True},
+                {"hello": "True"},
+                '{"hello":true}',
+            ),
+            (
+                ObjectFlag({"hello": ObjectFlag({"world": BoolFlag()})}),
+                {"hello": {"world": True}},
+                {"hello": {"world": "True"}},
+                '{"hello":{"world":true}}',
+            ),
+            (
+                ObjectFlag({"hello": NullableFlag(StringFlag())}),
+                {"hello": None},
+                22,
+                '{"hello":null}',
+            ),
+            (
+                ObjectFlag({"hello": NullableFlag(StringFlag())}),
+                {"hello": "world"},
+                {},
+                '{"hello":"world"}',
+            ),
+            (
+                ObjectFlag({"hello": NullableFlag(NullableFlag(StringFlag()))}),
+                {"hello": None},
+                22,
+                '{"hello":null}',
+            ),
+            (
+                ObjectFlag({"hello": ListFlag(ObjectFlag({"world": StringFlag()}))}),
+                {"hello": [{"world": "I have arrived"}]},
+                {"hello": "world"},
+                '{"hello":[{"world":"I have arrived"}]}',
+            ),
+            (
+                ObjectFlag({"hello": ListFlag(ListFlag(StringFlag()))}),
+                {"hello": [["world"]]},
+                {"hello": ["world"]},
+                '{"hello":[["world"]]}',
+            ),
+            (
+                ObjectFlag({"hello": ListFlag(ListFlag(StringFlag()))}),
+                {"hello": []},
+                {"hello": ["world"]},
+                '{"hello":[]}',
+            ),
+            (
+                ObjectFlag({"hello": ListFlag(NullableFlag(StringFlag()))}),
+                {"hello": [None]},
+                {"hello": [22]},
+                '{"hello":[null]}',
+            ),
+            (
+                ObjectFlag({"hello": ListFlag(NullableFlag(StringFlag()))}),
+                {"hello": ["null"]},
+                {"hello": [22]},
+                '{"hello":["null"]}',
+            ),
+        ],
+    )
+    def test_parse_success_err(self, flag, value, error_value, expected):
+        SUT = Flags(flag)
 
-        assert SUT.parse({"hello": "world"}) == '{"hello":"world"}'
+        assert SUT.parse(value) == expected
 
-    def test_with_mix_parser(self):
-        d = ObjectFlag(
-            {
-                "hello": ObjectFlag({"world": StringFlag()}),
-                "someList": ListFlag(StringFlag()),
-            }
-        )
-        SUT = Flags(d)
-
-        assert (
-            SUT.parse({"hello": {"world": "I'm here"}, "someList": ["hello", "world"]})
-            == '{"hello":{"world":"I\'m here"},"someList":["hello","world"]}'
-        )
         with pytest.raises(ValidationError):
-            SUT.parse({"hello": 22})
+            SUT.parse(error_value)
 
-    def test_with_string_parser(self):
-        d = ObjectFlag({"hello": StringFlag()})
-        SUT = Flags(d)
-
-        assert SUT.parse({"hello": "world"}) == '{"hello":"world"}'
-        with pytest.raises(ValidationError):
-            SUT.parse({"hello": 22})
-
-    def test_with_object_with_string_parser(self):
-        d = ObjectFlag({"hello": ObjectFlag({"world": StringFlag()})})
-        SUT = Flags(d)
-
-        assert (
-            SUT.parse({"hello": {"world": "I have arrived"}})
-            == '{"hello":{"world":"I have arrived"}}'
-        )
-        with pytest.raises(ValidationError):
-            SUT.parse({"hello": 22})
-
-    def test_with_int_parser(self):
-        d = ObjectFlag({"hello": IntFlag()})
-        SUT = Flags(d)
-
-        assert SUT.parse({"hello": 22}) == '{"hello":22}'
-        with pytest.raises(ValidationError):
-            SUT.parse({"hello": "22"})
-
-    def test_with_object_with_int_parser(self):
-        d = ObjectFlag({"hello": ObjectFlag({"world": IntFlag()})})
-        SUT = Flags(d)
-
-        assert SUT.parse({"hello": {"world": 22}}) == '{"hello":{"world":22}}'
-        with pytest.raises(ValidationError):
-            SUT.parse({"hello": {"world": "22"}})
-
-    def test_with_float_parser(self):
-        d = ObjectFlag({"hello": FloatFlag()})
-        SUT = Flags(d)
-
-        assert SUT.parse({"hello": 22.22}) == '{"hello":22.22}'
-        assert SUT.parse({"hello": 22}) == '{"hello":22.0}'
-        with pytest.raises(ValidationError):
-            SUT.parse({"hello": "22.22"})
-
-    def test_with_object_with_float_parser(self):
-        d = ObjectFlag({"hello": ObjectFlag({"world": FloatFlag()})})
-        SUT = Flags(d)
-
-        assert SUT.parse({"hello": {"world": 22.22}}) == '{"hello":{"world":22.22}}'
-        assert SUT.parse({"hello": {"world": 22}}) == '{"hello":{"world":22.0}}'
-        with pytest.raises(ValidationError):
-            SUT.parse({"hello": {"world": "22.22"}})
-
-    def test_with_bool_parser(self):
-        d = ObjectFlag({"hello": BoolFlag()})
-        SUT = Flags(d)
-
-        assert SUT.parse({"hello": True}) == '{"hello":true}'
-        with pytest.raises(ValidationError):
-            SUT.parse({"hello": "True"})
-
-    def test_with_object_with_bool_parser(self):
-        d = ObjectFlag({"hello": ObjectFlag({"world": BoolFlag()})})
-        SUT = Flags(d)
-
-        assert SUT.parse({"hello": {"world": True}}) == '{"hello":{"world":true}}'
-        with pytest.raises(ValidationError):
-            SUT.parse({"hello": {"world": "True"}})
-
-    def test_with_nullable_parser(self):
-        d = ObjectFlag({"hello": NullableFlag(StringFlag())})
-        SUT = Flags(d)
-
-        assert SUT.parse({"hello": None}) == '{"hello":null}'
-        assert SUT.parse({"hello": "world"}) == '{"hello":"world"}'
-        with pytest.raises(ValidationError):
-            SUT.parse({})
-
-    def test_with_nullable_with_nullable_with_string(self):
-        d = ObjectFlag({"hello": NullableFlag(NullableFlag(StringFlag()))})
-        SUT = Flags(d)
-
-        assert SUT.parse({"hello": None}) == '{"hello":null}'
-        assert SUT.parse({"hello": "world"}) == '{"hello":"world"}'
-        with pytest.raises(ValidationError):
-            SUT.parse(22)
-
-    def test_with_list_with_object_with_string_parser(self):
-        d = ObjectFlag({"hello": ListFlag(ObjectFlag({"world": StringFlag()}))})
-        SUT = Flags(d)
-
-        assert (
-            SUT.parse({"hello": [{"world": "I have arrived"}]})
-            == '{"hello":[{"world":"I have arrived"}]}'
-        )
-        with pytest.raises(ValidationError):
-            SUT.parse({"hello": "world"})
-
-    def test_with_list_with_list_with_string_parser(self):
-        d = ObjectFlag({"hello": ListFlag(ListFlag(StringFlag()))})
-        SUT = Flags(d)
-
-        assert SUT.parse({"hello": [["world"]]}) == '{"hello":[["world"]]}'
-        assert SUT.parse({"hello": []}) == '{"hello":[]}'
-        with pytest.raises(ValidationError):
-            SUT.parse({"hello": ["world"]})
-
-    def test_with_list_with_nullable_with_string_parser(self):
-        d = ObjectFlag({"hello": ListFlag(NullableFlag(StringFlag()))})
-        SUT = Flags(d)
-
-        assert SUT.parse({"hello": [None]}) == '{"hello":[null]}'
-        assert SUT.parse({"hello": ["null"]}) == '{"hello":["null"]}'
-        with pytest.raises(ValidationError):
-            SUT.parse({"hello": [22]})
-
-    def test_with_with_string_literal_to_elm_parser(self):
-        d = ObjectFlag({"hello": StringFlag(literal="world")})
-        SUT = Flags(d)
-
-        assert SUT.to_elm_parser_data() == {
-            "alias_type": """{ hello : String
+    @pytest.mark.parametrize(
+        "flag,expected",
+        [
+            (
+                ObjectFlag({"hello": StringFlag(literal="world")}),
+                {
+                    "alias_type": """{ hello : String
     }""",
-            "decoder_body": """toModel : Decode.Decoder ToModel
+                    "decoder_body": """toModel : Decode.Decoder ToModel
 toModel =
     Decode.succeed ToModel
         |> required "hello" (Decode.string |> Decode.andThen (\\lit -> if lit == "world" then Decode.succeed "world" else Decode.fail "Value did not match literal <world>"))""",
-        }
+                },
+            ),
+            (
+                ObjectFlag({"hello": StringFlag(literal="world")}),
+                {
+                    "alias_type": """{ hello : String
+    }""",
+                    "decoder_body": """toModel : Decode.Decoder ToModel
+toModel =
+    Decode.succeed ToModel
+        |> required "hello" (Decode.string |> Decode.andThen (\\lit -> if lit == "world" then Decode.succeed "world" else Decode.fail "Value did not match literal <world>"))""",
+                },
+            ),
+        ],
+    )
+    def test_to_elm_parser_success(self, flag, expected):
+        SUT = Flags(flag)
 
-    def test_with_custom_type_with_string_flag_to_elm_parser(self):
-        d = ObjectFlag({"hello": CustomTypeFlag(variants=[("Custom1", StringFlag())])})
-        SUT = Flags(d)
+        assert SUT.to_elm_parser_data() == expected
 
-        assert SUT.to_elm_parser_data()["alias_type"] == (
-            """{ hello : Hello_
+    @pytest.mark.parametrize(
+        "flag,expected",
+        [
+            (
+                ObjectFlag(
+                    {"hello": CustomTypeFlag(variants=[("Custom1", StringFlag())])}
+                ),
+                """{ hello : Hello_
     }
 
 type Hello_
     = Custom1 String
-"""
-        )
+""",
+            ),
+            (
+                ObjectFlag(
+                    {"hello": CustomTypeFlag(variants=[("Custom1", StringFlag())])}
+                ),
+                """{ hello : Hello_
+    }
 
-    def test_with_custom_type_with_object_flag_to_elm_parser(self):
-        d = ObjectFlag(
-            {
-                "hello": CustomTypeFlag(
-                    variants=[
-                        (
-                            "Custom1",
-                            ObjectFlag({"hello": StringFlag(), "world": StringFlag()}),
+type Hello_
+    = Custom1 String
+""",
+            ),
+        ],
+    )
+    def test_alias_type_success(self, flag, expected):
+        SUT = Flags(flag)
+
+        assert SUT.to_elm_parser_data()["alias_type"] == expected
+
+    @pytest.mark.parametrize(
+        "flag,expected",
+        [
+            (
+                ObjectFlag(
+                    {
+                        "hello": CustomTypeFlag(
+                            variants=[
+                                (
+                                    "Custom1",
+                                    ObjectFlag(
+                                        {"hello": StringFlag(), "world": StringFlag()}
+                                    ),
+                                )
+                            ]
                         )
-                    ]
-                )
-            }
-        )
-        SUT = Flags(d)
-
-        assert SUT.to_elm_parser_data()["alias_type"] == (
-            """{ hello : Hello_
+                    }
+                ),
+                {
+                    "alias_type": """{ hello : Hello_
     }
 
 type Hello_
@@ -1248,10 +1395,8 @@ type Hello_
 type alias Hello_Custom1__ =
     { hello : String
     , world : String
-    }"""
-        )
-        assert SUT.to_elm_parser_data()["decoder_body"] == (
-            """toModel : Decode.Decoder ToModel
+    }""",
+                    "decoder_body": """toModel : Decode.Decoder ToModel
 toModel =
     Decode.succeed ToModel
         |> required "hello" (Decode.oneOf [Decode.map Custom1 hello_Custom1__Decoder])
@@ -1260,90 +1405,80 @@ hello_Custom1__Decoder : Decode.Decoder Hello_Custom1__
 hello_Custom1__Decoder =
     Decode.succeed Hello_Custom1__
         |> required "hello" Decode.string
-        |> required "world" Decode.string"""
-        )
-
-    def test_with_nullable_with_custom_type_to_elm_parser(self):
-        d = ObjectFlag(
-            {
-                "hello": NullableFlag(
-                    CustomTypeFlag(
-                        variants=[
-                            (
-                                "Custom1",
-                                StringFlag(),
+        |> required "world" Decode.string""",
+                },
+            ),
+            (
+                ObjectFlag(
+                    {
+                        "hello": NullableFlag(
+                            CustomTypeFlag(
+                                variants=[
+                                    (
+                                        "Custom1",
+                                        StringFlag(),
+                                    )
+                                ]
                             )
-                        ]
-                    )
-                )
-            }
-        )
-        SUT = Flags(d)
-
-        assert SUT.to_elm_parser_data()["alias_type"] == (
-            """{ hello : Maybe Hello_
+                        )
+                    }
+                ),
+                {
+                    "alias_type": """{ hello : Maybe Hello_
     }
 
 type Hello_
     = Custom1 String
-"""
-        )
-        assert SUT.to_elm_parser_data()["decoder_body"] == (
-            """toModel : Decode.Decoder ToModel
+""",
+                    "decoder_body": """toModel : Decode.Decoder ToModel
 toModel =
     Decode.succeed ToModel
-        |> required "hello" (Decode.nullable (Decode.oneOf [Decode.map Custom1 Decode.string]))"""
-        )
-
-    def test_with_list_custom_type_to_elm_parser(self):
-        d = ObjectFlag(
-            {
-                "hello": ListFlag(
-                    CustomTypeFlag(
-                        variants=[
-                            (
-                                "Custom1",
-                                StringFlag(),
+        |> required "hello" (Decode.nullable (Decode.oneOf [Decode.map Custom1 Decode.string]))""",
+                },
+            ),
+            (
+                ObjectFlag(
+                    {
+                        "hello": ListFlag(
+                            CustomTypeFlag(
+                                variants=[
+                                    (
+                                        "Custom1",
+                                        StringFlag(),
+                                    )
+                                ]
                             )
-                        ]
-                    )
-                )
-            }
-        )
-        SUT = Flags(d)
-
-        assert SUT.to_elm_parser_data()["alias_type"] == (
-            """{ hello : List Hello_
+                        )
+                    }
+                ),
+                {
+                    "alias_type": """{ hello : List Hello_
     }
 
 type Hello_
     = Custom1 String
-"""
-        )
-        assert SUT.to_elm_parser_data()["decoder_body"] == (
-            """toModel : Decode.Decoder ToModel
+""",
+                    "decoder_body": """toModel : Decode.Decoder ToModel
 toModel =
     Decode.succeed ToModel
-        |> required "hello" (Decode.list (Decode.oneOf [Decode.map Custom1 Decode.string]))"""
-        )
-
-    def test_with_mix_to_elm_parser(self):
-        d = ObjectFlag(
-            {
-                "hello": ObjectFlag({"world": StringFlag()}),
-                "someList": ListFlag(StringFlag()),
-            }
-        )
-        SUT = Flags(d)
-
-        assert SUT.to_elm_parser_data() == {
-            "alias_type": """{ hello : Hello_
+        |> required "hello" (Decode.list (Decode.oneOf [Decode.map Custom1 Decode.string]))""",
+                },
+            ),
+            (
+                ObjectFlag(
+                    {
+                        "hello": ObjectFlag({"world": StringFlag()}),
+                        "someList": ListFlag(StringFlag()),
+                    }
+                ),
+                {
+                    "alias_type": """{ hello : Hello_
     , someList : List String
     }
 
 type alias Hello_ =
     { world : String }""",
-            "decoder_body": """toModel : Decode.Decoder ToModel
+                    "decoder_body": """toModel : Decode.Decoder ToModel
 toModel =
     Decode.succeed ToModel
         |> required "hello" hello_Decoder
@@ -1353,45 +1488,39 @@ hello_Decoder : Decode.Decoder Hello_
 hello_Decoder =
     Decode.succeed Hello_
         |> required "world" Decode.string""",
-        }
-
-    def test_with_list_with_nullable_with_string_to_elm_parser(self):
-        d = ObjectFlag({"hello": ListFlag(NullableFlag(StringFlag()))})
-        SUT = Flags(d)
-
-        assert SUT.to_elm_parser_data() == {
-            "alias_type": """{ hello : List (Maybe String)
+                },
+            ),
+            (
+                ObjectFlag({"hello": ListFlag(NullableFlag(StringFlag()))}),
+                {
+                    "alias_type": """{ hello : List (Maybe String)
     }""",
-            "decoder_body": """toModel : Decode.Decoder ToModel
+                    "decoder_body": """toModel : Decode.Decoder ToModel
 toModel =
     Decode.succeed ToModel
         |> required "hello" (Decode.list (Decode.nullable Decode.string))""",
-        }
-
-    def test_with_list_with_list_with_string_to_elm_parser(self):
-        d = ObjectFlag({"hello": ListFlag(ListFlag(StringFlag()))})
-        SUT = Flags(d)
-
-        assert SUT.to_elm_parser_data() == {
-            "alias_type": """{ hello : List (List String)
+                },
+            ),
+            (
+                ObjectFlag({"hello": ListFlag(ListFlag(StringFlag()))}),
+                {
+                    "alias_type": """{ hello : List (List String)
     }""",
-            "decoder_body": """toModel : Decode.Decoder ToModel
+                    "decoder_body": """toModel : Decode.Decoder ToModel
 toModel =
     Decode.succeed ToModel
         |> required "hello" (Decode.list (Decode.list Decode.string))""",
-        }
-
-    def test_with_object_with_string_to_elm_parser(self):
-        d = ObjectFlag({"hello": ObjectFlag({"world": StringFlag()})})
-        SUT = Flags(d)
-
-        assert SUT.to_elm_parser_data() == {
-            "alias_type": """{ hello : Hello_
+                },
+            ),
+            (
+                ObjectFlag({"hello": ObjectFlag({"world": StringFlag()})}),
+                {
+                    "alias_type": """{ hello : Hello_
     }
 
 type alias Hello_ =
     { world : String }""",
-            "decoder_body": """toModel : Decode.Decoder ToModel
+                    "decoder_body": """toModel : Decode.Decoder ToModel
 toModel =
     Decode.succeed ToModel
         |> required "hello" hello_Decoder
@@ -1400,19 +1529,17 @@ hello_Decoder : Decode.Decoder Hello_
 hello_Decoder =
     Decode.succeed Hello_
         |> required "world" Decode.string""",
-        }
-
-    def test_with_list_with_object_with_string_to_elm_parser(self):
-        d = ObjectFlag({"hello": ListFlag(ObjectFlag({"world": StringFlag()}))})
-        SUT = Flags(d)
-
-        assert SUT.to_elm_parser_data() == {
-            "alias_type": """{ hello : List Hello_
+                },
+            ),
+            (
+                ObjectFlag({"hello": ListFlag(ObjectFlag({"world": StringFlag()}))}),
+                {
+                    "alias_type": """{ hello : List Hello_
     }
 
 type alias Hello_ =
     { world : String }""",
-            "decoder_body": """toModel : Decode.Decoder ToModel
+                    "decoder_body": """toModel : Decode.Decoder ToModel
 toModel =
     Decode.succeed ToModel
         |> required "hello" (Decode.list hello_Decoder)
@@ -1421,66 +1548,63 @@ hello_Decoder : Decode.Decoder Hello_
 hello_Decoder =
     Decode.succeed Hello_
         |> required "world" Decode.string""",
-        }
-
-    def test_with_list_with_string_to_elm_parser(self):
-        d = ObjectFlag({"hello": ListFlag(StringFlag())})
-        SUT = Flags(d)
-        assert SUT.to_elm_parser_data() == {
-            "alias_type": """{ hello : List String
+                },
+            ),
+            (
+                ObjectFlag({"hello": ListFlag(StringFlag())}),
+                {
+                    "alias_type": """{ hello : List String
     }""",
-            "decoder_body": """toModel : Decode.Decoder ToModel
+                    "decoder_body": """toModel : Decode.Decoder ToModel
 toModel =
     Decode.succeed ToModel
         |> required "hello" (Decode.list Decode.string)""",
-        }
-
-    def test_with_nullable_with_string_to_elm_parser(self):
-        d = ObjectFlag({"hello": NullableFlag(StringFlag())})
-        SUT = Flags(d)
-        assert SUT.to_elm_parser_data() == {
-            "alias_type": """{ hello : Maybe String
+                },
+            ),
+            (
+                ObjectFlag({"hello": NullableFlag(StringFlag())}),
+                {
+                    "alias_type": """{ hello : Maybe String
     }""",
-            "decoder_body": """toModel : Decode.Decoder ToModel
+                    "decoder_body": """toModel : Decode.Decoder ToModel
 toModel =
     Decode.succeed ToModel
         |> required "hello" (Decode.nullable Decode.string)""",
-        }
-
-    def test_with_nullable_with_int_to_elm_parser(self):
-        d = ObjectFlag({"hello": NullableFlag(IntFlag())})
-        SUT = Flags(d)
-        assert SUT.to_elm_parser_data() == {
-            "alias_type": """{ hello : Maybe Int
+                },
+            ),
+            (
+                ObjectFlag({"hello": NullableFlag(IntFlag())}),
+                {
+                    "alias_type": """{ hello : Maybe Int
     }""",
-            "decoder_body": """toModel : Decode.Decoder ToModel
+                    "decoder_body": """toModel : Decode.Decoder ToModel
 toModel =
     Decode.succeed ToModel
         |> required "hello" (Decode.nullable Decode.int)""",
-        }
-
-    def test_with_nullable_with_nullable_with_string_to_elm_parser(self):
-        d = ObjectFlag({"hello": NullableFlag(NullableFlag(StringFlag()))})
-        SUT = Flags(d)
-        assert SUT.to_elm_parser_data() == {
-            "alias_type": """{ hello : Maybe (Maybe String)
+                },
+            ),
+            (
+                ObjectFlag({"hello": NullableFlag(NullableFlag(StringFlag()))}),
+                {
+                    "alias_type": """{ hello : Maybe (Maybe String)
     }""",
-            "decoder_body": """toModel : Decode.Decoder ToModel
+                    "decoder_body": """toModel : Decode.Decoder ToModel
 toModel =
     Decode.succeed ToModel
         |> required "hello" (Decode.nullable (Decode.nullable Decode.string))""",
-        }
-
-    def test_with_nullable_with_object_to_elm_parser(self):
-        d = ObjectFlag({"hello": NullableFlag(ObjectFlag({"hello": StringFlag()}))})
-        SUT = Flags(d)
-        assert SUT.to_elm_parser_data() == {
-            "alias_type": """{ hello : Maybe Hello_
+                },
+            ),
+            (
+                ObjectFlag(
+                    {"hello": NullableFlag(ObjectFlag({"hello": StringFlag()}))}
+                ),
+                {
+                    "alias_type": """{ hello : Maybe Hello_
     }
 
 type alias Hello_ =
     { hello : String }""",
-            "decoder_body": """toModel : Decode.Decoder ToModel
+                    "decoder_body": """toModel : Decode.Decoder ToModel
 toModel =
     Decode.succeed ToModel
         |> required "hello" (Decode.nullable hello_Decoder)
@@ -1489,19 +1613,54 @@ hello_Decoder : Decode.Decoder Hello_
 hello_Decoder =
     Decode.succeed Hello_
         |> required "hello" Decode.string""",
-        }
-
-    def test_with_nullable_with_list_with_string_to_elm_parser(self):
-        d = ObjectFlag({"hello": NullableFlag(ListFlag(StringFlag()))})
-        SUT = Flags(d)
-        assert SUT.to_elm_parser_data() == {
-            "alias_type": """{ hello : Maybe (List String)
+                },
+            ),
+            (
+                ObjectFlag({"hello": NullableFlag(ListFlag(StringFlag()))}),
+                {
+                    "alias_type": """{ hello : Maybe (List String)
     }""",
-            "decoder_body": """toModel : Decode.Decoder ToModel
+                    "decoder_body": """toModel : Decode.Decoder ToModel
 toModel =
     Decode.succeed ToModel
         |> required "hello" (Decode.nullable (Decode.list Decode.string))""",
-        }
+                },
+            ),
+            (
+                ObjectFlag(
+                    {"hello": ObjectFlag({"world": ObjectFlag({"it": StringFlag()})})}
+                ),
+                {
+                    "alias_type": """{ hello : Hello_
+    }
+
+type alias Hello_ =
+    { world : Hello_World__ }
+
+type alias Hello_World__ =
+    { it : String }""",
+                    "decoder_body": """toModel : Decode.Decoder ToModel
+toModel =
+    Decode.succeed ToModel
+        |> required "hello" hello_Decoder
+
+hello_Decoder : Decode.Decoder Hello_
+hello_Decoder =
+    Decode.succeed Hello_
+        |> required "world" hello_world__Decoder
+
+hello_world__Decoder : Decode.Decoder Hello_World__
+hello_world__Decoder =
+    Decode.succeed Hello_World__
+        |> required "it" Decode.string""",
+                },
+            ),
+        ],
+    )
+    def test_to_parser_data_success(self, flag, expected):
+        SUT = Flags(flag)
+
+        assert SUT.to_elm_parser_data() == expected
 
 
 class TestCustomTypeFlags:

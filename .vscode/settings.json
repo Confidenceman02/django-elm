@@ -1,0 +1,7 @@
+{
+    "python.testing.pytestArgs": [
+        "--ds=tests.settings",
+        "tests/"
+    ],
+    "python.testing.pytestEnabled": true
+}
