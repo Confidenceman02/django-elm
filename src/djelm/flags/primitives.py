@@ -83,6 +83,42 @@ class CustomTypeFlag(Flag):
     variants: list[tuple[str, Flag]]
 
 
+@dataclass(slots=True)
+class AliasFlag(Flag):
+    """Flag for creating a static alias.
+
+    This is handy for when you have reusable data structures that
+    other flags can reference.
+
+    Example:
+
+        Field = AliasFlag("Field", ObjectFlag({"name": StringFlag(), "scope": StringFlag()}))
+        Program = ObjectFlag({"some_field": Field, "some_other_field": Field})
+        |
+        |
+        V
+        type alias ToModel =
+            { some_field : Field_
+            , some_other_field : Field_
+            }
+
+        type alias Field_ =
+            { name : String
+            , scope : String
+            }
+
+    The AliasFlag can be referenced at any depth of a flag tree and only one of that alias will be generated with
+    the static name provided.
+
+    Params:
+        name: The static name of the alias
+        obj: The Flag object
+    """
+
+    name: str
+    obj: ObjectFlag | CustomTypeFlag
+
+
 FlagsObject = dict[str, "PrimitiveFlag"]
 FlagsList = list["PrimitiveFlag"]
 FlagsNullable = typing.Union[type[str], type[int], type[float], type[bool], type[None]]

@@ -1,21 +1,37 @@
+from collections import deque
 import typing
 from dataclasses import dataclass
-import djelm.codegen.annotation as Anno
-import djelm.codegen.compiler as Compiler
-import djelm.codegen.expression as Exp
-import djelm.codegen.op as Op
-import djelm.codegen.module_name as Module
-from djelm.codegen.pattern import VarPattern
-import djelm.codegen.range as Range
-import djelm.codegen.format as Format
-import djelm.codegen.writer as Writer
-import djelm.codegen.elm as Elm
+
 from pydantic import BaseModel, TypeAdapter, validate_call
 from typing_extensions import Annotated
 
+import djelm.codegen.annotation as Anno
+import djelm.codegen.compiler as Compiler
+import djelm.codegen.elm as Elm
+import djelm.codegen.expression as Exp
+import djelm.codegen.format as Format
+import djelm.codegen.module_name as Module
+import djelm.codegen.op as Op
+import djelm.codegen.range as Range
+import djelm.codegen.writer as Writer
+from djelm.codegen.pattern import VarPattern
 from djelm.flags.form.primitives import ModelChoiceFieldFlag
 
+from .adapters import (
+    BoolAdapter,
+    FloatAdapter,
+    IntAdapter,
+    StringAdapter,
+    annotated_alias_key,
+    annotated_bool,
+    annotated_float,
+    annotated_int,
+    annotated_string,
+    annotated_string_literal,
+    string_literal_adapter,
+)
 from .primitives import (
+    AliasFlag,
     BoolFlag,
     CustomTypeFlag,
     Flag,
@@ -29,23 +45,32 @@ from .primitives import (
     StringFlag,
 )
 
-from .adapters import (
-    BoolAdapter,
-    FloatAdapter,
-    IntAdapter,
-    StringAdapter,
-    annotated_alias_key,
-    annotated_string,
-    annotated_int,
-    annotated_bool,
-    annotated_float,
-    annotated_string_literal,
-    string_literal_adapter,
-)
-
-RESERVED_KEYWORDS = ["if"]
+RESERVED_KEYWORDS = ["if", "in"]
 
 PreparedElm = typing.TypedDict("PreparedElm", {"alias_type": str, "decoder_body": str})
+
+
+@dataclass(slots=True)
+class _DeclarationMetaBasic:
+    """The standard declaration type"""
+
+    declaration: Compiler.Declaration
+
+
+@dataclass(slots=True)
+class _DeclarationMetaStatic:
+    """
+    The static declaration type
+
+    Static declarations only appear once in the generated Elm code.
+    The main use is to create top level reusable types.
+
+    When generating code, this type tags all the inner declarations
+    as being part of a static declaration.
+    """
+
+    static_name: str
+    declarations: list[_DeclarationMetaBasic | typing.Self]
 
 
 @validate_call
@@ -368,11 +393,11 @@ class ObjectDecoder:
             ),
         )
 
-    def alias(self):
-        return f"""{self.value} : {self._to_annotation()}"""
+    def alias(self, key: str):
+        return f"""{key} : {self._to_annotation()}"""
 
-    def nested_alias(self):
-        return f""", {self.value} : {self._to_annotation()}"""
+    def nested_alias(self, key: str):
+        return f""", {key} : {self._to_annotation()}"""
 
     def _to_annotation(self) -> str:
         anno = self._compiler_annotation(
@@ -381,8 +406,11 @@ class ObjectDecoder:
         return Anno.toString(anno)
 
     def _to_decoder_name(self):
-        p = self.parent_alias if self.parent_alias else ""
-        return f"""{p.lower() + self.value + self._depth_markers()}Decoder"""
+        if self.parent_alias:
+            prefix = f"{self.parent_alias.lower()}{self.value}"
+        else:
+            prefix = self.value[0].lower() + self.value[1:]
+        return f"""{prefix + self._depth_markers()}Decoder"""
 
     def _depth_markers(self) -> str:
         marker = ""
@@ -398,10 +426,10 @@ class ObjectDecoder:
             f"{p}{Format.alias_type(self.value)}{self._depth_markers()}", annotation
         )
 
-    def pipeline_expression(self) -> Compiler.Expression:
+    def pipeline_expression(self, key: str) -> Compiler.Expression:
         return Elm.apply(
             Exp.FunctionOrValue(Module.ModuleName([]), "required", None, None),
-            [Elm.literal(self.value), self.decoder_expression()],
+            [Elm.literal(key), self.decoder_expression()],
             Range.Range(1, 0),
         )
 
@@ -437,8 +465,8 @@ class CustomTypeDecoder:
     def _to_annotation(self) -> str:
         return Anno.toString(self._compiler_annotation())
 
-    def _to_declaration(self) -> str:
-        return Writer.writeDeclartion(self._compiler_declaration()).write()
+    def _to_declaration(self) -> Compiler.Declaration:
+        return self._compiler_declaration()
 
     def _compiler_annotation(self) -> Compiler.Annotation:
         return Compiler.Annotation(
@@ -483,27 +511,27 @@ class CustomTypeDecoder:
         )
 
 
-ObjHelperReturn = typing.TypedDict(
-    "ObjHelperReturn",
+PipelineReturn = typing.TypedDict(
+    "PipelineReturn",
     {
         "adapter": TypeAdapter,
         "anno": typing.Dict[str, PrimitiveObjectFlagType],
-        "elm_values": PreparedElm,
-        "alias_extra": str,
-        "decoder_extra": str,
+        "alias_type": str,
         "field_annotations": list[tuple[str, Compiler.Annotation]],
+        "type_declarations": list[_DeclarationMetaBasic | _DeclarationMetaStatic],
+        "decoder_declarations": list[_DeclarationMetaBasic | _DeclarationMetaStatic],
     },
 )
-SingleHelperReturn = typing.TypedDict(
-    "SingleHelperReturn",
+InlineReturn = typing.TypedDict(
+    "InlineReturn",
     {
         "adapter": TypeAdapter,
         "anno": PrimitiveObjectFlagType,
-        "elm_values": PreparedElm,
-        "alias_extra": str,
+        "alias_type": str,
         "compiler_annotation": Compiler.Annotation,
         "decoder_expression": Compiler.Expression,
-        "decoder_extra": str,
+        "type_declarations": list[_DeclarationMetaBasic | _DeclarationMetaStatic],
+        "decoder_declarations": list[_DeclarationMetaBasic | _DeclarationMetaStatic],
     },
 )
 
@@ -514,10 +542,10 @@ class FlagMetaClass(type):
 
 
 class BaseFlag(metaclass=FlagMetaClass):
-    def __new__(cls, d):
-        assert isinstance(d, Flag)
+    def __new__(cls, flag):
+        assert isinstance(flag, Flag)
 
-        prepared_flags: ObjHelperReturn | SingleHelperReturn | None = None
+        prepared_flags: PipelineReturn | InlineReturn | None = None
         decoder_sig = (
             Compiler.Signature(
                 "toModel",
@@ -533,9 +561,9 @@ class BaseFlag(metaclass=FlagMetaClass):
             ),
         )
 
-        match d:
+        match flag:
             case ObjectFlag(obj=_):
-                prepared_flags = _prepare_pipeline_flags(d, decoder_sig)
+                prepared_flags = _prepare_pipeline_flags(flag, decoder_sig)
             case ModelChoiceFieldFlag(variants=_) as mcf:
                 prepared_flags = _prepare_pipeline_flags(
                     mcf.obj(), decoder_sig=decoder_sig
@@ -543,7 +571,7 @@ class BaseFlag(metaclass=FlagMetaClass):
                 prepared_flags["adapter"] = mcf.adapter()
             case _:
                 prepared_flags = _prepare_inline_flags(
-                    d, ObjectDecoder("inlineToModel", 1), decoder_sig=decoder_sig
+                    flag, ObjectDecoder("inlineToModel", 1), decoder_sig=decoder_sig
                 )
 
         assert prepared_flags is not None
@@ -553,7 +581,7 @@ class BaseFlag(metaclass=FlagMetaClass):
 
             @staticmethod
             def parse(input) -> str:
-                match d:
+                match flag:
                     case ObjectFlag(obj=_):
                         return (
                             prepared_flags["adapter"]
@@ -571,41 +599,107 @@ class BaseFlag(metaclass=FlagMetaClass):
 
             @staticmethod
             def to_elm_parser_data() -> PreparedElm:
-                if isinstance(d, ObjectFlag) or isinstance(d, ModelChoiceFieldFlag):
-                    return prepared_flags["elm_values"]
-                else:
-                    return {
-                        "alias_type": prepared_flags["elm_values"]["alias_type"]
-                        + prepared_flags["alias_extra"],
-                        "decoder_body": prepared_flags["elm_values"]["decoder_body"]
-                        + prepared_flags["decoder_extra"],
-                    }
+                """
+                Organises and prepares all declarations for code generation.
+                """
+                prepared_type_declarations = []
+                prepared_decoder_declarations = []
+                processed_static_types: list[str] = []
+                processed_static_decoders: list[str] = []
+
+                type_declarations_to_process = deque(
+                    prepared_flags["type_declarations"]
+                )
+                decoder_declarations_to_process = deque(
+                    prepared_flags["decoder_declarations"]
+                )
+
+                while type_declarations_to_process:
+                    current = type_declarations_to_process.popleft()
+
+                    match current:
+                        case _DeclarationMetaBasic():
+                            prepared_type_declarations.append(
+                                f"\n\n{Writer.writeDeclartion(current.declaration).write()}"
+                            )
+                        case _DeclarationMetaStatic():
+                            if current.static_name in processed_static_types:
+                                continue
+                            else:
+                                type_declarations_to_process.extendleft(
+                                    reversed(current.declarations)
+                                )
+                                processed_static_types.append(current.static_name)
+
+                while decoder_declarations_to_process:
+                    current = decoder_declarations_to_process.popleft()
+                    match current:
+                        case _DeclarationMetaBasic():
+                            prepared_decoder_declarations.append(
+                                f"{Writer.writeDeclartion(current.declaration).write()}"
+                            )
+                        case _DeclarationMetaStatic():
+                            if current.static_name in processed_static_decoders:
+                                continue
+                            else:
+                                decoder_declarations_to_process.extendleft(
+                                    reversed(current.declarations)
+                                )
+                                processed_static_decoders.append(current.static_name)
+
+                return {
+                    "alias_type": prepared_flags["alias_type"]
+                    + "".join(prepared_type_declarations),
+                    "decoder_body": "\n\n".join(prepared_decoder_declarations),
+                }
 
         return Prepared
 
 
 def _prepare_inline_flags(
-    d: Flag,
+    flag: Flag,
     object_decoder: ObjectDecoder | None = None,
     depth: int = 1,
     decoder_sig: tuple[Compiler.Signature, Compiler.Expression] | None = None,
-) -> SingleHelperReturn:
+) -> InlineReturn:
     adapter: TypeAdapter
     anno: PrimitiveObjectFlagType
     alias_type: str = ""
-    decoder_extra: str = ""
-    alias_extra: str = ""
     compiler_annotation = None
     decoder_expression: Compiler.Expression | None = None
-    match d:
+    type_declarations: list[_DeclarationMetaBasic | _DeclarationMetaStatic] = []
+    decoder_declarations: list[_DeclarationMetaBasic | _DeclarationMetaStatic] = []
+    match flag:
+        case AliasFlag(name=alias_name, obj=alias_flag):
+            alias_object_decoder = ObjectDecoder(alias_name, 1)
+            object_inline = _prepare_inline_flags(alias_flag, alias_object_decoder)
+            adapter = object_inline["adapter"]
+            anno = object_inline["anno"]
+            alias_type = object_inline["alias_type"]
+            compiler_annotation = object_inline["compiler_annotation"]
+            decoder_expression = object_inline["decoder_expression"]
+            type_declarations.append(
+                _DeclarationMetaStatic(
+                    static_name=alias_name,
+                    declarations=object_inline["type_declarations"],
+                )
+            )
+            decoder_declarations.append(
+                _DeclarationMetaStatic(
+                    static_name=alias_name,
+                    declarations=object_inline["decoder_declarations"],
+                )
+            )
         case StringFlag():
             adapter = StringAdapter
             decoder_expression = StringDecoder.decoder_expression()
             anno = annotated_string  # type:ignore
-            if d.literal is not None:
-                adapter = string_literal_adapter(d.literal)
-                decoder_expression = StringDecoder.decoder_literal_expression(d.literal)
-                anno = annotated_string_literal(d.literal)  # type:ignore
+            if flag.literal is not None:
+                adapter = string_literal_adapter(flag.literal)
+                decoder_expression = StringDecoder.decoder_literal_expression(
+                    flag.literal
+                )
+                anno = annotated_string_literal(flag.literal)  # type:ignore
             alias_type = StringDecoder._annotation()
             compiler_annotation = StringDecoder._compiler_annotation()
         case IntFlag():
@@ -627,32 +721,37 @@ def _prepare_inline_flags(
             compiler_annotation = BoolDecoder._compiler_annotation()
             decoder_expression = BoolDecoder.decoder_expression()
         case NullableFlag(obj=obj):
-            single_flag = _prepare_inline_flags(obj, object_decoder)
-            t = single_flag["anno"]
+            object_inline = _prepare_inline_flags(obj, object_decoder)
+            t = object_inline["anno"]
             adapter = TypeAdapter(Annotated[typing.Optional[t], None])
             anno = typing.Optional[t]  # type:ignore
-            alias_type = NullableDecoder._annotation(single_flag["compiler_annotation"])
-            alias_extra += single_flag["alias_extra"]
-            decoder_extra += single_flag["decoder_extra"]
+            alias_type = NullableDecoder._annotation(
+                object_inline["compiler_annotation"]
+            )
+
+            type_declarations.extend(object_inline["type_declarations"])
+            decoder_declarations.extend(object_inline["decoder_declarations"])
+
             compiler_annotation = NullableDecoder._compiler_annotation(
-                single_flag["compiler_annotation"]
+                object_inline["compiler_annotation"]
             )
             decoder_expression = NullableDecoder.decoder_expression(
-                single_flag["decoder_expression"]
+                object_inline["decoder_expression"]
             )
         case ListFlag(obj=obj):
-            single_flag = _prepare_inline_flags(obj, object_decoder)
-            t = single_flag["anno"]
+            object_inline = _prepare_inline_flags(obj, object_decoder)
+            t = object_inline["anno"]
             adapter = TypeAdapter(Annotated[list[t], None])  # type:ignore
             anno = list[t]  # type:ignore
-            alias_type = ListDecoder._annotation(single_flag["compiler_annotation"])
-            alias_extra += single_flag["alias_extra"]
-            decoder_extra += single_flag["decoder_extra"]
+            alias_type = ListDecoder._annotation(object_inline["compiler_annotation"])
+
+            type_declarations.extend(object_inline["type_declarations"])
+            decoder_declarations.extend(object_inline["decoder_declarations"])
             compiler_annotation = ListDecoder._compiler_annotation(
-                single_flag["compiler_annotation"]
+                object_inline["compiler_annotation"]
             )
             decoder_expression = ListDecoder.decoder_expression(
-                single_flag["decoder_expression"]
+                object_inline["decoder_expression"]
             )
         case CustomTypeFlag(variants=v):
             if object_decoder is None:
@@ -662,8 +761,6 @@ def _prepare_inline_flags(
             assert 0 < len(v)
 
             annos = []
-            alias_extras: list[str] = []
-            decoder_extras: list[str] = []
             variants: list[Compiler.Variant] = []
             next_object_decoder = ObjectDecoder(
                 object_decoder.value, object_decoder.depth + 1
@@ -676,18 +773,19 @@ def _prepare_inline_flags(
                     object_decoder.depth + 1,
                     object_decoder._to_annotation(),
                 )
-                prepared = _prepare_inline_flags(var[1], next_object_decoder)
+                object_inline = _prepare_inline_flags(var[1], next_object_decoder)
                 variant_decoder_expressions.append(
-                    (formatted_constructor, prepared["decoder_expression"])
+                    (formatted_constructor, object_inline["decoder_expression"])
                 )
-                annos.append(prepared["anno"])
-                alias_extras.append(prepared["alias_extra"])
-                decoder_extras.append(prepared["decoder_extra"])
-                if prepared["compiler_annotation"]:
+                annos.append(object_inline["anno"])
+                type_declarations.extend(object_inline["type_declarations"])
+                decoder_declarations.extend(object_inline["decoder_declarations"])
+                if object_inline["compiler_annotation"]:
                     variants.append(
                         (
                             Elm.variantWith(
-                                formatted_constructor, [prepared["compiler_annotation"]]
+                                formatted_constructor,
+                                [object_inline["compiler_annotation"]],
                             )
                         )
                     )
@@ -704,11 +802,13 @@ def _prepare_inline_flags(
 
             compiler_annotation = custom_type_decoder._compiler_annotation()
 
-            decoder_extra = "".join(decoder_extras)
             alias_type = custom_type_decoder._to_annotation()
-            alias_extra = "".join(
-                ["\n\n" + custom_type_decoder._to_declaration(), *alias_extras]
-            )
+            type_declarations = [
+                _DeclarationMetaBasic(
+                    declaration=custom_type_decoder._to_declaration()
+                ),
+                *type_declarations,
+            ]
             decoder_expression = custom_type_decoder.decoder_expression()
         case ModelChoiceFieldFlag(variants=_) as mcf:
             if object_decoder is None:
@@ -726,7 +826,7 @@ def _prepare_inline_flags(
             if object_decoder._to_annotation() != "InlineToModel_":
                 parent_key = object_decoder._to_annotation()
 
-            object_flag = _prepare_pipeline_flags(
+            object_pipeline = _prepare_pipeline_flags(
                 mcf.obj(),
                 (
                     object_decoder.pipeline_signature(),
@@ -738,21 +838,23 @@ def _prepare_inline_flags(
             adapter = mcf.adapter()
             # Use internal annotation
             anno = mcf.anno()
-            declaration = Elm.alias(
-                object_decoder._to_annotation(),
-                Anno.record(object_flag["field_annotations"]),
-            )
             compiler_annotation = object_decoder._compiler_annotation(
-                Anno.record(object_flag["field_annotations"])
+                Anno.record(object_pipeline["field_annotations"])
             )
 
             alias_type = object_decoder._to_annotation()
-            alias_extra = (
-                "\n\n"
-                + Writer.writeDeclartion(declaration).write()
-                + object_flag["alias_extra"]
+
+            type_declaration = Elm.alias(
+                object_decoder._to_annotation(),
+                Anno.record(object_pipeline["field_annotations"]),
             )
-            decoder_extra = f"\n\n{object_flag['elm_values']['decoder_body']}"
+            type_declarations.extend(
+                [
+                    _DeclarationMetaBasic(declaration=type_declaration),
+                    *object_pipeline["type_declarations"],
+                ]
+            )
+            decoder_declarations.extend(object_pipeline["decoder_declarations"])
             decoder_expression = object_decoder.decoder_expression()
         case ObjectFlag(obj=obj):
             if object_decoder is None:
@@ -769,8 +871,8 @@ def _prepare_inline_flags(
             """
             if object_decoder._to_annotation() != "InlineToModel_":
                 parent_key = object_decoder._to_annotation()
-            object_flag = _prepare_pipeline_flags(
-                d,
+            object_pipeline = _prepare_pipeline_flags(
+                flag,
                 (
                     object_decoder.pipeline_signature(),
                     object_decoder.pipeline_starter_expression(),
@@ -778,74 +880,97 @@ def _prepare_inline_flags(
                 depth + 1,
                 parent_key,
             )
-            t = object_flag["anno"]  # type:ignore
-            declaration = Elm.alias(
+            t = object_pipeline["anno"]  # type:ignore
+            type_declaration = Elm.alias(
                 object_decoder._to_annotation(),
-                Anno.record(object_flag["field_annotations"]),
+                Anno.record(object_pipeline["field_annotations"]),
             )
             compiler_annotation = object_decoder._compiler_annotation(
-                Anno.record(object_flag["field_annotations"])
+                Anno.record(object_pipeline["field_annotations"])
             )
 
-            adapter = object_flag["adapter"]
+            adapter = object_pipeline["adapter"]
             anno = t  # type:ignore
 
             alias_type = Anno.toString(compiler_annotation)
-            alias_extra = (
-                "\n\n"
-                + Writer.writeDeclartion(declaration).write()
-                + object_flag["alias_extra"]
+            type_declarations.extend(
+                [
+                    _DeclarationMetaBasic(declaration=type_declaration),
+                    *object_pipeline["type_declarations"],
+                ]
             )
-            decoder_extra = f"\n\n{object_flag['elm_values']['decoder_body']}"
+            decoder_declarations.extend(object_pipeline["decoder_declarations"])
             decoder_expression = object_decoder.decoder_expression()
         case _:
-            raise Exception(f"Can't resolve core_schema type for: {d}")
+            raise Exception(f"Can't resolve core_schema type for: {flag}")
 
     decoder_body = ""
 
     if decoder_sig:
         sig, _ = decoder_sig
-        decoder_body = Writer.writeDeclartion(
-            Elm.declaration(sig.name, decoder_expression, sig)
-        ).write()
+        decoder_body = Elm.declaration(sig.name, decoder_expression, sig)
 
     return {
         "adapter": adapter,
         "anno": anno,
-        "elm_values": {
-            "alias_type": alias_type,
-            "decoder_body": decoder_body,
-        },
-        "alias_extra": alias_extra,
+        "alias_type": alias_type,
         "compiler_annotation": compiler_annotation,
         "decoder_expression": decoder_expression,
-        "decoder_extra": decoder_extra,
+        "type_declarations": type_declarations,
+        "decoder_declarations": [
+            _DeclarationMetaBasic(declaration=decoder_body),
+            *decoder_declarations,
+        ]
+        if decoder_body
+        else decoder_declarations,
     }
 
 
 def _prepare_pipeline_flags(
-    d: Flag,
+    flag: ObjectFlag,
     decoder_sig: tuple[Compiler.Signature, Compiler.Expression],
     depth: int = 1,
     parent_key: str | None = None,
-) -> ObjHelperReturn:
+) -> PipelineReturn:
     anno: typing.Dict[str, PrimitiveObjectFlagType] = {}
     alias_values: str = ""
-    decoder_extra: str = ""
-    alias_extra: str = ""
     field_annotations: list[tuple[str, Compiler.Annotation]] = []
     pipeline_expressions: list[Compiler.Expression] = []
+    type_declarations: list[_DeclarationMetaBasic | _DeclarationMetaStatic] = []
+    decoder_declarations: list[_DeclarationMetaBasic | _DeclarationMetaStatic] = []
 
-    assert isinstance(d, ObjectFlag)
-
-    for idx, (k, v) in enumerate(d.obj.items()):
+    for idx, (key, value_flag) in enumerate(flag.obj.items()):
         try:
-            assert k not in RESERVED_KEYWORDS
-            k = k.replace("\n", "")
-            valid_alias_key(k)
-            match v:
+            assert key not in RESERVED_KEYWORDS
+            key = key.replace("\n", "")
+            valid_alias_key(key)
+            match value_flag:
+                case AliasFlag(name=alias_name, obj=alias_obj):
+                    object_decoder = ObjectDecoder(alias_name, 1)
+                    object_inline = _prepare_inline_flags(alias_obj, object_decoder)
+                    type_declarations.append(
+                        _DeclarationMetaStatic(
+                            static_name=alias_name,
+                            declarations=object_inline["type_declarations"],
+                        )
+                    )
+                    decoder_declarations.append(
+                        _DeclarationMetaStatic(
+                            static_name=alias_name,
+                            declarations=object_inline["decoder_declarations"],
+                        )
+                    )
+                    anno[key] = object_inline["anno"]
+                    field_annotations.append(
+                        (key, object_inline["compiler_annotation"])
+                    )
+                    pipeline_expressions.append(object_decoder.pipeline_expression(key))
+                    if idx == 0:
+                        alias_values += f" {object_decoder.alias(key)}"
+                    else:
+                        alias_values += f"\n    {object_decoder.nested_alias(key)}"
                 case ModelChoiceFieldFlag() as mcf:
-                    decoder = ObjectDecoder(k, depth, parent_key)
+                    decoder = ObjectDecoder(key, depth, parent_key)
                     prepared_object_recursive = _prepare_pipeline_flags(
                         # Use built in flags
                         mcf.obj(),
@@ -858,14 +983,10 @@ def _prepare_pipeline_flags(
                     )
 
                     # Use built in annotations
-                    anno[k] = mcf.anno()
-                    declaration = Elm.alias(
-                        decoder._to_annotation(),
-                        Anno.record(prepared_object_recursive["field_annotations"]),
-                    )
+                    anno[key] = mcf.anno()
                     field_annotations.append(
                         (
-                            k,
+                            key,
                             Anno.alias(
                                 decoder._to_annotation(),
                                 Anno.record(
@@ -874,22 +995,31 @@ def _prepare_pipeline_flags(
                             ),
                         )
                     )
-                    decoder_extra += (
-                        f"\n\n{prepared_object_recursive['elm_values']['decoder_body']}"
+                    type_declaration = Elm.alias(
+                        decoder._to_annotation(),
+                        Anno.record(prepared_object_recursive["field_annotations"]),
                     )
-                    alias_extra += (
-                        "\n\n"
-                        + Writer.writeDeclartion(declaration).write()
-                        + prepared_object_recursive["alias_extra"]
+                    type_declaration = Elm.alias(
+                        decoder._to_annotation(),
+                        Anno.record(prepared_object_recursive["field_annotations"]),
                     )
-                    pipeline_expressions.append(decoder.pipeline_expression())
+                    type_declarations.extend(
+                        [
+                            _DeclarationMetaBasic(declaration=type_declaration),
+                            *prepared_object_recursive["type_declarations"],
+                        ]
+                    )
+                    decoder_declarations.extend(
+                        prepared_object_recursive["decoder_declarations"]
+                    )
+                    pipeline_expressions.append(decoder.pipeline_expression(key))
                     if idx == 0:
-                        alias_values += f" {decoder.alias()}"
+                        alias_values += f" {decoder.alias(key)}"
                     else:
-                        alias_values += f"\n    {decoder.nested_alias()}"
+                        alias_values += f"\n    {decoder.nested_alias(key)}"
 
                 case ObjectFlag(obj=obj):
-                    decoder = ObjectDecoder(k, depth, parent_key)
+                    decoder = ObjectDecoder(key, depth, parent_key)
                     prepared_object_recursive = _prepare_pipeline_flags(
                         ObjectFlag(obj),
                         (
@@ -899,7 +1029,7 @@ def _prepare_pipeline_flags(
                         depth + 1,
                         parent_key=decoder._to_annotation(),
                     )
-                    anno[k] = type(
+                    anno[key] = type(
                         "K",
                         (BaseModel,),
                         {
@@ -908,13 +1038,9 @@ def _prepare_pipeline_flags(
                             ].__origin__.__annotations__  # type:ignore
                         },
                     )
-                    declaration = Elm.alias(
-                        decoder._to_annotation(),
-                        Anno.record(prepared_object_recursive["field_annotations"]),
-                    )
                     field_annotations.append(
                         (
-                            k,
+                            key,
                             Anno.alias(
                                 decoder._to_annotation(),
                                 Anno.record(
@@ -924,36 +1050,41 @@ def _prepare_pipeline_flags(
                         )
                     )
 
-                    decoder_extra += (
-                        f"\n\n{prepared_object_recursive['elm_values']['decoder_body']}"
+                    type_declaration = Elm.alias(
+                        decoder._to_annotation(),
+                        Anno.record(prepared_object_recursive["field_annotations"]),
                     )
-                    alias_extra += (
-                        "\n\n"
-                        + Writer.writeDeclartion(declaration).write()
-                        + prepared_object_recursive["alias_extra"]
+                    type_declarations.extend(
+                        [
+                            _DeclarationMetaBasic(declaration=type_declaration),
+                            *prepared_object_recursive["type_declarations"],
+                        ]
                     )
-                    pipeline_expressions.append(decoder.pipeline_expression())
+                    decoder_declarations.extend(
+                        prepared_object_recursive["decoder_declarations"]
+                    )
+                    pipeline_expressions.append(decoder.pipeline_expression(key))
                     if idx == 0:
-                        alias_values += f" {decoder.alias()}"
+                        alias_values += f" {decoder.alias(key)}"
                     else:
-                        alias_values += f"\n    {decoder.nested_alias()}"
+                        alias_values += f"\n    {decoder.nested_alias(key)}"
 
                 case ListFlag(obj=obj):
-                    decoder = ObjectDecoder(k, depth, parent_key)
-                    single_flag = _prepare_inline_flags(obj, decoder)
+                    decoder = ObjectDecoder(key, depth, parent_key)
+                    object_inline = _prepare_inline_flags(obj, decoder)
                     list_decoder = ListDecoder(
-                        k,
-                        single_flag["compiler_annotation"],
+                        key,
+                        object_inline["compiler_annotation"],
                     )
-                    alias_extra += single_flag["alias_extra"]
-                    decoder_extra += single_flag["decoder_extra"]
-                    anno[k] = list[single_flag["anno"]]  # type:ignore
+                    type_declarations.extend(object_inline["type_declarations"])
+                    decoder_declarations.extend(object_inline["decoder_declarations"])
+                    anno[key] = list[object_inline["anno"]]  # type:ignore
                     field_annotations.append(
-                        (k, Anno.list(single_flag["compiler_annotation"]))
+                        (key, Anno.list(object_inline["compiler_annotation"]))
                     )
                     pipeline_expressions.append(
                         list_decoder.pipeline_expression(
-                            single_flag["decoder_expression"]
+                            object_inline["decoder_expression"]
                         )
                     )
                     if idx == 0:
@@ -962,43 +1093,45 @@ def _prepare_pipeline_flags(
                         alias_values += f"\n    {list_decoder.nested_alias()}"
 
                 case CustomTypeFlag(variants=_) as ctf:
-                    decoder = ObjectDecoder(k, depth, parent_key)
-                    single_flag = _prepare_inline_flags(ctf, decoder)
-                    anno[k] = typing.Optional[single_flag["anno"]]  # type:ignore
-                    field_annotations.append((k, single_flag["compiler_annotation"]))
+                    decoder = ObjectDecoder(key, depth, parent_key)
+                    object_inline = _prepare_inline_flags(ctf, decoder)
+                    anno[key] = typing.Optional[object_inline["anno"]]  # type:ignore
+                    field_annotations.append(
+                        (key, object_inline["compiler_annotation"])
+                    )
 
-                    alias_extra += single_flag["alias_extra"]
-                    decoder_extra += single_flag["decoder_extra"]
+                    type_declarations.extend(object_inline["type_declarations"])
+                    decoder_declarations.extend(object_inline["decoder_declarations"])
 
                     pipeline_expressions.append(
                         CustomTypeDecoder.pipeline_expression(
-                            k, single_flag["decoder_expression"]
+                            key, object_inline["decoder_expression"]
                         )
                     )
                     if idx == 0:
-                        alias_values += f" {decoder.alias()}"
+                        alias_values += f" {decoder.alias(key)}"
                     else:
-                        alias_values += f"\n    {decoder.nested_alias()}"
+                        alias_values += f"\n    {decoder.nested_alias(key)}"
                     pass
 
                 case NullableFlag(obj=obj1):
-                    single_flag = _prepare_inline_flags(
-                        obj1, ObjectDecoder(k, depth, parent_key)
+                    object_inline = _prepare_inline_flags(
+                        obj1, ObjectDecoder(key, depth, parent_key)
                     )
                     nullable_decoder = NullableDecoder(
-                        k,
-                        single_flag["compiler_annotation"],
+                        key,
+                        object_inline["compiler_annotation"],
                     )
-                    alias_extra += single_flag["alias_extra"]
-                    decoder_extra += single_flag["decoder_extra"]
-                    anno[k] = typing.Optional[single_flag["anno"]]  # type:ignore
+                    type_declarations.extend(object_inline["type_declarations"])
+                    decoder_declarations.extend(object_inline["decoder_declarations"])
+                    anno[key] = typing.Optional[object_inline["anno"]]  # type:ignore
                     field_annotations.append(
-                        (k, Anno.maybe(single_flag["compiler_annotation"]))
+                        (key, Anno.maybe(object_inline["compiler_annotation"]))
                     )
 
                     pipeline_expressions.append(
                         nullable_decoder.pipeline_expression(
-                            single_flag["decoder_expression"]
+                            object_inline["decoder_expression"]
                         )
                     )
 
@@ -1007,16 +1140,18 @@ def _prepare_pipeline_flags(
                     else:
                         alias_values += f"\n    {nullable_decoder.nested_alias()}"
                 case StringFlag():
-                    string_decoder = StringDecoder(k)
-                    single_prepared = _prepare_inline_flags(v)
-                    anno[k] = single_prepared["anno"]
+                    string_decoder = StringDecoder(key)
+                    single_prepared = _prepare_inline_flags(value_flag)
+                    anno[key] = single_prepared["anno"]
                     field_annotations.append(
-                        (k, single_prepared["compiler_annotation"])
+                        (key, single_prepared["compiler_annotation"])
                     )
 
-                    if v.literal:
+                    if value_flag.literal:
                         pipeline_expressions.append(
-                            string_decoder.pipeline_literal_expression(v.literal)
+                            string_decoder.pipeline_literal_expression(
+                                value_flag.literal
+                            )
                         )
                     else:
                         pipeline_expressions.append(
@@ -1029,11 +1164,11 @@ def _prepare_pipeline_flags(
                         alias_values += f"\n    {string_decoder.nested_alias()}"
 
                 case IntFlag():
-                    int_decoder = IntDecoder(k)
-                    single_prepared = _prepare_inline_flags(v)
-                    anno[k] = single_prepared["anno"]
+                    int_decoder = IntDecoder(key)
+                    single_prepared = _prepare_inline_flags(value_flag)
+                    anno[key] = single_prepared["anno"]
                     field_annotations.append(
-                        (k, single_prepared["compiler_annotation"])
+                        (key, single_prepared["compiler_annotation"])
                     )
                     pipeline_expressions.append(int_decoder.pipeline_expression())
 
@@ -1043,11 +1178,11 @@ def _prepare_pipeline_flags(
                         alias_values += f"\n    {int_decoder.nested_alias()}"
 
                 case FloatFlag():
-                    float_decoder = FloatDecoder(k)
-                    single_prepared = _prepare_inline_flags(v)
-                    anno[k] = single_prepared["anno"]
+                    float_decoder = FloatDecoder(key)
+                    single_prepared = _prepare_inline_flags(value_flag)
+                    anno[key] = single_prepared["anno"]
                     field_annotations.append(
-                        (k, single_prepared["compiler_annotation"])
+                        (key, single_prepared["compiler_annotation"])
                     )
                     pipeline_expressions.append(float_decoder.pipeline_expression())
 
@@ -1057,11 +1192,11 @@ def _prepare_pipeline_flags(
                         alias_values += f"\n    {float_decoder.nested_alias()}"
 
                 case BoolFlag():
-                    bool_decoder = BoolDecoder(k)
-                    single_prepared = _prepare_inline_flags(v)
-                    anno[k] = single_prepared["anno"]
+                    bool_decoder = BoolDecoder(key)
+                    single_prepared = _prepare_inline_flags(value_flag)
+                    anno[key] = single_prepared["anno"]
                     field_annotations.append(
-                        (k, single_prepared["compiler_annotation"])
+                        (key, single_prepared["compiler_annotation"])
                     )
                     pipeline_expressions.append(bool_decoder.pipeline_expression())
                     if idx == 0:
@@ -1076,26 +1211,26 @@ def _prepare_pipeline_flags(
 
     sig, top_pipe = decoder_sig
 
-    pipeline_decoder = Writer.writeDeclartion(
-        Elm.declaration(
-            sig.name,
-            Op.pipes(top_pipe, reversed(pipeline_expressions)),
-            sig,
-        )
-    ).write()
+    pipeline_decoder = Elm.declaration(
+        sig.name,
+        Op.pipes(top_pipe, reversed(pipeline_expressions)),
+        sig,
+    )
 
     return {
         "adapter": TypeAdapter(
             Annotated[type("K", (BaseModel,), {"__annotations__": anno}), None]
         ),  # type:ignore
         "anno": Annotated[type("K", (BaseModel,), {"__annotations__": anno}), None],  # type:ignore
-        "elm_values": {
-            "alias_type": "{" + alias_values + "\n    }" + alias_extra,
-            "decoder_body": pipeline_decoder + decoder_extra,
-        },
-        "alias_extra": alias_extra,
-        "decoder_extra": decoder_extra,
+        "alias_type": "{" + alias_values + "\n    }",
+        "alias_extra": "",
+        "decoder_extra": "",
         "field_annotations": field_annotations,
+        "type_declarations": type_declarations,
+        "decoder_declarations": [
+            _DeclarationMetaBasic(declaration=pipeline_decoder),
+            *decoder_declarations,
+        ],
     }
 
 
