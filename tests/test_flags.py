@@ -434,6 +434,28 @@ someAlias_Decoder =
                 },
             ),
             (
+                ObjectFlag(
+                    {
+                        "messages": AliasFlag(
+                            "Status",
+                            CustomTypeFlag(variants=[("Hello", StringFlag())]),
+                        )
+                    }
+                ),
+                {
+                    "alias_type": """{ messages : Status_
+    }
+
+type Status_
+    = Hello String
+""",
+                    "decoder_body": """toModel : Decode.Decoder ToModel
+toModel =
+    Decode.succeed ToModel
+        |> required "messages" (Decode.oneOf [Decode.map Hello Decode.string])""",
+                },
+            ),
+            (
                 AliasFlag(
                     "SomeAlias",
                     CustomTypeFlag(variants=[("Hello", StringFlag())]),
