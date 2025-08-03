@@ -1,3 +1,9 @@
+## [0.20.1] - 2025-08-03
+
+### Fixed
+
+- CustomTypeFlag wrapped with AliasFlag not generated the correct decoder. It was using the ObjectDecoder instead of the CustomTypeDecoder.
+
 ## [0.20.0] - 2025-07-13
 
 ### Added
@@ -308,6 +314,7 @@ type alias A_B__
 
 - First version to pyPI
 
+[0.20.1]: https://github.com/Confidenceman02/django-elm/compare/0.20.0...0.20.1
 [0.20.0]: https://github.com/Confidenceman02/django-elm/compare/0.19.1...0.20.0
 [0.19.1]: https://github.com/Confidenceman02/django-elm/compare/0.19.0...0.19.1
 [0.19.0]: https://github.com/Confidenceman02/django-elm/compare/0.18.2...0.19.0
