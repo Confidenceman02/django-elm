@@ -964,7 +964,17 @@ def _prepare_pipeline_flags(
                     field_annotations.append(
                         (key, object_inline["compiler_annotation"])
                     )
-                    pipeline_expressions.append(object_decoder.pipeline_expression(key))
+                    match alias_obj:
+                        case CustomTypeFlag():
+                            pipeline_expressions.append(
+                                CustomTypeDecoder.pipeline_expression(
+                                    key, object_inline["decoder_expression"]
+                                )
+                            )
+                        case ObjectFlag():
+                            pipeline_expressions.append(
+                                object_decoder.pipeline_expression(key)
+                            )
                     if idx == 0:
                         alias_values += f" {object_decoder.alias(key)}"
                     else:
