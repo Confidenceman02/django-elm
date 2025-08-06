@@ -28,6 +28,7 @@ class Command(LabelCommand):
 Command arguments are missing, please add one of the following:
   create <app-name> - to create a djelm app
   addprogram <app-name> <program-name> - create an Elm program called <program-name> in the <app-name> app
+  addprogramhandlers <app-name> <program-name> - create JS handlers for Elm program utilities like handlers
   removeprogram <app-name> <program-name> - remove all files associated with an Elm program called <program-name> in the <app-name> app
   addwidget <app-name> <widget-name> - create a widget program in the <app-name> app
   watch <app-name> - will watch the app's src file for Elm code changes and compile
@@ -43,6 +44,7 @@ Command arguments are missing, please add one of the following:
 Usage example:
   python manage.py djelm create djelm_app
   python manage.py djelm addprogram djelm_app MyElmProgram
+  python manage.py djelm addprogramhandlers djelm_app MyElmProgram
   python manage.py djelm removeprogram djelm_app MyElmProgram
   python manage.py djelm addwidget djelm_app ModelChoiceField
   python manage.py djelm watch djelm_app

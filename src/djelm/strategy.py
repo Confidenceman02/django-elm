@@ -468,7 +468,7 @@ class CompileStrategy:
         for file in files:
             if "handlers.ts" in file:
                 imports.append(
-                    f"import {{ handlePorts }} from '../../../src/{base_path}{file}'"
+                    f"import * as handlers from '../../../src/{base_path}{file}'"
                 )
         return imports
 
@@ -476,7 +476,9 @@ class CompileStrategy:
         extras = []
         for file in files:
             if "handlers.ts" in file:
-                extras.append("handlePorts(app.ports);")
+                extras.append(
+                    """if (handlers && typeof handlers.handleApp === 'function') handlers.handleApp(app);"""
+                )
         return extras
 
 

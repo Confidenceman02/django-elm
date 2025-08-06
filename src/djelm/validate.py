@@ -555,11 +555,19 @@ Perhaps you meant one of these?:
 
         \033[93mcreate
         addprogram
+        addprogramhandlers
+        removeprogram
+        addwidget
         watch
         npm
         elm
         generatemodel
-        list\033[0m"""
+        generatemodels
+        list
+        listwidgets
+        findprograms
+        compile
+        compilebuild\033[0m"""
 
     @staticmethod
     def __not_in_settings(cmd_verb: str, app_name: str) -> str:
