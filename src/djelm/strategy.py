@@ -422,13 +422,14 @@ class CompileStrategy:
                 const _core = require("@parcel/core");
                 let bundler = new _core.Parcel({{
                   entries: "./{os.path.join(*STUFF_ENTRYPOINTS)}/*.ts",
-                  defaultConfig: "@parcel/config-default",
-                  mode: {"'production'" if self.build else "'development'"},
+                  defaultConfig: "{os.path.join(".", *STUFF_NAMESPACE, "djelm.parcel.json")}",
+                  mode: "{"production" if self.build else "development"}",
                   defaultTargetOptions: {{
                     distDir: "../static/dist",
                     outputFormat: "esmodule",
                   }},
                 }});
+
                 async function Main() {{
                   try {{
                     let {{ bundleGraph, buildTime }} = await bundler.run();
