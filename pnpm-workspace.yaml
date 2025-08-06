@@ -1,0 +1,3 @@
+packages:
+  - "packages/transformer-elm"
+  - "example/elm_programs/static_src"
