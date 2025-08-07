@@ -37,10 +37,6 @@ importers:
         version: 5.9.2
 
   packages/transformer-elm:
-    dependencies:
-      '@parcel/core':
-        specifier: ^2.0.0
-        version: 2.15.4(@swc/helpers@0.5.17)
     devDependencies:
       '@parcel/diagnostic':
         specifier: ^2.15.4

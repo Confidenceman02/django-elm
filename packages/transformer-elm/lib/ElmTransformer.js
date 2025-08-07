@@ -142,7 +142,7 @@ function formatElmError(problem, relativePath) {
     ].join("\n");
     return {
         message,
-        origin: "@confidenceman/transformer-djelm",
+        origin: "@confidenceman/parcel-transformer-djelm",
         stack: "", // set stack to empty since it is not useful
     };
 }
