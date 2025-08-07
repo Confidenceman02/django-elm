@@ -832,6 +832,50 @@ Checking the browser we can see our port in action. Nice!
 
 This handlers module can also be used to add any other javascript that relates to your given program.
 
+### Advanced
+
+An Elm programs memory can hang around if not gracefully handled especially when using djelm with a library like HTMX to load
+programs dynamically with server calls.
+
+When djelm sees an Elm programs tag in html it goes ahead and initializes that program. If that html tag pops in and out, like an Elm chat widget,
+thats another Elm instance everytime. The old instances, whilst harmless, dont get garbage collected due to Elm holding on to references, they are simply just.. there in the background!
+
+Djelm now releases a parcel transformer to patch some `die` code right in to the Elm kernel. This allows consumers to
+kill the program when they wish.
+
+The `die` function should be used carefully and is really only ever needed in special circumstances when you really
+want to kill a program.
+
+For the `die` function to be included you must use the `@confidenceman02/parcel-transformer-djelm` package and include it in your `.parcelrc`.
+If you don't use the transformer package then the `die` function will be `undefined`.
+
+Install package:
+
+`pnpm add @confidenceman02/parcel-transformer-djelm -D`
+
+```json
+// <djelm_app>/static_src/.parcelrc
+{
+  "extends": "@parcel/config-default",
+  "transformers": {
+    "*.elm": ["@confidenceman02/parcel-transformer-djelm"]
+  }
+}
+```
+
+So for our example above, we could detect when the chat widget is closed and then run the `die()` call on the program, essentially killing it at a memory level.
+Next time the chat widgets tag gets loaded dynamically the program will be reinitialized by djelm and things will work normally.
+
+> [!NOTE]
+> If your Elm program just lives on the page and doesn't get dynamically loaded and unloaded then calling `die` will almost certainly break your program.
+
+```ts
+export function handleApp(app): void {
+  // The Elm program no longer exists on the page and can safely die
+  app.die();
+}
+```
+
 # Widgets
 
 Djelm widgets are feature rich, highly dynamic and customizable programs we can use to supercharge our UI's.
