@@ -37,31 +37,32 @@ importers:
         version: 5.9.2
 
   packages/transformer-elm:
-    devDependencies:
+    dependencies:
       '@parcel/diagnostic':
         specifier: ^2.15.4
         version: 2.15.4
       '@parcel/plugin':
         specifier: ^2.15.4
         version: 2.15.4(@parcel/core@2.15.4(@swc/helpers@0.5.17))
-      '@types/node':
-        specifier: ^24.2.0
-        version: 24.2.0
-      '@types/which':
-        specifier: ^3.0.4
-        version: 3.0.4
       node-elm-compiler:
         specifier: ^5.0.6
         version: 5.0.6
       terser:
         specifier: ^5.43.1
         version: 5.43.1
-      typescript:
-        specifier: ^5.0.0
-        version: 5.9.2
       which:
         specifier: ^5.0.0
         version: 5.0.0
+    devDependencies:
+      '@types/node':
+        specifier: ^24.2.0
+        version: 24.2.0
+      '@types/which':
+        specifier: ^3.0.4
+        version: 3.0.4
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.2
 
 packages:
 
