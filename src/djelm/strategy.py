@@ -420,9 +420,10 @@ class CompileStrategy:
                 COMPILE_PROGRAM = f"""
                 "use strict";
                 const _core = require("@parcel/core");
+
                 let bundler = new _core.Parcel({{
                   entries: "./{os.path.join(*STUFF_ENTRYPOINTS)}/*.ts",
-                  defaultConfig: "{os.path.join(".", *STUFF_NAMESPACE, "djelm.parcel.json")}",
+                  defaultConfig: "@parcel/config-default",
                   mode: "{"production" if self.build else "development"}",
                   defaultTargetOptions: {{
                     distDir: "../static/dist",

@@ -759,9 +759,8 @@ elm_programs/
 If we take a look at the contents of this module we can see a single function:
 
 ```ts
-// https://guide.elm-lang.org/interop/ports
-export function handlePorts(ports): void {
-  console.warn("'handlePorts' Not implemented for 'Main.elm'");
+export function handleApp(app): void {
+  console.warn("'handleApp' Not implemented for 'Main.elm'");
 }
 ```
 
@@ -770,9 +769,8 @@ This function is where you would send and subscribe to the ports configured for 
 Let's subscribe to a port called `sendMessage` and `console.log` the argument in the callback.
 
 ```ts
-// https://guide.elm-lang.org/interop/ports
-export function handlePorts(ports): void {
-  ports.sendMessage.subscribe((msg) => {
+export function handleApp(app): void {
+  app.ports.sendMessage.subscribe((msg) => {
     console.log(msg);
   });
 }
