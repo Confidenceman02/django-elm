@@ -79,8 +79,8 @@ export default new Transformer({
     const injection = `
       const die = function () {
         managers = null;
-        model = null;
-        stepper = null;
+        model = { $: null };
+        stepper = () => {};
         ports = null;
       };
       return ports ? {
