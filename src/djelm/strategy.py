@@ -420,15 +420,17 @@ class CompileStrategy:
                 COMPILE_PROGRAM = f"""
                 "use strict";
                 const _core = require("@parcel/core");
+
                 let bundler = new _core.Parcel({{
                   entries: "./{os.path.join(*STUFF_ENTRYPOINTS)}/*.ts",
                   defaultConfig: "@parcel/config-default",
-                  mode: {"'production'" if self.build else "'development'"},
+                  mode: "{"production" if self.build else "development"}",
                   defaultTargetOptions: {{
                     distDir: "../static/dist",
                     outputFormat: "esmodule",
                   }},
                 }});
+
                 async function Main() {{
                   try {{
                     let {{ bundleGraph, buildTime }} = await bundler.run();
@@ -467,7 +469,7 @@ class CompileStrategy:
         for file in files:
             if "handlers.ts" in file:
                 imports.append(
-                    f"import {{ handlePorts }} from '../../../src/{base_path}{file}'"
+                    f"import * as handlers from '../../../src/{base_path}{file}'"
                 )
         return imports
 
@@ -475,7 +477,9 @@ class CompileStrategy:
         extras = []
         for file in files:
             if "handlers.ts" in file:
-                extras.append("handlePorts(app.ports);")
+                extras.append(
+                    """if (handlers && typeof handlers.handleApp === 'function') handlers.handleApp(app);"""
+                )
         return extras
 
 
