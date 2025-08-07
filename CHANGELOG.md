@@ -1,3 +1,31 @@
+## [0.21.0] - 2025-08-07
+
+### Breaking
+
+- Handlers renamed and will take the entire app object instead of just ports.
+- App object will have an optional `die` function to nullify internal Elm program state. USE CAREFULLY!!
+
+Before
+
+```typescript
+// <program_name>.handler.ts
+
+handlePorts(ports) {
+    ports.somePort.subscribe((msg) => { ... })
+```
+
+After
+
+```typescript
+handleApp(app) {
+    app.ports.somePort.subscribe((msg) => { ... })
+    app.die() // USE CAREFULLY
+}
+
+```
+
+Ensure you run the `compile` or `watch` command when installing this version.
+
 ## [0.20.1] - 2025-08-03
 
 ### Fixed
@@ -314,6 +342,7 @@ type alias A_B__
 
 - First version to pyPI
 
+[0.21.0]: https://github.com/Confidenceman02/django-elm/compare/0.20.1...0.21.0
 [0.20.1]: https://github.com/Confidenceman02/django-elm/compare/0.20.0...0.20.1
 [0.20.0]: https://github.com/Confidenceman02/django-elm/compare/0.19.1...0.20.0
 [0.19.1]: https://github.com/Confidenceman02/django-elm/compare/0.19.0...0.19.1

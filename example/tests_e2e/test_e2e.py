@@ -19,7 +19,7 @@ def assert_console_message(program_name: str) -> Callable[[ConsoleMessage], bool
             return False
         TestCase().assertEqual(msg.type, "warning")
         TestCase().assertEqual(
-            msg.text, f"'handlePorts' Not implemented for '{program_name}'"
+            msg.text, f"'handleApp' Not implemented for '{program_name}'"
         )
         return True
 

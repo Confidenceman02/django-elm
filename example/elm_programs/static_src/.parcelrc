@@ -1,0 +1,7 @@
+{
+  "extends": "@parcel/config-default",
+  "transformers": {
+    "*.elm": ["../../../packages/transformer-elm/lib/ElmTransformer.js"],
+    "*.{ts,tsx}": ["@parcel/transformer-typescript-tsc"]
+  }
+}

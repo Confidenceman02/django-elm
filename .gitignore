@@ -12,3 +12,5 @@ venv
 .doit.db
 .doit.db.db
 **/*.DS_Store
+node_modules
+scratch

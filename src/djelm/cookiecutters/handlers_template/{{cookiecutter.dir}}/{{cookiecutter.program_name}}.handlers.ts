@@ -1,6 +1,15 @@
-// https://guide.elm-lang.org/interop/ports
-export function handlePorts(ports): void {
+interface ElmApp {
+  ports: {
+    [portName: string]: {
+      subscribe?: (callback: (data: any) => void) => void;
+      send?: (data: any) => void;
+    };
+  };
+  die?: () => null;
+}
+
+export function handleApp(app: ElmApp): void {
   console.warn(
-    "'handlePorts' Not implemented for '{{cookiecutter.program_name}}.elm'",
+    "'handleApp' Not implemented for '{{cookiecutter.program_name}}.elm'",
   );
 }
