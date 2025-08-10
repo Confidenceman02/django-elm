@@ -1,6 +1,6 @@
 # @confidenceman02/parcel-transformer-djelm
 
-A Parcel V2 transformer for the [djelm](https://github.com/confidenceman/django-elm) framework. It enables you to compile Elm files directly within your Parcel project.
+A Parcel V2 transformer for the [djelm](https://github.com/Confidenceman02/django-elm) framework. It enables you to compile Elm files directly within your Parcel project.
 
 ## Features
 
@@ -55,7 +55,7 @@ When Parcel's `shouldOptimize` flag is set (which is the default for production 
 
 ## Repository
 
-This package is part of the [django-elm](https://github.com/confidenceman/django-elm) monorepo. For issues, contributions, and more information, please visit the main repository.
+This package is part of the [django-elm](https://github.com/Confidenceman02/django-elm) monorepo. For issues, contributions, and more information, please visit the main repository.
 
 ## License
 

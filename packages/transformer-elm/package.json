@@ -30,13 +30,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/confidenceman/django-elm.git",
+    "url": "https://github.com/Confidenceman02/django-elm.git",
     "directory": "packages/transformer-elm"
   },
   "bugs": {
-    "url": "https://github.com/confidenceman/django-elm/issues"
+    "url": "https://github.com/Confidenceman02/django-elm/issues"
   },
-  "homepage": "https://github.com/confidenceman/django-elm/tree/main/packages/transformer-elm#readme",
+  "homepage": "https://github.com/Confidenceman02/django-elm/tree/main/packages/transformer-elm#readme",
   "dependencies": {
     "@parcel/diagnostic": "^2.15.4",
     "@parcel/plugin": "^2.15.4",
