@@ -1,4 +1,11 @@
+{% load djelm_tags %}
 <div
-    data-{{key}}="{{ flags }}"
+  data-{{key}}="{{ flags }}"
+  {% if settings %}
+    {% merge_settings settings=settings as merged_settings %}
+  {% else %}
+    {% default_settings as merged_settings %}
+  {% endif %}
+  data-settings='{{ merged_settings|safe }}'
 >
 </div>

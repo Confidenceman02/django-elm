@@ -4,25 +4,38 @@
 */
 {{cookiecutter.lists.imports | join("\n")}}
 
-const views = {
-    djelm{{cookiecutter.view_name}}: async (el: HTMLElement, data: any) => {
-        //@ts-ignore
-        const { Elm } = await import("../../../src/{{cookiecutter.base_path}}{{cookiecutter.program_name}}.elm")
+const singletonKey = Symbol("{{cookiecutter.program_name}}")
+const instances = new Map()
 
-        const app = Elm.{{cookiecutter.base_name}}{{cookiecutter.program_name}}.init({
-            node: el,
-            flags: data,
-        });
-        {% if cookiecutter.lists.extras %}
-        {{cookiecutter.lists.extras | join("\n")}}
-        {% endif %}
-        return {
-            // Called whenever the value of the `djelm` attribute changes
-            update: (newData, oldData) => {},
-            // Called when the element (or its djelm attribute) is removed from the DOM
-            destroy: () => {},
-        };
-    }
+const views = {
+  djelm{{cookiecutter.view_name}}: async (el: HTMLElement, data: any) => {
+    //@ts-ignore
+    const { Elm } = await import("../../../src/{{cookiecutter.base_path}}{{cookiecutter.program_name}}.elm")
+    const settings = JSON.parse(el.dataset.settings || "{}")
+
+    const app = Elm.{{cookiecutter.base_name}}{{cookiecutter.program_name}}.init({
+        node: el,
+        flags: data,
+    });
+    manageInstance(settings, app)
+    {% if cookiecutter.lists.extras %}
+    {{cookiecutter.lists.extras | join("\n")}}
+    {% endif %}
+    return {
+        // Called whenever the value of the `djelm` attribute changes
+        update: (newData, oldData) => {},
+        // Called when the element (or its djelm attribute) is removed from the DOM
+        destroy: () => {},
+    };
+  }
+}
+
+function manageInstance(settings: {singleton?: boolean, namespace?: string}, app: object): void {
+  if (settings.singleton) {
+    const instance = instances.get(settings.namespace || singletonKey)
+    if (instance) instance.die()
+  }
+  instances.set(settings.namespace || singletonKey, app)
 }
 
 defo({ views, prefix: "{{cookiecutter.scope}}" })
