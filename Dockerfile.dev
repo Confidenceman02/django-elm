@@ -1,0 +1,57 @@
+# -- Base Stage ----------------------------------------------------------
+FROM python:3.12.9-slim-bookworm AS base
+
+WORKDIR /app
+ENV PNPM_HOME="/root/.local/share/pnpm"
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/root/.local/bin:${PNPM_HOME}:${PATH}" \
+    SHELL="/bin/bash" \
+    ENV=/etc/profile
+
+# Shared Dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends curl && \
+    curl -LsSf https://astral.sh/uv/install.sh | bash && \
+    curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=10.13.1 bash - && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Elm compiler
+RUN curl -sS -L -o elm.gz https://github.com/elm/compiler/releases/download/0.19.1/binary-for-linux-64-bit.gz \
+    && gunzip elm.gz \
+    && chmod +x elm \
+    && mv elm /usr/local/bin
+
+# Node
+RUN pnpm env use --global 22.14.0
+
+COPY . ./
+
+# Install python dependencies
+RUN uv sync --frozen
+
+# Install npm dependencies root
+RUN pnpm install
+
+# -- Dev Stage ----------------------------------------------------------
+FROM base AS dev
+
+ENV EDITOR=nvim
+ENV VISUAL=nvim
+
+# Shared Depedencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openssh-client \
+    git && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+COPY dev.bash_aliases /root/.bash_aliases
+
+RUN echo "source /root/.bash_aliases" >>/root/.bashrc
+RUN git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf && ~/.fzf/install --all
+RUN git config --global --add safe.directory /app
+
+# Prepare playwright
+RUN uv run playwright install-deps
+RUN uv run playwright install chromium
+
+CMD ["sleep", "infinity"]

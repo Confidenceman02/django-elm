@@ -1,0 +1,19 @@
+services:
+  djelm:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: dev
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+      - elm_node_modules:/app/example/elm_programs/static_src/node_modules
+      - elm_transformer_node_modules:/app/packages/transformer-elm/node_modules
+      - ~/clipboard_pipe:/clipboard_pipe
+    ports:
+      - "8028:8000"
+
+volumes:
+  node_modules:
+  elm_node_modules:
+  elm_transformer_node_modules:
