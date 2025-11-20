@@ -1,31 +1,11 @@
-def task_buildimages():
-    """buildimages
-
-    Build and push local Docker image.
-    """
-    return {
-        "actions": [
-            "cd ops/ci && docker build -t ghcr.io/confidenceman02/django-elm/djelm:5 .",
-            "docker push ghcr.io/confidenceman02/django-elm/djelm:5",
-        ],
-        "targets": [],
-    }
-
-
-def task_install_e2e_browser():
-    "Install playwright browser"
-
-    return {"actions": ["playwright install-deps", "playwright install"]}
-
-
 def task_run_example():
     "startenv"
 
     return {
         "actions": [
-            "cd example && python manage.py migrate",
-            "cd example && python manage.py seed",
-            "cd example && python manage.py runserver",
+            "cd example && uv run manage.py migrate",
+            "cd example && uv run manage.py seed",
+            "cd example && uv run manage.py runserver",
         ]
     }
 
@@ -35,11 +15,11 @@ def task_prepare_e2e_tests():
 
     return {
         "actions": [
-            "cd example && python manage.py migrate",
-            "cd example && python manage.py seed",
-            "cd example && python manage.py djelm addprogram elm_programs Main",
-            "cd example && python manage.py djelm addwidget elm_programs ModelChoiceField --no-deps",
-            "cd example && python manage.py djelm addwidget elm_programs ModelMultipleChoiceField --no-deps",
-            "cd example && python manage.py runserver",
+            "cd example && uv run manage.py migrate",
+            "cd example && uv run manage.py seed",
+            "cd example && uv run manage.py djelm addprogram elm_programs Main",
+            "cd example && uv run manage.py djelm addwidget elm_programs ModelChoiceField --no-deps",
+            "cd example && uv run manage.py djelm addwidget elm_programs ModelMultipleChoiceField --no-deps",
+            "cd example && uv run manage.py runserver 0.0.0.0:8000",
         ]
     }

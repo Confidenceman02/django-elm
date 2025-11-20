@@ -104,8 +104,8 @@ exports.default = new plugin_1.Transformer({
         const injection = `
       const die = function () {
         managers = null;
-        model = null;
-        stepper = null;
+        model = { $: null };
+        stepper = () => {};
         ports = null;
       };
       return ports ? {

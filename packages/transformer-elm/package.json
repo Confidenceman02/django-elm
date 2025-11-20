@@ -1,6 +1,6 @@
 {
   "name": "@confidenceman02/parcel-transformer-djelm",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Parcel transformer for the djelm framework",
   "main": "lib/ElmTransformer.js",
   "source": "src/ElmTransformer.ts",
@@ -24,22 +24,24 @@
   "license": "ISC",
   "packageManager": "pnpm@10.5.1",
   "devDependencies": {
-    "@parcel/diagnostic": "^2.15.4",
-    "@parcel/plugin": "^2.15.4",
     "@types/node": "^24.2.0",
     "@types/which": "^3.0.4",
-    "node-elm-compiler": "^5.0.6",
-    "terser": "^5.43.1",
-    "typescript": "^5.0.0",
-    "which": "^5.0.0"
+    "typescript": "^5.0.0"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/confidenceman/django-elm.git",
+    "url": "https://github.com/Confidenceman02/django-elm.git",
     "directory": "packages/transformer-elm"
   },
   "bugs": {
-    "url": "https://github.com/confidenceman/django-elm/issues"
+    "url": "https://github.com/Confidenceman02/django-elm/issues"
   },
-  "homepage": "https://github.com/confidenceman/django-elm/tree/main/packages/transformer-elm#readme"
+  "homepage": "https://github.com/Confidenceman02/django-elm/tree/main/packages/transformer-elm#readme",
+  "dependencies": {
+    "@parcel/diagnostic": "^2.15.4",
+    "@parcel/plugin": "^2.15.4",
+    "node-elm-compiler": "^5.0.6",
+    "terser": "^5.43.1",
+    "which": "^5.0.0"
+  }
 }

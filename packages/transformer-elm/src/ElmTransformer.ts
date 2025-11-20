@@ -79,8 +79,8 @@ export default new Transformer({
     const injection = `
       const die = function () {
         managers = null;
-        model = null;
-        stepper = null;
+        model = { $: null };
+        stepper = () => {};
         ports = null;
       };
       return ports ? {
@@ -135,7 +135,7 @@ function formatElmError(
 
   return {
     message,
-    origin: "@confidenceman/parcel-transformer-djelm",
+    origin: "@confidenceman02/parcel-transformer-djelm",
     stack: "", // set stack to empty since it is not useful
   };
 }
