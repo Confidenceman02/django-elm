@@ -1,10 +1,6 @@
 {
   "name": "@confidenceman02/parcel-transformer-djelm",
-<<<<<<< HEAD
   "version": "0.3.0",
-=======
-  "version": "0.1.0",
->>>>>>> e6598da (Issue 165/program die (#166))
   "description": "Parcel transformer for the djelm framework",
   "main": "lib/ElmTransformer.js",
   "source": "src/ElmTransformer.ts",
@@ -28,7 +24,6 @@
   "license": "ISC",
   "packageManager": "pnpm@10.5.1",
   "devDependencies": {
-<<<<<<< HEAD
     "@types/node": "^24.2.0",
     "@types/which": "^3.0.4",
     "typescript": "^5.0.0"
@@ -49,24 +44,4 @@
     "terser": "^5.43.1",
     "which": "^5.0.0"
   }
-=======
-    "@parcel/diagnostic": "^2.15.4",
-    "@parcel/plugin": "^2.15.4",
-    "@types/node": "^24.2.0",
-    "@types/which": "^3.0.4",
-    "node-elm-compiler": "^5.0.6",
-    "terser": "^5.43.1",
-    "typescript": "^5.0.0",
-    "which": "^5.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/confidenceman/django-elm.git",
-    "directory": "packages/transformer-elm"
-  },
-  "bugs": {
-    "url": "https://github.com/confidenceman/django-elm/issues"
-  },
-  "homepage": "https://github.com/confidenceman/django-elm/tree/main/packages/transformer-elm#readme"
->>>>>>> e6598da (Issue 165/program die (#166))
 }
