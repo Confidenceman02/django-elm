@@ -41,6 +41,8 @@
 - [Widgets](#widgets)
   - [addwidget Command](#addwidget-command)
   - [listwidgets Command](#addwidget-command)
+- [Advanced](#advanced)
+  - [Program settings](#addwidget-command)
 - [Elm resources](#elm-resources)
 
 # The why
@@ -1001,7 +1003,62 @@ That's a good looking widget!
 
 [Back to top](#table-of-content)
 
-## Elm resources
+# Advanced
+
+The following topics are advanced and not required to get started with djelm.
+
+## Program settings
+You can affect how the djelm client side hydration behaves by passing in settings to the template.
+
+From the `templatetags` directory:
+
+```python
+# templatetags/main_tags.py
+
+@register.inclusion_tag("djelm/program.html", takes_context=True)
+def render_main(context):
+    return {
+        "key": key,
+        "flags": MainFlags.parse(0),
+        "settings": ProgramSettings().with_setting({"singleton": True}).get_settings(), # <-- Settings added here
+    }
+```
+
+**singleton**
+Djelm will do some clean up and ensure that only one instance of the elm program is initiated. Handy for front end architectures
+like `htmx` which could potentially swap in and out elm programs.
+
+**name**
+Designed to work with the singleton setting which let's you namespace the types of programs you want to be singletons.
+
+Elm programs that can handle many different types of UI littered around the page might be a good candidate.
+
+Your Elm model may look like the following:
+
+```elm
+type Variant
+    = UserMenu -- singleton
+    | ActionMenu -- not singleton
+    | TooltipMenu -- namespaced singleton
+
+```
+
+```python
+# templatetags/main_tags.py
+
+@register.inclusion_tag("djelm/program.html", takes_context=True)
+def render_main(context):
+    return {
+        "key": key,
+        "flags": MainFlags.parse(0),
+        "settings": ProgramSettings()
+        .with_setting({"singleton": True})
+        .with_setting({"name": "Tooltip-Menu"})
+        .get_settings(), # <-- Settings added here
+    }
+```
+
+# Elm resources
 
 - [Official Elm site](https://elm-lang.org/)
 

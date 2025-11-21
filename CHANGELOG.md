@@ -1,3 +1,19 @@
+## [0.22.0] - 2025-11-21
+
+### Added
+
+- Program settings for affecting client side hydration and initialisation.
+
+```python
+@register.inclusion_tag("djelm/program.html", takes_context=True)
+def render_main(context):
+    return {
+        "key": key,
+        "flags": MainFlags.parse(0),
+        "settings": ProgramSettings().with_setting({"singleton": True}).get_settings(),
+    }
+```
+
 ## [0.21.0] - 2025-08-07
 
 ### Breaking
@@ -342,6 +358,7 @@ type alias A_B__
 
 - First version to pyPI
 
+[0.22.0]: https://github.com/Confidenceman02/django-elm/compare/0.21.0...0.22.0
 [0.21.0]: https://github.com/Confidenceman02/django-elm/compare/0.20.1...0.21.0
 [0.20.1]: https://github.com/Confidenceman02/django-elm/compare/0.20.0...0.20.1
 [0.20.0]: https://github.com/Confidenceman02/django-elm/compare/0.19.1...0.20.0

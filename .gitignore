@@ -1,4 +1,6 @@
 .tox/
+.pnpm-store
+**/*.egg-info
 root/
 *.py[cod]
 **/__pycache__/

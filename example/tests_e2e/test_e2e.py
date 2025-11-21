@@ -31,6 +31,7 @@ def test_add_program_handlers(page: Page):
     call_command("djelm", "addprogramhandlers", "elm_programs", "Main")
     call_command("djelm", "compile", "elm_programs")
 
+    page.wait_for_timeout(2000)
     page.goto("localhost:8000/main")
 
     page.expect_console_message(assert_console_message("Main.elm"))

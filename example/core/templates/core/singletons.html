@@ -1,0 +1,23 @@
+{% extends "core/base.html" %}
+{% load static %}{% load static main_tags %}
+{% block head %}
+    {% include_main %}
+{% endblock %}
+{% block content %}
+  <h1>Singleton programs</h1>
+  <button id="singleton" type="button">Load program</button>
+  <div data-elmprogramsmain-djelm-main="0" data-settings='{"singleton": true, "namespace": "singleton01"}'></div>
+  <div data-elmprogramsmain-djelm-main="0" data-settings='{"singleton": true, "namespace": "singleton02"}'></div>
+
+<script>
+  window.onload = function () {
+    const button = document.getElementById("singleton");
+    button.addEventListener("click", () => {
+    const elem = document.createElement("div");
+    elem.dataset.elmprogramsmainDjelmMain = "0";
+      elem.dataset.settings = "{\"singleton\": true}";
+    document.body.appendChild(elem);
+    });
+  }
+</script>
+{% endblock %}

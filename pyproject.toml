@@ -1,6 +1,6 @@
 [project]
 name = "djelm"
-version = "0.21.0"
+version = "0.22.0"
 description = "A framework for using Elm programs in a Django project"
 readme = "README_pypi.md"
 keywords = ["django", "elm"]
@@ -20,23 +20,24 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-  "django>=4.2.5",
-  "pydantic>=2.4.2",
-  "watchfiles>=0.21.0",
-  "aiofiles>=24.1.0",
-  "cookiecutter (>=2.6.0,<3.0.0)",
+    "django>=4.2.5",
+    "pydantic>=2.4.2",
+    "watchfiles>=0.21.0",
+    "aiofiles>=24.1.0",
+    "cookiecutter (>=2.6.0,<3.0.0)",
 ]
 
-[tool.project.dependencies]
-python = ">=3.11,<4.0"
-
-
-[tool.mypy]
-plugins = [ "mypy_django_plugin.main" ]
-
-[tool.poetry]
-packages = [
-    { include = "djelm", from = "src" }
+[dependency-groups]
+dev = [
+    "pytest-django>=4.5.2",
+    "hypothesis>=6.92.2",
+    "pytest-playwright>=0.7.0",
+    "playwright>1.0.0",
+    "pytest>=8.0.0",
+    "django-browser-reload>=1.12.1",
+    "django-stubs>=4.2.7",
+    "doit>=0.36.0",
+    "ruff>=0.14.5",
 ]
 
 [project.urls]
@@ -44,19 +45,12 @@ repository = "https://github.com/Confidenceman02/django-elm"
 changelog = "https://github.com/Confidenceman02/django-elm/blob/main/CHANGELOG.md"
 issues = "https://github.com/Confidenceman02/django-elm/issues"
 
-[tool.poetry.group.test.dependencies]
-pytest = "^8.0.0"
-pytest-django = "^4.5.2"
-hypothesis = "^6.92.2"
-pytest-playwright = "^0.7.0"
-playwright = ">1.0.0"
-
-[tool.poetry.group.dev.dependencies]
-tox = "^4.11.4"
-django-browser-reload = "^1.12.1"
-django-stubs = "^4.2.7"
-doit = "^0.36.0"
+[tool.mypy]
+plugins = [ "mypy_django_plugin.main" ]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
