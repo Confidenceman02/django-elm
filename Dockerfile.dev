@@ -39,7 +39,6 @@ ENV VISUAL=nvim
 RUN pnpm env use --global 22.14.0
 
 # Install npm dependencies root
-RUN pnpm install
 
 # Shared Depedencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
