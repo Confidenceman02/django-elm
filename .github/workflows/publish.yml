@@ -8,25 +8,19 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.11.5"]
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install publish dependencies
+      - name: Build container
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install build
-
-      - name: Build wheel
-        run: python -m build
+          docker build -t djelm-builder -f Dockerfile.dev --target builder .
+          mkdir -p dist
+          docker run --rm \
+            -v ${{ github.workspace }}:/app \
+            -v ${{ github.workspace }}/dist:/app/dist \
+            -w /app \
+            djelm-builder \
+            uv build
 
       - name: Store distribution packages
         uses: actions/upload-artifact@v4
