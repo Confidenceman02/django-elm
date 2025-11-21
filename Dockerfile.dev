@@ -37,8 +37,6 @@ FROM base AS dev
 ENV EDITOR=nvim
 ENV VISUAL=nvim
 
-# Node
-
 # Install npm dependencies root
 RUN pnpm install
 
