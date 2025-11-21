@@ -21,7 +21,6 @@ RUN curl -sS -L -o elm.gz https://github.com/elm/compiler/releases/download/0.19
     && chmod +x elm \
     && mv elm /usr/local/bin
 
-# Node
 RUN pnpm env use --global 22.14.0
 
 COPY . ./
@@ -29,14 +28,19 @@ COPY . ./
 # Install python dependencies
 RUN uv sync --frozen
 
-# Install npm dependencies root
-RUN pnpm install
+# -- Builder Stage ----------------------------------------------------------
+FROM base AS builder
 
 # -- Dev Stage ----------------------------------------------------------
 FROM base AS dev
 
 ENV EDITOR=nvim
 ENV VISUAL=nvim
+
+# Node
+
+# Install npm dependencies root
+RUN pnpm install
 
 # Shared Depedencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
