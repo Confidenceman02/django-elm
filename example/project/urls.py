@@ -22,6 +22,7 @@ from core.views import promotion_view, update_promotion_view
 
 urlpatterns = [
     path("main", TemplateView.as_view(template_name="core/main.html")),
+    path("singletons", TemplateView.as_view(template_name="core/singletons.html")),
     path("promotion", promotion_view, name="promotion"),
     path(
         "promotion_update/<int:promotion_id>",
