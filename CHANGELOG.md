@@ -1,10 +1,4 @@
-## [0.22.1] - 2025-11-21
-
-### Fixed
-
-- Python build missing cookiecutters directory
-
-## [0.22.0] - 2025-11-21
+## [0.22.2] - 2025-11-21
 
 ### Added
 
@@ -364,8 +358,7 @@ type alias A_B__
 
 - First version to pyPI
 
-[0.22.1]: https://github.com/Confidenceman02/django-elm/compare/0.22.0...0.22.1
-[0.22.0]: https://github.com/Confidenceman02/django-elm/compare/0.21.0...0.22.0
+[0.22.2]: https://github.com/Confidenceman02/django-elm/compare/0.21.0...0.22.2
 [0.21.0]: https://github.com/Confidenceman02/django-elm/compare/0.20.1...0.21.0
 [0.20.1]: https://github.com/Confidenceman02/django-elm/compare/0.20.0...0.20.1
 [0.20.0]: https://github.com/Confidenceman02/django-elm/compare/0.19.1...0.20.0
