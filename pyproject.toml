@@ -1,6 +1,10 @@
 [project]
 name = "djelm"
+<<<<<<< HEAD
 version = "0.22.3"
+=======
+version = "0.22.1"
+>>>>>>> afa7fcc (Bump version)
 description = "A framework for using Elm programs in a Django project"
 readme = "README_pypi.md"
 keywords = ["django", "elm"]
