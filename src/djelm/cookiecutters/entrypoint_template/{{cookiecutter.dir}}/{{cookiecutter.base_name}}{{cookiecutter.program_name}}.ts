@@ -30,12 +30,12 @@ const views = {
   }
 }
 
-function manageInstance(settings: {singleton?: boolean, namespace?: string}, app: object): void {
+function manageInstance(settings: {singleton?: boolean, name?: string}, app: object): void {
   if (settings.singleton) {
-    const instance = instances.get(settings.namespace || singletonKey)
+    const instance = instances.get(settings.name || singletonKey)
     if (instance) instance.die()
   }
-  instances.set(settings.namespace || singletonKey, app)
+  instances.set(settings.name || singletonKey, app)
 }
 
 defo({ views, prefix: "{{cookiecutter.scope}}" })
