@@ -1,6 +1,6 @@
 #!/bin/bash
 
-NVIM_VERSION=v0.11.2
+NVIM_VERSION=v0.11.4
 
 echo "Installing neovim dependencies..."
 apt-get update && apt-get install -y --no-install-recommends \

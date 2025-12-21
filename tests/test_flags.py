@@ -1696,6 +1696,20 @@ class TestCustomTypeFlags:
         with pytest.raises(ValidationError):
             assert SUT.parse(2)
 
+    def test_root_multi_string_flag_custom_type_parser(self):
+        """Resolved correct literal"""
+        d = CustomTypeFlag(
+            variants=[
+                ("Custom1", StringFlag(literal="1")),
+                ("Custom2", StringFlag(literal="2")),
+            ]
+        )
+        SUT = Flags(d)
+        assert SUT.parse("2") == '"2"'
+
+        with pytest.raises(ValidationError):
+            assert SUT.parse(2)
+
     def test_root_int_flag_custom_type_parser(self):
         """Handles IntFlag"""
         d = CustomTypeFlag(variants=[("Custom1", IntFlag())])
@@ -1810,6 +1824,26 @@ type InlineToModel_
             == """toModel : Decode.Decoder ToModel
 toModel =
     (Decode.oneOf [Decode.map Custom1 Decode.string])"""
+        )
+
+    def test_root_custom_type_with_multi_string_literal_codegen(self):
+        """Generates String literal custom type"""
+        d = CustomTypeFlag(variants=[("Custom1", StringFlag(literal="1"))])
+
+        SUT = Flags(d)
+        assert (
+            SUT.to_elm_parser_data()["alias_type"]
+            == """InlineToModel_
+
+type InlineToModel_
+    = Custom1 String
+"""
+        )
+        assert (
+            SUT.to_elm_parser_data()["decoder_body"]
+            == """toModel : Decode.Decoder ToModel
+toModel =
+    (Decode.oneOf [Decode.map Custom1 (Decode.string |> Decode.andThen (\\lit -> if lit == "1" then Decode.succeed "1" else Decode.fail "Value did not match literal <1>"))])"""
         )
 
     def test_root_custom_type_with_nullable_codegen(self):
