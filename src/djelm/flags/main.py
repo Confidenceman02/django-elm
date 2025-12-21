@@ -565,8 +565,10 @@ class BaseFlag(metaclass=FlagMetaClass):
             case ObjectFlag(obj=_):
                 prepared_flags = _prepare_pipeline_flags(flag, decoder_sig)
             case ModelChoiceFieldFlag(variants=_) as mcf:
+                mcf_flag = mcf.obj()
+                assert isinstance(mcf_flag, ObjectFlag)
                 prepared_flags = _prepare_pipeline_flags(
-                    mcf.obj(), decoder_sig=decoder_sig
+                    mcf_flag, decoder_sig=decoder_sig
                 )
                 prepared_flags["adapter"] = mcf.adapter()
             case _:
@@ -811,6 +813,8 @@ def _prepare_inline_flags(
             ]
             decoder_expression = custom_type_decoder.decoder_expression()
         case ModelChoiceFieldFlag(variants=_) as mcf:
+            mcf_flag = mcf.obj()
+            assert isinstance(mcf_flag, ObjectFlag)
             if object_decoder is None:
                 raise Exception(f"Missing an ObjectDecoder argument for {mcf.obj()}")
             parent_key = None
@@ -827,7 +831,7 @@ def _prepare_inline_flags(
                 parent_key = object_decoder._to_annotation()
 
             object_pipeline = _prepare_pipeline_flags(
-                mcf.obj(),
+                mcf_flag,
                 (
                     object_decoder.pipeline_signature(),
                     object_decoder.pipeline_starter_expression(),
@@ -980,10 +984,12 @@ def _prepare_pipeline_flags(
                     else:
                         alias_values += f"\n    {object_decoder.nested_alias(key)}"
                 case ModelChoiceFieldFlag() as mcf:
+                    mcf_flag = mcf.obj()
+                    assert isinstance(mcf_flag, ObjectFlag)
                     decoder = ObjectDecoder(key, depth, parent_key)
                     prepared_object_recursive = _prepare_pipeline_flags(
                         # Use built in flags
-                        mcf.obj(),
+                        mcf_flag,
                         (
                             decoder.pipeline_signature(),
                             decoder.pipeline_starter_expression(),

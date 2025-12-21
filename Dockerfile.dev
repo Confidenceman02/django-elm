@@ -1,5 +1,5 @@
 # -- Base Stage ----------------------------------------------------------
-FROM python:3.12.9-slim-bookworm AS base
+FROM python:3.12-slim-trixie AS base
 
 WORKDIR /app
 ENV PNPM_HOME="/root/.local/share/pnpm"
