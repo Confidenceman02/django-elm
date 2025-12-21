@@ -1,3 +1,10 @@
+## [0.22.5] - 2025-12-21
+
+### Fixed
+
+- String literal now works in `CustomTypeFlag` for Elm tagged unions
+- String flag doesn't prematurely throw when using literal.
+
 ## [0.22.4] - 2025-11-24
 
 ### Fixed
