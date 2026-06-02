@@ -159,9 +159,7 @@ async function minifyElmOutput(source, logger) {
                 unsafe: true,
                 unsafe_comps: true,
             },
-            mangle: {
-                reserved: ELM_PURE_FUNCS,
-            },
+            mangle: false,
         });
         if (result.code != null)
             return result.code;
