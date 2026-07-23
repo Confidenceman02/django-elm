@@ -4,7 +4,7 @@ CURRENT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 if [[ "$CI" == "true" ]]; then
   echo "Running in CI mode"
 else
-  "$CURRENT_DIR"/clipboard_service.sh start
+  echo "Running in Dev mode"
 fi
 
 docker compose up -d

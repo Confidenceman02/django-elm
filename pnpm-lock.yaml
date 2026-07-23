@@ -26,9 +26,6 @@ importers:
       '@parcel/transformer-typescript-tsc':
         specifier: ^2.15.4
         version: 2.15.4(@parcel/core@2.15.4(@swc/helpers@0.5.17))(typescript@5.9.2)
-      elm:
-        specifier: 0.19.1-6
-        version: 0.19.1-6
       elm-json:
         specifier: ^0.2.13
         version: 0.2.13
@@ -68,26 +65,6 @@ importers:
         version: 5.9.2
 
 packages:
-
-  '@elm_binaries/darwin_arm64@0.19.1-0':
-    resolution: {integrity: sha512-mjbsH7BNHEAmoE2SCJFcfk5fIHwFIpxtSgnEAqMsVLpBUFoEtAeX+LQ+N0vSFJB3WAh73+QYx/xSluxxLcL6dA==}
-    cpu: [arm64]
-    os: [darwin]
-
-  '@elm_binaries/darwin_x64@0.19.1-0':
-    resolution: {integrity: sha512-QGUtrZTPBzaxgi9al6nr+9313wrnUVHuijzUK39UsPS+pa+n6CmWyV/69sHZeX9qy6UfeugE0PzF3qcUiy2GDQ==}
-    cpu: [x64]
-    os: [darwin]
-
-  '@elm_binaries/linux_x64@0.19.1-0':
-    resolution: {integrity: sha512-T1ZrWVhg2kKAsi8caOd3vp/1A3e21VuCpSG63x8rDie50fHbCytTway9B8WHEdnBFv4mYWiA68dzGxYCiFmU2w==}
-    cpu: [x64]
-    os: [linux]
-
-  '@elm_binaries/win32_x64@0.19.1-0':
-    resolution: {integrity: sha512-yDleiXqSE9EcqKtd9SkC/4RIW8I71YsXzMPL79ub2bBPHjWTcoyyeBbYjoOB9SxSlArJ74HaoBApzT6hY7Zobg==}
-    cpu: [x64]
-    os: [win32]
 
   '@icelab/defo@0.0.3':
     resolution: {integrity: sha512-cPXj4pIDGfvw0RLLVeui/BGnSapWCxQ9Gnh7y7oLkuQM9lEIwUtA6yVR5s148jz1ldyH/wgUm3nFqAVURn3gpg==}
@@ -761,8 +738,8 @@ packages:
     resolution: {integrity: sha512-9q/rDEGSb/Qsvv2qvzIzdluL5k7AaJOTrw23z9reQthrbF7is4CtlT0DXyO1oei2DCp4uojjzQ7igaSHp1kAEQ==}
     engines: {node: '>=0.2.0'}
 
-  caniuse-lite@1.0.30001793:
-    resolution: {integrity: sha512-iwSsYWaCOoh26cV8NwNRViHlrfUvYsHDfRVcbtmw0Kg6PJIZZXwMkj1442FYLBGkeUf1juAsU3DTfxW579mrPA==}
+  caniuse-lite@1.0.30001806:
+    resolution: {integrity: sha512-72Cuvd95zbSYPKq6Fhg8eDJRlzgWDf7/mtoZv6Qe/DYNCEBdNxoA3+rZAU2ZhGCpZlns3EssFavaZomckT5Uuw==}
 
   caseless@0.12.0:
     resolution: {integrity: sha512-4tYFyifaFfGacoiObjJegolkwSU4xQNGbVgUiNYVUxbQ2x2lUsFvY4hVgVzGiIe6WLOPqycWXA40l+PWsxthUw==}
@@ -847,11 +824,6 @@ packages:
 
   elm-json@0.2.13:
     resolution: {integrity: sha512-KpmZIcWJbnGsUn4X1/OqGdPMWnV0kgtrK5thACwfnKHlOg3A2jMyMBWzBOJcycCpQVBC7XTVssClZGetsvaMBQ==}
-    hasBin: true
-
-  elm@0.19.1-6:
-    resolution: {integrity: sha512-mKYyierHICPdMx/vhiIacdPmTPnh889gjHOZ75ZAoCxo3lZmSWbGP8HMw78wyctJH0HwvTmeKhlYSWboQNYPeQ==}
-    engines: {node: '>=7.0.0'}
     hasBin: true
 
   escalade@3.2.0:
@@ -1322,18 +1294,6 @@ packages:
     resolution: {integrity: sha512-3wdGidZyq5PB084XLES5TpOSRA3wjXAlIWMhum2kRcv/41Sn2emQ0dycQW4uZXLejwKvg6EsvbdlVL+FYEct7A==}
 
 snapshots:
-
-  '@elm_binaries/darwin_arm64@0.19.1-0':
-    optional: true
-
-  '@elm_binaries/darwin_x64@0.19.1-0':
-    optional: true
-
-  '@elm_binaries/linux_x64@0.19.1-0':
-    optional: true
-
-  '@elm_binaries/win32_x64@0.19.1-0':
-    optional: true
 
   '@icelab/defo@0.0.3': {}
 
@@ -2259,7 +2219,7 @@ snapshots:
 
   browserslist@4.25.1:
     dependencies:
-      caniuse-lite: 1.0.30001793
+      caniuse-lite: 1.0.30001806
       electron-to-chromium: 1.5.197
       node-releases: 2.0.19
       update-browserslist-db: 1.1.3(browserslist@4.25.1)
@@ -2268,7 +2228,7 @@ snapshots:
 
   buffers@0.1.1: {}
 
-  caniuse-lite@1.0.30001793: {}
+  caniuse-lite@1.0.30001806: {}
 
   caseless@0.12.0: {}
 
@@ -2339,13 +2299,6 @@ snapshots:
   elm-json@0.2.13:
     dependencies:
       binwrap: 0.2.3
-
-  elm@0.19.1-6:
-    optionalDependencies:
-      '@elm_binaries/darwin_arm64': 0.19.1-0
-      '@elm_binaries/darwin_x64': 0.19.1-0
-      '@elm_binaries/linux_x64': 0.19.1-0
-      '@elm_binaries/win32_x64': 0.19.1-0
 
   escalade@3.2.0: {}
 

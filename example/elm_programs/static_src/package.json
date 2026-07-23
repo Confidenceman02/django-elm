@@ -6,7 +6,6 @@
     "@parcel/config-default": "^2.15.4",
     "@parcel/core": "^2.15.4",
     "@parcel/transformer-typescript-tsc": "^2.15.4",
-    "elm": "0.19.1-6",
     "elm-json": "^0.2.13",
     "parcel": "^2.15.4",
     "typescript": "^5.4.4"
