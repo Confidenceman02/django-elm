@@ -14,9 +14,9 @@ CONTAINER_NAME="$1"
 docker exec "${CONTAINER_NAME}" /bin/bash -c "mkdir -p /root/.ssh && ssh-keyscan github.com >> /root/.ssh/known_hosts"
 
 # Install neovim
-# echo ""
-# echo "Installing neovim..."
-# docker exec "${CONTAINER_NAME}" /bin/bash -c "./scripts/nvim.sh"
+echo ""
+echo "Installing neovim..."
+docker exec "${CONTAINER_NAME}" /bin/bash -c "./scripts/nvim.sh"
 
 # Clone container
 docker exec -w /root "${CONTAINER_NAME}" /bin/bash -c "git clone "${REPO_URL}" && cd ${REPO_BASENAME} && ./scripts/setup_config.sh"
