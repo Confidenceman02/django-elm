@@ -1,3 +1,11 @@
+## [0.23.0] - 2026-07-23
+
+### Breaking
+
+This is not really a breaking change but it is worth calling out.
+
+- Creates projects targeting `Elm 0.19.2` by default.
+
 ## [0.22.5] - 2025-12-21
 
 ### Fixed
@@ -371,6 +379,8 @@ type alias A_B__
 
 - First version to pyPI
 
+[0.23.0]: https://github.com/Confidenceman02/django-elm/compare/0.22.5...0.23.0
+[0.22.5]: https://github.com/Confidenceman02/django-elm/compare/0.22.4...0.22.5
 [0.22.4]: https://github.com/Confidenceman02/django-elm/compare/0.22.3...0.22.4
 [0.22.3]: https://github.com/Confidenceman02/django-elm/compare/0.21.0...0.22.3
 [0.21.0]: https://github.com/Confidenceman02/django-elm/compare/0.20.1...0.21.0
