@@ -6,12 +6,11 @@
     "@parcel/config-default": "^2.13.2",
     "@parcel/core": "^2.13.2",
     "@parcel/transformer-elm": "^2.13.2",
-    "elm": "0.19.1-6",
     "elm-json": "^0.2.13",
     "parcel": "^2.13.2",
     "typescript": "^5.4.4"
   },
   "dependencies": {
-    "@icelab/defo": "^0.0.3"
+    "@icelab/defo": "^1.0.1"
   }
 }

@@ -83,7 +83,7 @@ that will ensure your use of djelm is fit for purpose.
 
 # Requirements
 
-- Elm 0.19.1
+- Elm 0.19.2
 - Python >=3.11
 - Django >= 4.2
 - Node >= 16.4
@@ -96,12 +96,6 @@ Djelm will expect the Elm binary to be in your `PATH`.
 
 Head on over to the [installation guide](https://guide.elm-lang.org/install/elm.html) to get the Elm binary on your
 system.
-
-Alternatively, you can use `npm` to get the binary:
-
-```bash
-npm install -g elm
-```
 
 After installing, let's make sure Elm is ready to go. In your terminal run the command:
 
