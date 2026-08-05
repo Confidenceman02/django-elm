@@ -1,3 +1,9 @@
+## [0.24.0] - 2026-08-05
+
+### Added
+
+- UnitFlag
+
 ## [0.23.0] - 2026-07-23
 
 ### Breaking
@@ -379,6 +385,7 @@ type alias A_B__
 
 - First version to pyPI
 
+[0.24.0]: https://github.com/Confidenceman02/django-elm/compare/0.23.0...0.24.0
 [0.23.0]: https://github.com/Confidenceman02/django-elm/compare/0.22.5...0.23.0
 [0.22.5]: https://github.com/Confidenceman02/django-elm/compare/0.22.4...0.22.5
 [0.22.4]: https://github.com/Confidenceman02/django-elm/compare/0.22.3...0.22.4

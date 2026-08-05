@@ -84,7 +84,7 @@ that will ensure your use of djelm is fit for purpose.
 # Requirements
 
 - Elm 0.19.2
-- Python >=3.11
+- Python >=3.12
 - Django >= 4.2
 - Node >= 16.4
 

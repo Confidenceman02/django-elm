@@ -1,7 +1,8 @@
-from typing import List
+import builtins
+
 import djelm.codegen.compiler as Compiler
-import djelm.codegen.writer as Writer
 import djelm.codegen.format as Format
+import djelm.codegen.writer as Writer
 from djelm.codegen.utils import foldl
 
 
@@ -31,8 +32,8 @@ def addAlias(
     return alias_cache
 
 
-def typed(name: str, args: List[Compiler.Annotation]) -> Compiler.Annotation:
-    args_anno: List[Compiler.TypeAnnotation] = []
+def typed(name: str, args: list[Compiler.Annotation]) -> Compiler.Annotation:
+    args_anno: list[Compiler.TypeAnnotation] = []
     for arg in args:
         args_anno.append(arg.annotation)
 
@@ -40,6 +41,11 @@ def typed(name: str, args: List[Compiler.Annotation]) -> Compiler.Annotation:
         Compiler.Typed(name, args_anno),
         foldl(mergeAliases, {}, args),
     )
+
+
+def unit():
+    """Elm Unit annotation"""
+    return Compiler.Annotation(Compiler.Unit(), {})
 
 
 def string():
@@ -79,7 +85,9 @@ def alias(name: str, anno: Compiler.Annotation):
     )
 
 
-def record(fields: List[tuple[str, Compiler.Annotation]]) -> Compiler.Annotation:
+def record(
+    fields: builtins.list[tuple[str, Compiler.Annotation]],
+) -> Compiler.Annotation:
     """Elm Dict annotation"""
     return Compiler.Annotation(
         Compiler.Record(fields),

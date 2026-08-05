@@ -1,5 +1,5 @@
-from collections import deque
 import typing
+from collections import deque
 from dataclasses import dataclass
 
 from pydantic import BaseModel, TypeAdapter, validate_call
@@ -18,11 +18,13 @@ from djelm.codegen.pattern import VarPattern
 from djelm.flags.form.primitives import ModelChoiceFieldFlag
 
 from .adapters import (
+    AnyAdapter,
     BoolAdapter,
     FloatAdapter,
     IntAdapter,
     StringAdapter,
     annotated_alias_key,
+    annotated_any,
     annotated_bool,
     annotated_float,
     annotated_int,
@@ -43,6 +45,7 @@ from .primitives import (
     PrimitiveFlag,
     PrimitiveObjectFlagType,
     StringFlag,
+    UnitFlag,
 )
 
 RESERVED_KEYWORDS = ["if", "in"]
@@ -76,6 +79,46 @@ class _DeclarationMetaStatic:
 @validate_call
 def valid_alias_key(k: annotated_alias_key):
     return k
+
+
+@dataclass(slots=True)
+class UnitDecoder:
+    """Decoder helper for the Elm Unit primitive"""
+
+    value: str
+
+    def alias(self) -> str:
+        return f"""{self.value} : {UnitDecoder._annotation()}"""
+
+    def nested_alias(self):
+        return f""", {self.value} : {UnitDecoder._annotation()}"""
+
+    @staticmethod
+    def _annotation():
+        return Anno.toString(UnitDecoder._compiler_annotation())
+
+    @staticmethod
+    def _compiler_annotation() -> Compiler.Annotation:
+        return Anno.unit()
+
+    def pipeline_expression(self) -> Compiler.Expression:
+        return Elm.apply(
+            Exp.FunctionOrValue(Module.ModuleName([]), "hardcoded", None, None),
+            [Elm.value(UnitDecoder._annotation())],
+            Range.Range(1, 0),
+        )
+
+    @staticmethod
+    def decoder_expression() -> Compiler.Expression:
+        return Exp.Parenthesized(
+            Elm.apply(
+                Exp.FunctionOrValue(
+                    Module.ModuleName(["Decode"]), "succeed", None, None
+                ),
+                [Elm.value(UnitDecoder._annotation())],
+            ),
+            None,
+        )
 
 
 @dataclass(slots=True)
@@ -692,33 +735,41 @@ def _prepare_inline_flags(
                     declarations=object_inline["decoder_declarations"],
                 )
             )
+
+        case UnitFlag():
+            adapter = AnyAdapter
+            anno = annotated_any  # type: ignore
+            alias_type = UnitDecoder._annotation()
+            compiler_annotation = UnitDecoder._compiler_annotation()
+            decoder_expression = UnitDecoder.decoder_expression()
+
         case StringFlag():
             adapter = StringAdapter
             decoder_expression = StringDecoder.decoder_expression()
-            anno = annotated_string  # type:ignore
+            anno = annotated_string  # type: ignore
             if flag.literal is not None:
                 adapter = string_literal_adapter(flag.literal)
                 decoder_expression = StringDecoder.decoder_literal_expression(
                     flag.literal
                 )
-                anno = annotated_string_literal(flag.literal)  # type:ignore
+                anno = annotated_string_literal(flag.literal)  # type: ignore
             alias_type = StringDecoder._annotation()
             compiler_annotation = StringDecoder._compiler_annotation()
         case IntFlag():
             adapter = IntAdapter
-            anno = annotated_int  # type:ignore
+            anno = annotated_int  # type: ignore
             alias_type = IntDecoder._annotation()
             compiler_annotation = IntDecoder._compiler_annotation()
             decoder_expression = IntDecoder.decoder_expression()
         case FloatFlag():
             adapter = FloatAdapter
-            anno = annotated_float  # type:ignore
+            anno = annotated_float  # type: ignore
             alias_type = FloatDecoder._annotation()
             compiler_annotation = FloatDecoder._compiler_annotation()
             decoder_expression = FloatDecoder.decoder_expression()
         case BoolFlag():
             adapter = BoolAdapter
-            anno = annotated_bool  # type:ignore
+            anno = annotated_bool  # type: ignore
             alias_type = BoolDecoder._annotation()
             compiler_annotation = BoolDecoder._compiler_annotation()
             decoder_expression = BoolDecoder.decoder_expression()
@@ -726,7 +777,7 @@ def _prepare_inline_flags(
             object_inline = _prepare_inline_flags(obj, object_decoder)
             t = object_inline["anno"]
             adapter = TypeAdapter(Annotated[typing.Optional[t], None])
-            anno = typing.Optional[t]  # type:ignore
+            anno = typing.Optional[t]  # type: ignore
             alias_type = NullableDecoder._annotation(
                 object_inline["compiler_annotation"]
             )
@@ -743,8 +794,8 @@ def _prepare_inline_flags(
         case ListFlag(obj=obj):
             object_inline = _prepare_inline_flags(obj, object_decoder)
             t = object_inline["anno"]
-            adapter = TypeAdapter(Annotated[list[t], None])  # type:ignore
-            anno = list[t]  # type:ignore
+            adapter = TypeAdapter(Annotated[list[t], None])  # type: ignore
+            anno = list[t]  # type: ignore
             alias_type = ListDecoder._annotation(object_inline["compiler_annotation"])
 
             type_declarations.extend(object_inline["type_declarations"])
@@ -792,8 +843,8 @@ def _prepare_inline_flags(
                         )
                     )
 
-            adapter = TypeAdapter(typing.Union[*annos])  # type:ignore
-            anno = typing.Union[*annos]  # type:ignore
+            adapter = TypeAdapter(typing.Union[*annos])  # type: ignore
+            anno = typing.Union[*annos]  # type: ignore
 
             custom_type_decoder = CustomTypeDecoder(
                 object_decoder._to_annotation(),
@@ -884,7 +935,7 @@ def _prepare_inline_flags(
                 depth + 1,
                 parent_key,
             )
-            t = object_pipeline["anno"]  # type:ignore
+            t = object_pipeline["anno"]  # type: ignore
             type_declaration = Elm.alias(
                 object_decoder._to_annotation(),
                 Anno.record(object_pipeline["field_annotations"]),
@@ -894,7 +945,7 @@ def _prepare_inline_flags(
             )
 
             adapter = object_pipeline["adapter"]
-            anno = t  # type:ignore
+            anno = t  # type: ignore
 
             alias_type = Anno.toString(compiler_annotation)
             type_declarations.extend(
@@ -921,12 +972,14 @@ def _prepare_inline_flags(
         "compiler_annotation": compiler_annotation,
         "decoder_expression": decoder_expression,
         "type_declarations": type_declarations,
-        "decoder_declarations": [
-            _DeclarationMetaBasic(declaration=decoder_body),
-            *decoder_declarations,
-        ]
-        if decoder_body
-        else decoder_declarations,
+        "decoder_declarations": (
+            [
+                _DeclarationMetaBasic(declaration=decoder_body),
+                *decoder_declarations,
+            ]
+            if decoder_body
+            else decoder_declarations
+        ),
     }
 
 
@@ -1051,7 +1104,7 @@ def _prepare_pipeline_flags(
                         {
                             "__annotations__": prepared_object_recursive[
                                 "anno"
-                            ].__origin__.__annotations__  # type:ignore
+                            ].__origin__.__annotations__  # type: ignore
                         },
                     )
                     field_annotations.append(
@@ -1094,7 +1147,7 @@ def _prepare_pipeline_flags(
                     )
                     type_declarations.extend(object_inline["type_declarations"])
                     decoder_declarations.extend(object_inline["decoder_declarations"])
-                    anno[key] = list[object_inline["anno"]]  # type:ignore
+                    anno[key] = list[object_inline["anno"]]  # type: ignore
                     field_annotations.append(
                         (key, Anno.list(object_inline["compiler_annotation"]))
                     )
@@ -1111,7 +1164,7 @@ def _prepare_pipeline_flags(
                 case CustomTypeFlag(variants=_) as ctf:
                     decoder = ObjectDecoder(key, depth, parent_key)
                     object_inline = _prepare_inline_flags(ctf, decoder)
-                    anno[key] = typing.Optional[object_inline["anno"]]  # type:ignore
+                    anno[key] = typing.Optional[object_inline["anno"]]  # type: ignore
                     field_annotations.append(
                         (key, object_inline["compiler_annotation"])
                     )
@@ -1140,7 +1193,7 @@ def _prepare_pipeline_flags(
                     )
                     type_declarations.extend(object_inline["type_declarations"])
                     decoder_declarations.extend(object_inline["decoder_declarations"])
-                    anno[key] = typing.Optional[object_inline["anno"]]  # type:ignore
+                    anno[key] = typing.Optional[object_inline["anno"]]  # type: ignore
                     field_annotations.append(
                         (key, Anno.maybe(object_inline["compiler_annotation"]))
                     )
@@ -1155,6 +1208,20 @@ def _prepare_pipeline_flags(
                         alias_values += f" {nullable_decoder.alias()}"
                     else:
                         alias_values += f"\n    {nullable_decoder.nested_alias()}"
+                case UnitFlag():
+                    unit_decoder = UnitDecoder(key)
+                    single_prepared = _prepare_inline_flags(value_flag)
+                    anno[key] = single_prepared["anno"]
+                    field_annotations.append(
+                        (key, single_prepared["compiler_annotation"])
+                    )
+                    pipeline_expressions.append(unit_decoder.pipeline_expression())
+
+                    if idx == 0:
+                        alias_values += f" {unit_decoder.alias()}"
+                    else:
+                        alias_values += f"\n    {unit_decoder.nested_alias()}"
+
                 case StringFlag():
                     string_decoder = StringDecoder(key)
                     single_prepared = _prepare_inline_flags(value_flag)
@@ -1236,8 +1303,8 @@ def _prepare_pipeline_flags(
     return {
         "adapter": TypeAdapter(
             Annotated[type("K", (BaseModel,), {"__annotations__": anno}), None]
-        ),  # type:ignore
-        "anno": Annotated[type("K", (BaseModel,), {"__annotations__": anno}), None],  # type:ignore
+        ),  # type: ignore
+        "anno": Annotated[type("K", (BaseModel,), {"__annotations__": anno}), None],  # type: ignore
         "alias_type": "{" + alias_values + "\n    }",
         "alias_extra": "",
         "decoder_extra": "",

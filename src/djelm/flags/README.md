@@ -46,6 +46,22 @@ type alias SomeAlias_ =
 "foo" : String
 ```
 
+# UnitFlag
+
+
+```python
+UnitFlag()
+```
+
+```
+# python
+"foo" : Any
+
+# elm
+"foo" : ()
+
+```
+
 # StringFlag
 
 ### Args

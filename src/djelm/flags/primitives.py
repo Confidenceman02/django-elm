@@ -1,11 +1,19 @@
 from dataclasses import dataclass
-import typing
 
 from pydantic import BaseModel
 
 
 class Flag:
     pass
+
+
+@dataclass(slots=True)
+class UnitFlag(Flag):
+    """
+    Flag for the Elm Unit primitive
+
+    Unit values will validate against any python value and then ignore it.
+    """
 
 
 @dataclass(slots=True)
@@ -54,7 +62,7 @@ class ListFlag(Flag):
 class ObjectFlag(Flag):
     """Flag for the Elm {} primitive"""
 
-    obj: typing.Dict[str, Flag]
+    obj: dict[str, Flag]
 
 
 @dataclass(slots=True)
@@ -119,10 +127,10 @@ class AliasFlag(Flag):
     obj: ObjectFlag | CustomTypeFlag
 
 
-FlagsObject = dict[str, "PrimitiveFlag"]
-FlagsList = list["PrimitiveFlag"]
-FlagsNullable = typing.Union[type[str], type[int], type[float], type[bool], type[None]]
-PrimitiveObjectFlagType = (
+type FlagsObject = dict[str, "PrimitiveFlag"]
+type FlagsList = list["PrimitiveFlag"]
+type FlagsNullable = type[str] | type[int] | type[float] | type[bool] | type[None]
+type PrimitiveObjectFlagType = (
     type[str]
     | type[int]
     | type[float]
@@ -131,6 +139,6 @@ PrimitiveObjectFlagType = (
     | type[list]
     | FlagsNullable
 )
-PrimitiveFlag = (
+type PrimitiveFlag = (
     str | int | float | bool | FlagsObject | FlagsList | FlagsNullable | None
 )

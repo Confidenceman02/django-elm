@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from typing import List
 
 import djelm.codegen.compiler as Compiler
-import djelm.codegen.format as Format
 import djelm.codegen.expression as Expression
+import djelm.codegen.format as Format
 import djelm.codegen.module_name as Mod
 import djelm.codegen.range as Range
 
