@@ -20,6 +20,7 @@ from djelm.flags.primitives import (
     NullableFlag,
     ObjectFlag,
     StringFlag,
+    UnitFlag,
 )
 from djelm.flags.main import Flags
 from djelm.generators import ModelGenerator
@@ -116,7 +117,7 @@ def basic_form():
             help_text="Do I detect.. Multiple Elm's?",
         )
 
-        class Meta:  # type:ignore
+        class Meta:  # type: ignore
             model = Enthusiast
             fields = ("username", "extras")
 
@@ -139,7 +140,7 @@ def basic_form_no_empty_label():
             help_text="Do I detect.. Multiple Elm's?",
         )
 
-        class Meta:  # type:ignore
+        class Meta:  # type: ignore
             model = Enthusiast
             fields = ("username",)
 
@@ -159,7 +160,7 @@ def basic_team_form():
             help_text="Do I detect.. Multiple Elm's?",
         )
 
-        class Meta:  # type:ignore
+        class Meta:  # type: ignore
             model = Team
             fields = ("driver",)
 
@@ -179,7 +180,7 @@ def blanks_form():
             help_text="SOS Multi",
         )
 
-        class Meta:  # type:ignore
+        class Meta:  # type: ignore
             model = Blanks
             fields = ("blank", "blanks")
 
@@ -188,7 +189,7 @@ def blanks_form():
 
 def test_program_fuzzer():
     app_name = "test_programs"
-    src_path = get_app_src_path(app_name).value  # type:ignore
+    src_path = get_app_src_path(app_name).value  # type: ignore
 
     programs = []
 
@@ -196,7 +197,7 @@ def test_program_fuzzer():
         flags = fuzz_flag()
 
         class MockHandler(ModelGenerator):
-            def load_flags(  # type:ignore
+            def load_flags(  # type: ignore
                 self,
                 app_path: str,
                 program_name: str,
@@ -256,16 +257,14 @@ class TestFuzzExamplesGenerated:
             }
         )
         SUT = Flags(d)
-        assert SUT.to_elm_parser_data()["alias_type"] == (
-            """{ yh : Yh_
+        assert SUT.to_elm_parser_data()["alias_type"] == ("""{ yh : Yh_
     }
 
 type alias Yh_ =
     { dFE3 : Maybe (Maybe Yh_DFE3__) }
 
 type alias Yh_DFE3__ =
-    { k69xy : Maybe (Maybe Int) }"""
-        )
+    { k69xy : Maybe (Maybe Int) }""")
         assert SUT.to_elm_parser_data()["decoder_body"] == (
             """toModel : Decode.Decoder ToModel
 toModel =
@@ -326,9 +325,7 @@ dEB_Decoder =
         SUT = Flags(d)
 
         # Alias type
-        assert (
-            SUT.to_elm_parser_data()["alias_type"]
-            == """{ a : A_
+        assert SUT.to_elm_parser_data()["alias_type"] == """{ a : A_
     , b : List B_
     }
 
@@ -343,7 +340,6 @@ type alias B_ =
 
 type alias B_Options__ =
     { name : String }"""
-        )
 
         assert (
             SUT.to_elm_parser_data()["decoder_body"]
@@ -513,6 +509,46 @@ field_Decoder =
         assert SUT.to_elm_parser_data() == expected
 
 
+class TestUnitFlags:
+    def test_with_object_parser(self):
+        d = ObjectFlag({"hello": UnitFlag()})
+        SUT = Flags(d)
+
+        assert SUT.parse({"hello": "world"}) == '{"hello":"world"}'
+        assert SUT.parse({"hello": 22}) == '{"hello":22}'
+
+    def test_parser(self):
+        SUT = Flags(UnitFlag())
+
+        assert SUT.parse("hello world") == '"hello world"'
+        assert SUT.parse(22) == "22"
+        assert SUT.parse({}) == "{}"
+
+    def test_to_elm_parser(self):
+        SUT = Flags(UnitFlag())
+
+        assert SUT.to_elm_parser_data() == {
+            "alias_type": "()",
+            "decoder_body": """toModel : Decode.Decoder ToModel
+toModel =
+    (Decode.succeed ())""",
+        }
+
+    def test_with_object_to_elm_parser(self):
+        SUT = Flags(ObjectFlag({"hello": UnitFlag(), "world": UnitFlag()}))
+
+        assert SUT.to_elm_parser_data() == {
+            "alias_type": """{ hello : ()
+    , world : ()
+    }""",
+            "decoder_body": """toModel : Decode.Decoder ToModel
+toModel =
+    Decode.succeed ToModel
+        |> hardcoded ()
+        |> hardcoded ()""",
+        }
+
+
 class TestStringFlags:
     def test_with_object_parser(self):
         d = ObjectFlag({"hello": StringFlag()})
@@ -664,6 +700,14 @@ toModel =
 
 
 class TestNullableFlags:
+    def test_with_unit_parser(self):
+        d = NullableFlag(UnitFlag())
+        SUT = Flags(d)
+
+        assert SUT.parse(None) == "null"
+        assert SUT.parse("Hello") == '"Hello"'
+        assert SUT.parse(22) == "22"
+
     def test_with_string_parser(self):
         d = NullableFlag(StringFlag())
         SUT = Flags(d)
@@ -756,6 +800,17 @@ class TestNullableFlags:
             SUT.parse({})
         with pytest.raises(ValidationError):
             SUT.parse("[]")
+
+    def test_with_unit_to_elm_parser(self):
+        d = NullableFlag(UnitFlag())
+        SUT = Flags(d)
+
+        assert SUT.to_elm_parser_data() == {
+            "alias_type": """Maybe ()""",
+            "decoder_body": """toModel : Decode.Decoder ToModel
+toModel =
+    (Decode.nullable (Decode.succeed ()))""",
+        }
 
     def test_with_string_to_elm_parser(self):
         d = NullableFlag(StringFlag())
@@ -922,6 +977,16 @@ class TestListFlags:
         assert SUT.parse({"hello": ["world"]}) == '{"hello":["world"]}'
         with pytest.raises(ValidationError):
             SUT.parse({"hello": 1})
+
+    def test_with_unit_parser(self):
+        d = ListFlag(UnitFlag())
+        SUT = Flags(d)
+
+        assert SUT.parse([]) == "[]"
+        assert SUT.parse(["Hello"]) == '["Hello"]'
+        assert SUT.parse([22]) == "[22]"
+        with pytest.raises(ValidationError):
+            SUT.parse(22)
 
     def test_with_string_parser(self):
         d = ListFlag(StringFlag())
@@ -1181,7 +1246,7 @@ toModel =
 
 
 class TestObjectFlags:
-    @pytest.mark.parametrize("flag", [(ObjectFlag({"hello$": StringFlag()}))])
+    @pytest.mark.parametrize("flag", [ObjectFlag({"hello$": StringFlag()})])
     def test_instance_errors(self, flag):
         with pytest.raises(ValidationError):
             Flags(flag)
@@ -1686,6 +1751,14 @@ hello_world__Decoder =
 
 
 class TestCustomTypeFlags:
+    def test_root_unit_flag_custom_type_parser(self):
+        """Handles StringFlag"""
+        d = CustomTypeFlag(variants=[("Custom1", UnitFlag())])
+
+        SUT = Flags(d)
+        assert SUT.parse("2") == '"2"'
+        assert SUT.parse(2) == "2"
+
     def test_root_string_flag_custom_type_parser(self):
         """Handles StringFlag"""
         d = CustomTypeFlag(variants=[("Custom1", StringFlag())])
@@ -1783,9 +1856,7 @@ class TestCustomTypeFlags:
         d = CustomTypeFlag(variants=[("custom1", ObjectFlag({"hello": StringFlag()}))])
 
         SUT = Flags(d)
-        assert (
-            SUT.to_elm_parser_data()["alias_type"]
-            == """InlineToModel_
+        assert SUT.to_elm_parser_data()["alias_type"] == """InlineToModel_
 
 type InlineToModel_
     = Custom1 InlineToModel_Custom1__
@@ -1793,7 +1864,6 @@ type InlineToModel_
 
 type alias InlineToModel_Custom1__ =
     { hello : String }"""
-        )
         assert (
             SUT.to_elm_parser_data()["decoder_body"]
             == """toModel : Decode.Decoder ToModel
@@ -1806,19 +1876,33 @@ inlinetomodel_Custom1__Decoder =
         |> required "hello" Decode.string"""
         )
 
+    def test_root_custom_type_with_unit_codegen(self):
+        """Generates String custom type"""
+        d = CustomTypeFlag(variants=[("Custom1", UnitFlag())])
+
+        SUT = Flags(d)
+        assert SUT.to_elm_parser_data()["alias_type"] == """InlineToModel_
+
+type InlineToModel_
+    = Custom1 ()
+"""
+        assert (
+            SUT.to_elm_parser_data()["decoder_body"]
+            == """toModel : Decode.Decoder ToModel
+toModel =
+    (Decode.oneOf [Decode.map Custom1 (Decode.succeed ())])"""
+        )
+
     def test_root_custom_type_with_string_codegen(self):
         """Generates String custom type"""
         d = CustomTypeFlag(variants=[("Custom1", StringFlag())])
 
         SUT = Flags(d)
-        assert (
-            SUT.to_elm_parser_data()["alias_type"]
-            == """InlineToModel_
+        assert SUT.to_elm_parser_data()["alias_type"] == """InlineToModel_
 
 type InlineToModel_
     = Custom1 String
 """
-        )
         assert (
             SUT.to_elm_parser_data()["decoder_body"]
             == """toModel : Decode.Decoder ToModel
@@ -1831,14 +1915,11 @@ toModel =
         d = CustomTypeFlag(variants=[("Custom1", StringFlag(literal="1"))])
 
         SUT = Flags(d)
-        assert (
-            SUT.to_elm_parser_data()["alias_type"]
-            == """InlineToModel_
+        assert SUT.to_elm_parser_data()["alias_type"] == """InlineToModel_
 
 type InlineToModel_
     = Custom1 String
 """
-        )
         assert (
             SUT.to_elm_parser_data()["decoder_body"]
             == """toModel : Decode.Decoder ToModel
@@ -1851,14 +1932,11 @@ toModel =
         d = CustomTypeFlag(variants=[("Custom1", NullableFlag(StringFlag()))])
 
         SUT = Flags(d)
-        assert (
-            SUT.to_elm_parser_data()["alias_type"]
-            == """InlineToModel_
+        assert SUT.to_elm_parser_data()["alias_type"] == """InlineToModel_
 
 type InlineToModel_
     = Custom1 (Maybe String)
 """
-        )
         assert (
             SUT.to_elm_parser_data()["decoder_body"]
             == """toModel : Decode.Decoder ToModel
@@ -1871,14 +1949,11 @@ toModel =
         d = CustomTypeFlag(variants=[("Custom1", ListFlag(StringFlag()))])
 
         SUT = Flags(d)
-        assert (
-            SUT.to_elm_parser_data()["alias_type"]
-            == """InlineToModel_
+        assert SUT.to_elm_parser_data()["alias_type"] == """InlineToModel_
 
 type InlineToModel_
     = Custom1 (List String)
 """
-        )
         assert (
             SUT.to_elm_parser_data()["decoder_body"]
             == """toModel : Decode.Decoder ToModel
@@ -1891,14 +1966,11 @@ toModel =
         d = CustomTypeFlag(variants=[("Custom1", ListFlag(NullableFlag(StringFlag())))])
 
         SUT = Flags(d)
-        assert (
-            SUT.to_elm_parser_data()["alias_type"]
-            == """InlineToModel_
+        assert SUT.to_elm_parser_data()["alias_type"] == """InlineToModel_
 
 type InlineToModel_
     = Custom1 (List (Maybe String))
 """
-        )
         assert (
             SUT.to_elm_parser_data()["decoder_body"]
             == """toModel : Decode.Decoder ToModel
@@ -1915,9 +1987,7 @@ toModel =
 
         SUT = Flags(d)
 
-        assert (
-            SUT.to_elm_parser_data()["alias_type"]
-            == """InlineToModel_
+        assert SUT.to_elm_parser_data()["alias_type"] == """InlineToModel_
 
 type InlineToModel_
     = Custom1 InlineToModel_Custom1__
@@ -1926,7 +1996,6 @@ type InlineToModel_
 type InlineToModel_Custom1__
     = InnerCustom String
 """
-        )
 
         assert (
             SUT.to_elm_parser_data()["decoder_body"]
@@ -1946,9 +2015,7 @@ toModel =
         )
 
         SUT = Flags(d)
-        assert (
-            SUT.to_elm_parser_data()["alias_type"]
-            == """InlineToModel_
+        assert SUT.to_elm_parser_data()["alias_type"] == """InlineToModel_
 
 type InlineToModel_
     = Custom1 InlineToModel_Custom1__
@@ -1965,7 +2032,6 @@ type alias InlineToModel_Custom2__ =
     { ive : String
     , arrived : String
     }"""
-        )
         assert (
             SUT.to_elm_parser_data()["decoder_body"]
             == """toModel : Decode.Decoder ToModel
@@ -2058,9 +2124,7 @@ class TestModelMultipleChoiceFieldFlags:
             == '{"help_text":"SOS Multi","auto_id":"id_blanks","id_for_label":"id_blanks","label":"Blanks","name":"blanks","widget_type":"selectmultiple","options":[{"choice_label":"BlankM object (1)","value":"1","selected":false,"instance":{"id":1,"first":"first","second":null,"third":false,"fourth":122,"fifth":5.55}}]}'
         )
 
-        assert (
-            SUT.to_elm_parser_data()["alias_type"]
-            == """{ help_text : String
+        assert SUT.to_elm_parser_data()["alias_type"] == """{ help_text : String
     , auto_id : String
     , id_for_label : String
     , label : Maybe String
@@ -2088,7 +2152,6 @@ type alias Options_BlankM__Instance__ =
     , fourth : Int
     , fifth : Float
     }"""
-        )
 
     @pytest.mark.django_db
     def test_inline_model_multiple_choice_field_flag_with_single_variant(
@@ -2187,9 +2250,7 @@ options_Decoder =
         d = ModelMultipleChoiceFieldFlag(variants=[Extra])
         SUT = Flags(d)
 
-        assert (
-            SUT.to_elm_parser_data()["alias_type"]
-            == """{ help_text : String
+        assert SUT.to_elm_parser_data()["alias_type"] == """{ help_text : String
     , auto_id : String
     , id_for_label : String
     , label : Maybe String
@@ -2213,7 +2274,6 @@ type alias Options_Extra__Instance__ =
     { id : Int
     , name : String
     }"""
-        )
 
         assert (
             SUT.to_elm_parser_data()["decoder_body"]
@@ -2303,9 +2363,7 @@ class TestModelChoiceFieldFlags:
             == '{"help_text":"SOS","auto_id":"id_blank","id_for_label":"id_blank","label":"Blank","name":"blank","widget_type":"select","options":[{"choice_label":"Blank object (1)","value":"1","selected":false,"instance":{"id":1,"first":"first","second":null,"third":false,"fourth":122,"fifth":5.55}}]}'
         )
 
-        assert (
-            SUT.to_elm_parser_data()["alias_type"]
-            == """{ help_text : String
+        assert SUT.to_elm_parser_data()["alias_type"] == """{ help_text : String
     , auto_id : String
     , id_for_label : String
     , label : Maybe String
@@ -2333,7 +2391,6 @@ type alias Options_Blank__Instance__ =
     , fourth : Int
     , fifth : Float
     }"""
-        )
 
     @pytest.mark.django_db
     def test_inline_model_choice_field_flag_with_single_variant(
@@ -2434,9 +2491,7 @@ options_Decoder =
         d = ModelChoiceFieldFlag(variants=[Car])
         SUT = Flags(d)
 
-        assert (
-            SUT.to_elm_parser_data()["alias_type"]
-            == """{ help_text : String
+        assert SUT.to_elm_parser_data()["alias_type"] == """{ help_text : String
     , auto_id : String
     , id_for_label : String
     , label : Maybe String
@@ -2461,7 +2516,6 @@ type alias Options_Car__Instance__ =
     , manufacturer : String
     , country : String
     }"""
-        )
 
         assert (
             SUT.to_elm_parser_data()["decoder_body"]

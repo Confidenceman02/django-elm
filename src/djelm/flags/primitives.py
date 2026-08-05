@@ -9,7 +9,11 @@ class Flag:
 
 @dataclass(slots=True)
 class UnitFlag(Flag):
-    """Flag for the Elm Unit primitive"""
+    """
+    Flag for the Elm Unit primitive
+
+    Unit values will validate against any python value and then ignore it.
+    """
 
 
 @dataclass(slots=True)

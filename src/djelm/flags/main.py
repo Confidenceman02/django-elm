@@ -18,11 +18,13 @@ from djelm.codegen.pattern import VarPattern
 from djelm.flags.form.primitives import ModelChoiceFieldFlag
 
 from .adapters import (
+    AnyAdapter,
     BoolAdapter,
     FloatAdapter,
     IntAdapter,
     StringAdapter,
     annotated_alias_key,
+    annotated_any,
     annotated_bool,
     annotated_float,
     annotated_int,
@@ -43,6 +45,7 @@ from .primitives import (
     PrimitiveFlag,
     PrimitiveObjectFlagType,
     StringFlag,
+    UnitFlag,
 )
 
 RESERVED_KEYWORDS = ["if", "in"]
@@ -76,6 +79,46 @@ class _DeclarationMetaStatic:
 @validate_call
 def valid_alias_key(k: annotated_alias_key):
     return k
+
+
+@dataclass(slots=True)
+class UnitDecoder:
+    """Decoder helper for the Elm Unit primitive"""
+
+    value: str
+
+    def alias(self) -> str:
+        return f"""{self.value} : {UnitDecoder._annotation()}"""
+
+    def nested_alias(self):
+        return f""", {self.value} : {UnitDecoder._annotation()}"""
+
+    @staticmethod
+    def _annotation():
+        return Anno.toString(UnitDecoder._compiler_annotation())
+
+    @staticmethod
+    def _compiler_annotation() -> Compiler.Annotation:
+        return Anno.unit()
+
+    def pipeline_expression(self) -> Compiler.Expression:
+        return Elm.apply(
+            Exp.FunctionOrValue(Module.ModuleName([]), "hardcoded", None, None),
+            [Elm.value(UnitDecoder._annotation())],
+            Range.Range(1, 0),
+        )
+
+    @staticmethod
+    def decoder_expression() -> Compiler.Expression:
+        return Exp.Parenthesized(
+            Elm.apply(
+                Exp.FunctionOrValue(
+                    Module.ModuleName(["Decode"]), "succeed", None, None
+                ),
+                [Elm.value(UnitDecoder._annotation())],
+            ),
+            None,
+        )
 
 
 @dataclass(slots=True)
@@ -692,6 +735,14 @@ def _prepare_inline_flags(
                     declarations=object_inline["decoder_declarations"],
                 )
             )
+
+        case UnitFlag():
+            adapter = AnyAdapter
+            anno = annotated_any  # type: ignore
+            alias_type = UnitDecoder._annotation()
+            compiler_annotation = UnitDecoder._compiler_annotation()
+            decoder_expression = UnitDecoder.decoder_expression()
+
         case StringFlag():
             adapter = StringAdapter
             decoder_expression = StringDecoder.decoder_expression()
@@ -1157,6 +1208,20 @@ def _prepare_pipeline_flags(
                         alias_values += f" {nullable_decoder.alias()}"
                     else:
                         alias_values += f"\n    {nullable_decoder.nested_alias()}"
+                case UnitFlag():
+                    unit_decoder = UnitDecoder(key)
+                    single_prepared = _prepare_inline_flags(value_flag)
+                    anno[key] = single_prepared["anno"]
+                    field_annotations.append(
+                        (key, single_prepared["compiler_annotation"])
+                    )
+                    pipeline_expressions.append(unit_decoder.pipeline_expression())
+
+                    if idx == 0:
+                        alias_values += f" {unit_decoder.alias()}"
+                    else:
+                        alias_values += f"\n    {unit_decoder.nested_alias()}"
+
                 case StringFlag():
                     string_decoder = StringDecoder(key)
                     single_prepared = _prepare_inline_flags(value_flag)

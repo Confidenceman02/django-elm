@@ -1,3 +1,5 @@
+import builtins
+
 import djelm.codegen.compiler as Compiler
 import djelm.codegen.format as Format
 import djelm.codegen.writer as Writer
@@ -41,6 +43,11 @@ def typed(name: str, args: list[Compiler.Annotation]) -> Compiler.Annotation:
     )
 
 
+def unit():
+    """Elm Unit annotation"""
+    return Compiler.Annotation(Compiler.Unit(), {})
+
+
 def string():
     """Elm String annotation"""
     return typed("String", [])
@@ -78,7 +85,9 @@ def alias(name: str, anno: Compiler.Annotation):
     )
 
 
-def record(fields: list[tuple[str, Compiler.Annotation]]) -> Compiler.Annotation:
+def record(
+    fields: builtins.list[tuple[str, Compiler.Annotation]],
+) -> Compiler.Annotation:
     """Elm Dict annotation"""
     return Compiler.Annotation(
         Compiler.Record(fields),
