@@ -1,9 +1,10 @@
-from dataclasses import dataclass
 import typing as Typ
-import djelm.codegen.module_name as Mod
-from djelm.codegen.pattern import Pattern
-import djelm.codegen.range as Range
+from dataclasses import dataclass
+
 import djelm.codegen.compiler as Compiler
+import djelm.codegen.module_name as Mod
+import djelm.codegen.range as Range
+from djelm.codegen.pattern import Pattern
 
 
 @dataclass(slots=True)

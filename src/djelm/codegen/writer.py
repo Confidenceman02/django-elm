@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import List, Protocol
+
 import djelm.codegen.compiler as Compiler
 import djelm.codegen.expression as Exp
 import djelm.codegen.module_name as Mod
@@ -182,6 +183,9 @@ def writeTypeAnnotation(anno: Compiler.TypeAnnotation) -> Writer:
         case Compiler.Generic(value=value):
             return string(value)
 
+        case Compiler.Unit():
+            return string("()")
+
         case Compiler.Record(fields=fields):
             writer_fields = []
             for field in fields:
@@ -228,15 +232,13 @@ def writePattern(pattern: Pattern) -> Writer:
 
 def writeExpression(expression: Compiler.Expression) -> Writer:
     match expression:
-        case (
-            Exp.OperatorApplication(
-                symbol=symbol,
-                infix_direction=direction,
-                left=left,
-                right=right,
-                range=_,
-            ) as op
-        ):
+        case Exp.OperatorApplication(
+            symbol=symbol,
+            infix_direction=direction,
+            left=left,
+            right=right,
+            range=_,
+        ) as op:
             op_range = op.get_range()
             right_range = right.get_range()
             left_range = left.get_range()

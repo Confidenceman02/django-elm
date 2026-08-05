@@ -1,6 +1,6 @@
 [project]
 name = "djelm"
-version = "0.23.0"
+version = "0.24.0"
 description = "A framework for using Elm programs in a Django project"
 readme = "README_pypi.md"
 keywords = ["django", "elm"]
@@ -11,14 +11,14 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Operating System :: OS Independent",
     "Topic :: Software Development :: Libraries",
     "Topic :: Utilities",
     "Environment :: Web Environment",
     "Framework :: Django"
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "django>=4.2.5",
     "pydantic>=2.4.2",

@@ -14,6 +14,7 @@ from djelm.flags.main import (
     NullableFlag,
     ObjectFlag,
     StringFlag,
+    UnitFlag,
 )
 from djelm.flags.primitives import AliasFlag
 
@@ -25,6 +26,7 @@ ALL_FLAGS = [
     IntFlag,
     FloatFlag,
     BoolFlag,
+    UnitFlag,
     # TODO solve constructor name clashes
     # CustomTypeFlag,
     # forms

@@ -1,6 +1,7 @@
 from typing import Iterator
-import djelm.codegen.expression as Exp
+
 import djelm.codegen.compiler as Compiler
+import djelm.codegen.expression as Exp
 
 
 def equals(

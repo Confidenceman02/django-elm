@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List
+
 import djelm.codegen.range as Range
 
 
@@ -52,6 +53,12 @@ class Typed(TypeAnnotation):
 class Generic(TypeAnnotation):
     def __init__(self, value: str) -> None:
         self.value: str = value
+
+
+@dataclass(slots=True)
+class Unit(TypeAnnotation):
+    def __init__(self) -> None:
+        pass
 
 
 class Annotation:

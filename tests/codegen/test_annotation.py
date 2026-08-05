@@ -2,6 +2,12 @@ import djelm.codegen.annotation as Anno
 
 
 class TestToString:
+    def test_with_unit(self):
+        anno = Anno.unit()
+        SUT = Anno.toString(anno)
+
+        assert SUT == "()"
+
     def test_with_string(self):
         anno = Anno.string()
         SUT = Anno.toString(anno)
@@ -72,12 +78,9 @@ class TestToString:
         anno = Anno.record([("hello", Anno.string()), ("world", Anno.string())])
         SUT = Anno.toString(anno)
 
-        assert (
-            SUT
-            == """{ hello : String
+        assert SUT == """{ hello : String
 , world : String
 }"""
-        )
 
     def test_with_record_field(self):
         anno = Anno.record([("hello", Anno.string())])
