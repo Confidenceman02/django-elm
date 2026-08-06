@@ -43,26 +43,26 @@ def typed(name: str, args: list[Compiler.Annotation]) -> Compiler.Annotation:
     )
 
 
-def var(a: str):
+def var(a: str) -> Compiler.Annotation:
     return Compiler.Annotation(Compiler.Generic(a), {})
 
 
-def unit():
+def unit() -> Compiler.Annotation:
     """Elm Unit annotation"""
     return Compiler.Annotation(Compiler.Unit(), {})
 
 
-def string():
+def string() -> Compiler.Annotation:
     """Elm String annotation"""
     return typed("String", [])
 
 
-def int():
+def int() -> Compiler.Annotation:
     """Elm Int annotation"""
     return typed("Int", [])
 
 
-def float():
+def float() -> Compiler.Annotation:
     """Elm Float annotation"""
     return typed("Float", [])
 
@@ -72,12 +72,12 @@ def bool() -> Compiler.Annotation:
     return typed("Bool", [])
 
 
-def maybe(anno: Compiler.Annotation):
+def maybe(anno: Compiler.Annotation) -> Compiler.Annotation:
     """Elm Maybe annotation"""
     return typed("Maybe", [anno])
 
 
-def list(anno: Compiler.Annotation):
+def list(anno: Compiler.Annotation) -> Compiler.Annotation:
     """Elm List annotation"""
     return typed("List", [anno])
 
@@ -86,7 +86,7 @@ def alias(
     name: str,
     anno: Compiler.Annotation,
     vars: builtins.list[Compiler.Annotation] | None = None,
-):
+) -> Compiler.Annotation:
     """Elm alias annotation"""
     return Compiler.Annotation(
         Compiler.Typed(

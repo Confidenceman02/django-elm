@@ -1,8 +1,12 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Callable
 
 from pydantic import BaseModel
 
 _KEY = object()
+
+type ToGeneric = Callable[[Context], Flag | GenericInContext]
+type GenericList = tuple[set[str], ToGeneric]
 
 
 class Flag:
@@ -102,6 +106,26 @@ class CustomTypeFlag(Flag):
     variants: list[tuple[str, Flag]]
 
 
+class GenericInContext:
+    def __init__(self, key: object, param: str) -> None:
+        if key is not _KEY:
+            raise TypeError(
+                "GenericInContext cannot be instantiated directly. "
+                "It is created and provided internally by the framework."
+            )
+        self.param = param
+
+
+class Context:
+    def __init__(self, generics: set[str]) -> None:
+        self.generics = generics
+
+    def get(self, param: str) -> GenericInContext | None:
+        if param in self.generics:
+            return GenericInContext(_KEY, param)
+        return None
+
+
 @dataclass(slots=True)
 class AliasFlag(Flag):
     """Flag for creating a static alias.
@@ -136,35 +160,73 @@ class AliasFlag(Flag):
 
     name: str
     obj: ObjectFlag | CustomTypeFlag
-    _vars: list[tuple[str, Flag]] | None = None
+    _vars: GenericList | None = None
 
     @property
-    def vars(self) -> list[tuple[str, Flag]] | None:
+    def vars(self) -> GenericList | None:
         if self._vars is None:
             return None
         return self._vars
 
-    def _set_vars(self, new_vars: list[tuple[str, Flag]], *, key: object) -> None:
+    def _set_vars(
+        self, new_vars: GenericList, to_generic: ToGeneric, *, key: object
+    ) -> None:
         if key is not _KEY:
             raise PermissionError("Unauthorized call to _set_vars")
         self._vars = new_vars
 
 
-class TypeVar1:
+class GenericFlag:
+    call: ToGeneric
+
+    def __init__(self, call: ToGeneric) -> None:
+        pass
+
+
+class Generics1:
     """
-    A type variable placeholder
+    A generic variable placeholder
 
-    Produces types like:
+    Flags with generics are intended to be reusable.
 
-        type alias Foo b
+    Setting up:
+
+        ReusableFoo = Generics1("a", AliasFlag("Foo", ObjectFlag({"b": Context(lambda ctx: ctx.get("a")})))
+
+    Usage:
+        SomeIntFlag = ReusableFoo(lambda ctx: IntFlag())
+        SomeStringFlag = ReusableFoo(lambda ctx: StringFlag(literal="Foo"))
+
+        Flags = ObjectFlag({"foo": SomeIntFlag, "bar": SomeStringFlag})
+
+    Result:
+        You end up with an Elm model that looks like the following:
+
+                type alias ToModel =
+                    { foo : Foo_ Int
+                    , bar : Foo_ String
+                    }
+
+                type alias Foo_ a =
+                    { b : a }
+
+    Args:
+        with_context:
+            A function that takes a context and returns either a Flag or a GenericInContext.
+            The context holds all generics that are available for that flag.
+
+    Constriants:
+        If generics are added to AliasFlag's and not consumed, the Elm compiler will error.
     """
 
     def __init__(self, var1: str, flag: AliasFlag):
         self.var1 = var1
         self.flag = flag
 
-    def __call__(self, flag: Flag) -> AliasFlag:
-        self.flag._set_vars([(self.var1, flag)], key=_KEY)
+    def __call__(
+        self, with_context: Callable[[Context], Flag | GenericInContext]
+    ) -> AliasFlag:
+        self.flag._set_vars((set([self.var1]), with_context), with_context, key=_KEY)
         return self.flag
 
 

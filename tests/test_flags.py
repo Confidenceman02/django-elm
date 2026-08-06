@@ -20,7 +20,7 @@ from djelm.flags.primitives import (
     NullableFlag,
     ObjectFlag,
     StringFlag,
-    TypeVar1,
+    Generics1,
     UnitFlag,
 )
 from djelm.flags.main import Flags
@@ -2054,29 +2054,45 @@ inlinetomodel_Custom2__Decoder =
 
 
 class TestTypeVar:
-    def test_type_var_1_inline(self):
-        """Handles TypeVar1"""
-        d = TypeVar1(
+    def test_type_var_1_inline_string(self):
+        d = Generics1(
             "a",
-            AliasFlag("SomeAlias", CustomTypeFlag(variants=[("Custom1", UnitFlag())])),
+            AliasFlag(
+                "SomeAlias", CustomTypeFlag(variants=[("Custom1", StringFlag())])
+            ),
         )
 
-        SUT = Flags(d(StringFlag()))
+        SUT = Flags(d(lambda _: StringFlag()))
         assert SUT.to_elm_parser_data()["alias_type"] == """SomeAlias_ String
 
 type SomeAlias_ a
-    = Custom1 ()
+    = Custom1 String
 """
 
-    def test_type_var_1_pipeline(self):
+    def test_type_var_1_inline_int(self):
+        d = Generics1(
+            "a",
+            AliasFlag(
+                "SomeAlias", CustomTypeFlag(variants=[("Custom1", StringFlag())])
+            ),
+        )
+
+        SUT = Flags(d(lambda _: IntFlag()))
+        assert SUT.to_elm_parser_data()["alias_type"] == """SomeAlias_ Int
+
+type SomeAlias_ a
+    = Custom1 String
+"""
+
+    def test_type_var_1_pipeline_string(self):
         """Handles TypeVar1"""
-        Var = TypeVar1(
+        Var = Generics1(
             "a",
             AliasFlag("SomeAliasVar", ObjectFlag({"hello": StringFlag()})),
         )
         a = AliasFlag(
             "SomeAlias",
-            ObjectFlag({"world": Var(StringFlag())}),
+            ObjectFlag({"world": Var(lambda _: StringFlag())}),
         )
 
         SUT = Flags(a)
