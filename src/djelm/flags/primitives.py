@@ -1,10 +1,25 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Callable
 
 from pydantic import BaseModel
+
+_KEY = object()
+
+type GenericList = set[str]
+type ToGeneric = Callable[[Context], Flag | GenericInContext]
 
 
 class Flag:
     pass
+
+
+@dataclass(slots=True)
+class TypeVarFlag(Flag):
+    """
+    Flag for a generic type variable
+    """
+
+    name: str
 
 
 @dataclass(slots=True)
@@ -91,6 +106,31 @@ class CustomTypeFlag(Flag):
     variants: list[tuple[str, Flag]]
 
 
+class GenericInContext:
+    def __init__(self, key: object, param: str) -> None:
+        if key is not _KEY:
+            raise TypeError(
+                "GenericInContext cannot be instantiated directly. "
+                "It is created and provided internally by the framework."
+            )
+        self.param = param
+
+
+class Context:
+    def __init__(self, key: object, generics: list[str]) -> None:
+        if key is not _KEY:
+            raise TypeError(
+                "Context cannot be instantiated directly. "
+                "It is created and provided internally by the framework."
+            )
+        self.generics = generics
+
+    def lookup(self, param: str) -> GenericInContext | None:
+        if param in self.generics:
+            return GenericInContext(_KEY, param)
+        return None
+
+
 @dataclass(slots=True)
 class AliasFlag(Flag):
     """Flag for creating a static alias.
@@ -125,6 +165,40 @@ class AliasFlag(Flag):
 
     name: str
     obj: ObjectFlag | CustomTypeFlag
+    _vars: GenericList = field(default_factory=set)
+    _to_generic: ToGeneric | None = None
+
+    @property
+    def vars(self) -> GenericList | None:
+        if self._vars is None:
+            return None
+        return self._vars
+
+    def _set_vars(
+        self, new_vars: GenericList, to_generic: ToGeneric, *, key: object
+    ) -> None:
+        if key is not _KEY:
+            raise PermissionError("Unauthorized call to _set_vars")
+        self._vars = new_vars
+        self._to_generic = to_generic
+
+
+class TypeVar1:
+    """
+    A type variable placeholder
+
+    Produces types like:
+
+        type alias Foo b
+    """
+
+    def __init__(self, var1: str, flag: AliasFlag):
+        self.var1 = var1
+        self.flag = flag
+
+    def __call__(self, flag: Callable[[Context], Flag | GenericInContext]) -> AliasFlag:
+        self.flag._set_vars(set([self.var1]), flag, key=_KEY)
+        return self.flag
 
 
 type FlagsObject = dict[str, "PrimitiveFlag"]

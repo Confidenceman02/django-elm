@@ -28,6 +28,26 @@ class TestExpressions:
     , foo : ()
     }"""
 
+    def test_alias_declaration_with_generics(self):
+        decl = Elm.aliasWith(
+            "Something",
+            ["a", "b"],
+            Anno.record(
+                [
+                    ("hello", Anno.string()),
+                    ("world", Anno.string()),
+                    ("foo", Anno.unit()),
+                ]
+            ),
+        )
+        SUT = Writer.writeDeclartion(decl)
+
+        assert SUT.write() == """type alias Something a b =
+    { hello : String
+    , world : String
+    , foo : ()
+    }"""
+
     def test_alias_declaration_with_lower(self):
         decl = Elm.alias(
             "something",
@@ -45,6 +65,17 @@ class TestExpressions:
         SUT = Writer.writeDeclartion(decl)
 
         assert SUT.write() == """type Something
+    = Hello
+    | World
+"""
+
+    def test_custom_type_with_declaration(self):
+        decl = Elm.customTypeWith(
+            "Something", ["a"], [Elm.variant("Hello"), Elm.variant("World")]
+        )
+        SUT = Writer.writeDeclartion(decl)
+
+        assert SUT.write() == """type Something a
     = Hello
     | World
 """

@@ -74,6 +74,12 @@ class TestToString:
 
         assert SUT == "Something"
 
+    def test_with_alias_with_vars(self):
+        anno = Anno.alias("Something", Anno.string(), [Anno.var("a"), Anno.var("b")])
+        SUT = Anno.toString(anno)
+
+        assert SUT == "Something a b"
+
     def test_with_record_fields(self):
         anno = Anno.record([("hello", Anno.string()), ("world", Anno.string())])
         SUT = Anno.toString(anno)

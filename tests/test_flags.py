@@ -20,6 +20,7 @@ from djelm.flags.primitives import (
     NullableFlag,
     ObjectFlag,
     StringFlag,
+    TypeVar1,
     UnitFlag,
 )
 from djelm.flags.main import Flags
@@ -2050,6 +2051,42 @@ inlinetomodel_Custom2__Decoder =
         |> required "ive" Decode.string
         |> required "arrived" Decode.string"""
         )
+
+
+class TestTypeVar:
+    def test_type_var_1_inline(self):
+        """Handles TypeVar1"""
+        d = TypeVar1(
+            "a",
+            AliasFlag("SomeAlias", CustomTypeFlag(variants=[("Custom1", UnitFlag())])),
+        )
+
+        SUT = Flags(d(lambda x: StringFlag()))
+        assert SUT.to_elm_parser_data()["alias_type"] == """SomeAlias_ String
+
+type SomeAlias_ a
+    = Custom1 ()
+"""
+
+    def test_type_var_1_pipeline(self):
+        """Handles TypeVar1"""
+        Var = TypeVar1(
+            "a",
+            AliasFlag("SomeAliasVar", ObjectFlag({"hello": StringFlag()})),
+        )
+        a = AliasFlag(
+            "SomeAlias",
+            ObjectFlag({"world": Var(lambda parameter_x: StringFlag())}),
+        )
+
+        SUT = Flags(a)
+        assert SUT.to_elm_parser_data()["alias_type"] == """SomeAlias_
+
+type alias SomeAlias_ =
+    { world : SomeAliasVar_ String }
+
+type alias SomeAliasVar_ a =
+    { hello : String }"""
 
 
 class TestModelMultipleChoiceFieldFlags:
