@@ -43,6 +43,10 @@ def typed(name: str, args: list[Compiler.Annotation]) -> Compiler.Annotation:
     )
 
 
+def var(a: str):
+    return Compiler.Annotation(Compiler.Generic(a), {})
+
+
 def unit():
     """Elm Unit annotation"""
     return Compiler.Annotation(Compiler.Unit(), {})
@@ -78,10 +82,17 @@ def list(anno: Compiler.Annotation):
     return typed("List", [anno])
 
 
-def alias(name: str, anno: Compiler.Annotation):
+def alias(
+    name: str,
+    anno: Compiler.Annotation,
+    vars: builtins.list[Compiler.Annotation] | None = None,
+):
     """Elm alias annotation"""
     return Compiler.Annotation(
-        Compiler.Typed(Format.alias_type(name), []), addAlias(name, anno, {})
+        Compiler.Typed(
+            Format.alias_type(name), args=[a.annotation for a in vars] if vars else []
+        ),
+        addAlias(name, anno, {}),
     )
 
 

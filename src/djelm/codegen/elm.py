@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List
+import builtins
 
 import djelm.codegen.compiler as Compiler
 import djelm.codegen.expression as Expression
@@ -8,7 +8,9 @@ import djelm.codegen.module_name as Mod
 import djelm.codegen.range as Range
 
 
-def variantWith(name: str, annotations: List[Compiler.Annotation]) -> Compiler.Variant:
+def variantWith(
+    name: str, annotations: builtins.list[Compiler.Annotation]
+) -> Compiler.Variant:
     return Compiler.Variant(Format.safe_capitalize(name), annotations)
 
 
@@ -17,14 +19,29 @@ def variant(name: str) -> Compiler.Variant:
 
 
 def alias(name: str, annotation: Compiler.Annotation) -> Compiler.Declaration:
+    return aliasWith(name, [], annotation)
+
+
+def aliasWith(
+    name: str, generics: builtins.list[str], annotation: Compiler.Annotation
+) -> Compiler.Declaration:
     return Compiler.Declaration(
-        name, Compiler.AliasDeclaration(Format.alias_type(name), annotation)
+        name, Compiler.AliasDeclaration(Format.alias_type(name), generics, annotation)
     )
 
 
-def customType(name: str, variants: List[Compiler.Variant]) -> Compiler.Declaration:
+def customType(
+    name: str, variants: builtins.list[Compiler.Variant]
+) -> Compiler.Declaration:
+    return customTypeWith(name, [], variants)
+
+
+def customTypeWith(
+    name: str, generics: builtins.list[str], variants: list[Compiler.Variant]
+) -> Compiler.Declaration:
     return Compiler.Declaration(
-        name, Compiler.CustomTypeDeclaration(Format.alias_type(name), variants)
+        name,
+        Compiler.CustomTypeDeclaration(Format.alias_type(name), generics, variants),
     )
 
 
@@ -38,13 +55,13 @@ def value(
 
 def apply(
     fnExp: Compiler.Expression,
-    argExp: List[Compiler.Expression],
+    argExp: builtins.list[Compiler.Expression],
     rng: Range.Range | None = None,
 ) -> Compiler.Expression:
     return Expression.Application([fnExp, *argExp], fnExp.annotation_type(), rng)
 
 
-def list(members: List[Compiler.Expression]) -> Compiler.Expression:
+def list(members: builtins.list[Compiler.Expression]) -> Compiler.Expression:
     return Expression.List(members, None)
 
 
@@ -74,4 +91,4 @@ def int(value: int, rng: Range.Range | None = None) -> Compiler.Expression:
 @dataclass(slots=True)
 class CustomType:
     name: str
-    variants: List[Compiler.Variant]
+    variants: builtins.list[Compiler.Variant]

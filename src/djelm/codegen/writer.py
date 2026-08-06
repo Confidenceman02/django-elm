@@ -204,7 +204,7 @@ def writeTypeAnnotation(anno: Compiler.TypeAnnotation) -> Writer:
                 return singleRecordField(writer_fields)
 
         case _:
-            raise Exception("Can't handle that type of annotation")
+            raise Exception(f"Can't handle that type of annotation {anno}")
 
 
 def writeVariantConstructors(variant: Compiler.Variant) -> Writer:
@@ -364,7 +364,7 @@ def writeExpression(expression: Compiler.Expression) -> Writer:
 def writeDeclartion(declaration: Compiler.Declaration) -> Writer:
     """Writer for top level declarations"""
     match declaration.kind:
-        case Compiler.AliasDeclaration(name=name, anno=anno):
+        case Compiler.AliasDeclaration(name=name, generics=generics, anno=anno):
             return breaked(
                 [
                     spaced(
@@ -372,16 +372,21 @@ def writeDeclartion(declaration: Compiler.Declaration) -> Writer:
                             string("type"),
                             string("alias"),
                             string(name),
+                            *[string(g) for g in generics],
                             string("="),
                         ]
                     ),
                     indent(4, writeTypeAnnotation(anno.annotation)),
                 ]
             )
-        case Compiler.CustomTypeDeclaration(name=name, variants=variants):
+        case Compiler.CustomTypeDeclaration(
+            name=name, generics=generics, variants=variants
+        ):
             return breaked(
                 [
-                    spaced([string("type"), string(name)]),
+                    spaced(
+                        [string("type"), string(name), *[string(g) for g in generics]]
+                    ),
                     indent(
                         4,
                         # TODO rstrip string to remove trailing spaces

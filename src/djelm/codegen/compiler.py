@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List
 
 import djelm.codegen.range as Range
 
@@ -44,54 +43,48 @@ class Declaration:
 
 @dataclass(slots=True)
 class Typed(TypeAnnotation):
-    def __init__(self, name: str, args: List[TypeAnnotation]) -> None:
-        self.name: str = name
-        self.args: List[TypeAnnotation] = args
+    name: str
+    args: list[TypeAnnotation]
 
 
 @dataclass(slots=True)
 class Generic(TypeAnnotation):
-    def __init__(self, value: str) -> None:
-        self.value: str = value
+    value: str
 
 
 @dataclass(slots=True)
 class Unit(TypeAnnotation):
-    def __init__(self) -> None:
-        pass
+    pass
 
 
+@dataclass(slots=True)
 class Annotation:
-    def __init__(
-        self,
-        annotation: TypeAnnotation,
-        aliases: dict[str, TypeAnnotation],
-    ) -> None:
-        self.annotation = annotation
-        self.aliases: dict[str, TypeAnnotation] = aliases
+    annotation: TypeAnnotation
+    aliases: dict[str, TypeAnnotation]
 
 
+@dataclass(slots=True)
 class Variant:
-    def __init__(self, name: str, annotations: list[Annotation]) -> None:
-        self.name = name
-        self.annotations = annotations
+    name: str
+    annotations: list[Annotation]
 
 
 @dataclass(slots=True)
 class Record(TypeAnnotation):
-    def __init__(self, fields: List[tuple[str, Annotation]]) -> None:
-        self.fields = fields
+    fields: list[tuple[str, Annotation]]
 
 
 @dataclass(slots=True)
 class AliasDeclaration(DeclarationKind):
     name: str
+    generics: list[str]
     anno: Annotation
 
 
 @dataclass(slots=True)
 class CustomTypeDeclaration(DeclarationKind):
     name: str
+    generics: list[str]
     variants: list[Variant]
 
 

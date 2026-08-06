@@ -2,9 +2,20 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel
 
+_KEY = object()
+
 
 class Flag:
     pass
+
+
+@dataclass(slots=True)
+class TypeVarFlag(Flag):
+    """
+    Flag for a generic type variable
+    """
+
+    name: str
 
 
 @dataclass(slots=True)
@@ -125,6 +136,36 @@ class AliasFlag(Flag):
 
     name: str
     obj: ObjectFlag | CustomTypeFlag
+    _vars: list[tuple[str, Flag]] | None = None
+
+    @property
+    def vars(self) -> list[tuple[str, Flag]] | None:
+        if self._vars is None:
+            return None
+        return self._vars
+
+    def _set_vars(self, new_vars: list[tuple[str, Flag]], *, key: object) -> None:
+        if key is not _KEY:
+            raise PermissionError("Unauthorized call to _set_vars")
+        self._vars = new_vars
+
+
+class TypeVar1:
+    """
+    A type variable placeholder
+
+    Produces types like:
+
+        type alias Foo b
+    """
+
+    def __init__(self, var1: str, flag: AliasFlag):
+        self.var1 = var1
+        self.flag = flag
+
+    def __call__(self, flag: Flag) -> AliasFlag:
+        self.flag._set_vars([(self.var1, flag)], key=_KEY)
+        return self.flag
 
 
 type FlagsObject = dict[str, "PrimitiveFlag"]
