@@ -39,6 +39,7 @@ from .primitives import (
     CustomTypeFlag,
     Flag,
     FloatFlag,
+    GenericList,
     IntFlag,
     ListFlag,
     NullableFlag,
@@ -47,7 +48,6 @@ from .primitives import (
     PrimitiveObjectFlagType,
     StringFlag,
     UnitFlag,
-    GenericList,
 )
 
 RESERVED_KEYWORDS = ["if", "in"]
@@ -468,7 +468,7 @@ class ObjectDecoder:
     def _compiler_annotation(
         self, annotation: Compiler.Annotation
     ) -> Compiler.Annotation:
-        resolved_annotation: Compiler.Annotation | None = self._generic_annotation()
+        resolved_annotation: Compiler.Annotation | None = None
 
         return Anno.alias(
             self._annotated_name(),
@@ -481,11 +481,25 @@ class ObjectDecoder:
         if self.generics:
             resolvedFlag = self.generics[1](Context(self.generics[0]))
             match resolvedFlag:
-                case Flag():
-                    prepared = _prepare_inline_flags(resolvedFlag, depth=self.depth)
+                case ObjectFlag():
+                    object_decoder = ObjectDecoder(
+                        self._annotated_name(),
+                        self.depth + 1,
+                        None,
+                    )
+                    prepared = _prepare_inline_flags(
+                        resolvedFlag,
+                        object_decoder=object_decoder,
+                        depth=self.depth,
+                    )
                     resolved_annotation = Anno.var(prepared["alias_type"])
 
-                case _:
+                case Flag():
+                    prepared = _prepare_inline_flags(
+                        resolvedFlag,
+                        object_decoder=None,
+                        depth=self.depth,
+                    )
                     raise NotImplementedError("Only Flag is supported")
 
         return resolved_annotation
@@ -529,6 +543,9 @@ class CustomTypeDecoder:
     compiler_variants: list[Compiler.Variant]
     decoder_expressions: list[tuple[str, Compiler.Expression]]
     generics: GenericList | None
+    accumulated_type_declarations: (
+        list[_DeclarationMetaBasic | _DeclarationMetaStatic] | None
+    ) = None
 
     @staticmethod
     def pipeline_expression(
@@ -559,12 +576,25 @@ class CustomTypeDecoder:
         if self.generics:
             resolvedFlag = self.generics[1](Context(self.generics[0]))
             match resolvedFlag:
-                case Flag():
-                    prepared = _prepare_inline_flags(resolvedFlag, depth=self.depth)
+                case ObjectFlag():
+                    object_decoder = ObjectDecoder(
+                        self.name,
+                        self.depth,
+                        None,
+                    )
+                    prepared = _prepare_inline_flags(
+                        resolvedFlag, object_decoder, depth=self.depth
+                    )
+                    self.accumulated_type_declarations = prepared["type_declarations"]
+
                     resolved_annotation = Anno.var(prepared["alias_type"])
 
-                case _:
-                    raise NotImplementedError("Only Flag is supported")
+                case Flag():
+                    prepared = _prepare_inline_flags(
+                        resolvedFlag,
+                        object_decoder=None,
+                        depth=self.depth,
+                    )
 
         return resolved_annotation
 
@@ -923,6 +953,15 @@ def _prepare_inline_flags(
                 ),
                 *type_declarations,
             ]
+
+            # NOTE: Generics can produce additional type declarations
+            if (
+                custom_type_decoder.generics
+                and custom_type_decoder.accumulated_type_declarations
+            ):
+                type_declarations.extend(
+                    custom_type_decoder.accumulated_type_declarations
+                )
             decoder_expression = custom_type_decoder.decoder_expression()
         case ModelChoiceFieldFlag(variants=_) as mcf:
             mcf_flag = mcf.obj()
@@ -940,7 +979,7 @@ def _prepare_inline_flags(
             Subsequent alias's will have their parent added to the start. i.e. type alias InlineToModel_A__
             """
             if object_decoder._to_annotation() != "InlineToModel_":
-                parent_key = object_decoder._to_annotation()
+                parent_key = object_decoder._annotated_name()
 
             object_pipeline = _prepare_pipeline_flags(
                 mcf_flag,
@@ -985,7 +1024,7 @@ def _prepare_inline_flags(
             Subsequent alias's will have their parent added to the start. i.e. type alias InlineToModel_A__
             """
             if object_decoder._to_annotation() != "InlineToModel_":
-                parent_key = object_decoder._to_annotation()
+                parent_key = object_decoder._annotated_name()
             object_pipeline = _prepare_pipeline_flags(
                 flag,
                 (

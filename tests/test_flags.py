@@ -2084,6 +2084,85 @@ type SomeAlias_ a
     = Custom1 String
 """
 
+    def test_type_var_1_inline_float(self):
+        d = Generics1(
+            "a",
+            AliasFlag(
+                "SomeAlias", CustomTypeFlag(variants=[("Custom1", StringFlag())])
+            ),
+        )
+
+        SUT = Flags(d(lambda _: FloatFlag()))
+        assert SUT.to_elm_parser_data()["alias_type"] == """SomeAlias_ Float
+
+type SomeAlias_ a
+    = Custom1 String
+"""
+
+    def test_type_var_1_inline_bool(self):
+        d = Generics1(
+            "a",
+            AliasFlag(
+                "SomeAlias", CustomTypeFlag(variants=[("Custom1", StringFlag())])
+            ),
+        )
+
+        SUT = Flags(d(lambda _: BoolFlag()))
+        assert SUT.to_elm_parser_data()["alias_type"] == """SomeAlias_ Bool
+
+type SomeAlias_ a
+    = Custom1 String
+"""
+
+    def test_type_var_1_inline_nullable_string(self):
+        d = Generics1(
+            "a",
+            AliasFlag(
+                "SomeAlias", CustomTypeFlag(variants=[("Custom1", StringFlag())])
+            ),
+        )
+
+        SUT = Flags(d(lambda _: NullableFlag(StringFlag())))
+        assert SUT.to_elm_parser_data()["alias_type"] == """SomeAlias_ (Maybe String)
+
+type SomeAlias_ a
+    = Custom1 String
+"""
+
+    def test_type_var_1_inline_list_string(self):
+        d = Generics1(
+            "a",
+            AliasFlag(
+                "SomeAlias", CustomTypeFlag(variants=[("Custom1", StringFlag())])
+            ),
+        )
+
+        SUT = Flags(d(lambda _: ListFlag(StringFlag())))
+        assert SUT.to_elm_parser_data()["alias_type"] == """SomeAlias_ (List String)
+
+type SomeAlias_ a
+    = Custom1 String
+"""
+
+    def test_type_var_1_inline_object(self):
+        d = Generics1(
+            "a",
+            AliasFlag(
+                "SomeAlias", CustomTypeFlag(variants=[("Custom1", StringFlag())])
+            ),
+        )
+
+        SUT = Flags(d(lambda _: ObjectFlag({"foo": StringFlag(), "bar": StringFlag()})))
+        assert SUT.to_elm_parser_data()["alias_type"] == """SomeAlias_ SomeAlias__
+
+type SomeAlias_ a
+    = Custom1 String
+
+type alias SomeAlias__ =
+    { foo : String
+    , bar : String
+    }"""
+
     def test_type_var_1_pipeline_string(self):
         """Handles TypeVar1"""
         Var = Generics1(
