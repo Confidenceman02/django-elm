@@ -1,40 +1,41 @@
 import os
-from django import forms
-from djelm.effect import ExitSuccess
+
 import pytest
+from django import forms
 from django.core.management.base import LabelCommand
 from pydantic import ValidationError
 
+from djelm.effect import ExitSuccess
 from djelm.elm import Elm
 from djelm.flags.form.primitives import (
     ModelChoiceFieldFlag,
     ModelMultipleChoiceFieldFlag,
 )
+from djelm.flags.main import Flags
 from djelm.flags.primitives import (
     AliasFlag,
     BoolFlag,
     CustomTypeFlag,
     FloatFlag,
+    Generics1,
     IntFlag,
     ListFlag,
     NullableFlag,
     ObjectFlag,
     StringFlag,
-    Generics1,
     UnitFlag,
 )
-from djelm.flags.main import Flags
 from djelm.generators import ModelGenerator
 from djelm.strategy import GenerateModelStrategy
 from djelm.utils import get_app_src_path
 from test_programs.models import (
     Blank,
-    Extra,
     BlankM,
     Blanks,
     Car,
     Driver,
     Enthusiast,
+    Extra,
     Extra01,
     Team,
 )
@@ -2053,125 +2054,135 @@ inlinetomodel_Custom2__Decoder =
         )
 
 
-class TestTypeVar:
-    def test_type_var_1_inline_string(self):
-        d = Generics1(
-            "a",
-            AliasFlag(
-                "SomeAlias", CustomTypeFlag(variants=[("Custom1", StringFlag())])
-            ),
-        )
-
-        SUT = Flags(d(lambda _: StringFlag()))
-        assert SUT.to_elm_parser_data()["alias_type"] == """SomeAlias_ String
-
-type SomeAlias_ a
-    = Custom1 String
-"""
-
-    def test_type_var_1_inline_int(self):
-        d = Generics1(
-            "a",
-            AliasFlag(
-                "SomeAlias", CustomTypeFlag(variants=[("Custom1", StringFlag())])
-            ),
-        )
-
-        SUT = Flags(d(lambda _: IntFlag()))
-        assert SUT.to_elm_parser_data()["alias_type"] == """SomeAlias_ Int
+class TestGenerics:
+    @pytest.mark.parametrize(
+        "flag,cb,expected",
+        [
+            (
+                Generics1(
+                    "a",
+                    AliasFlag(
+                        "SomeAlias",
+                        CustomTypeFlag(variants=[("Custom1", StringFlag())]),
+                    ),
+                ),
+                lambda _: StringFlag(),
+                """SomeAlias_ String
 
 type SomeAlias_ a
     = Custom1 String
-"""
-
-    def test_type_var_1_inline_float(self):
-        d = Generics1(
-            "a",
-            AliasFlag(
-                "SomeAlias", CustomTypeFlag(variants=[("Custom1", StringFlag())])
+""",
             ),
-        )
-
-        SUT = Flags(d(lambda _: FloatFlag()))
-        assert SUT.to_elm_parser_data()["alias_type"] == """SomeAlias_ Float
+            (
+                Generics1(
+                    "a",
+                    AliasFlag(
+                        "SomeAlias",
+                        CustomTypeFlag(variants=[("Custom1", StringFlag())]),
+                    ),
+                ),
+                lambda _: IntFlag(),
+                """SomeAlias_ Int
 
 type SomeAlias_ a
     = Custom1 String
-"""
-
-    def test_type_var_1_inline_bool(self):
-        d = Generics1(
-            "a",
-            AliasFlag(
-                "SomeAlias", CustomTypeFlag(variants=[("Custom1", StringFlag())])
+""",
             ),
-        )
-
-        SUT = Flags(d(lambda _: BoolFlag()))
-        assert SUT.to_elm_parser_data()["alias_type"] == """SomeAlias_ Bool
+            (
+                Generics1(
+                    "a",
+                    AliasFlag(
+                        "SomeAlias",
+                        CustomTypeFlag(variants=[("Custom1", StringFlag())]),
+                    ),
+                ),
+                lambda _: FloatFlag(),
+                """SomeAlias_ Float
 
 type SomeAlias_ a
     = Custom1 String
-"""
-
-    def test_type_var_1_inline_nullable_string(self):
-        d = Generics1(
-            "a",
-            AliasFlag(
-                "SomeAlias", CustomTypeFlag(variants=[("Custom1", StringFlag())])
+""",
             ),
-        )
-
-        SUT = Flags(d(lambda _: NullableFlag(StringFlag())))
-        assert SUT.to_elm_parser_data()["alias_type"] == """SomeAlias_ (Maybe String)
+            (
+                Generics1(
+                    "a",
+                    AliasFlag(
+                        "SomeAlias",
+                        CustomTypeFlag(variants=[("Custom1", StringFlag())]),
+                    ),
+                ),
+                lambda _: BoolFlag(),
+                """SomeAlias_ Bool
 
 type SomeAlias_ a
     = Custom1 String
-"""
-
-    def test_type_var_1_inline_list_string(self):
-        d = Generics1(
-            "a",
-            AliasFlag(
-                "SomeAlias", CustomTypeFlag(variants=[("Custom1", StringFlag())])
+""",
             ),
-        )
-
-        SUT = Flags(d(lambda _: ListFlag(StringFlag())))
-        assert SUT.to_elm_parser_data()["alias_type"] == """SomeAlias_ (List String)
+            (
+                Generics1(
+                    "a",
+                    AliasFlag(
+                        "SomeAlias",
+                        CustomTypeFlag(variants=[("Custom1", StringFlag())]),
+                    ),
+                ),
+                lambda _: NullableFlag(StringFlag()),
+                """SomeAlias_ (Maybe String)
 
 type SomeAlias_ a
     = Custom1 String
-"""
-
-    def test_type_var_1_inline_object(self):
-        d = Generics1(
-            "a",
-            AliasFlag(
-                "SomeAlias", CustomTypeFlag(variants=[("Custom1", StringFlag())])
+""",
             ),
-        )
-
-        SUT = Flags(d(lambda _: ObjectFlag({"foo": StringFlag(), "bar": StringFlag()})))
-        assert SUT.to_elm_parser_data()["alias_type"] == """SomeAlias_ SomeAlias__
+            (
+                Generics1(
+                    "a",
+                    AliasFlag(
+                        "SomeAlias",
+                        CustomTypeFlag(variants=[("Custom1", StringFlag())]),
+                    ),
+                ),
+                lambda _: ListFlag(StringFlag()),
+                """SomeAlias_ (List String)
 
 type SomeAlias_ a
     = Custom1 String
+""",
+            ),
+            (
+                Generics1(
+                    "a",
+                    AliasFlag(
+                        "SomeAlias",
+                        CustomTypeFlag(variants=[("Custom1", StringFlag())]),
+                    ),
+                ),
+                lambda _: ObjectFlag({"foo": StringFlag(), "bar": StringFlag()}),
+                """SomeAlias_ SomeAlias__
+
+type SomeAlias_ a
+    = Custom1 String
+
 
 type alias SomeAlias__ =
     { foo : String
     , bar : String
-    }"""
+    }""",
+            ),
+        ],
+    )
+    def test_generics1_inline(self, flag, cb, expected):
+        SUT = Flags(flag(cb))
+        assert SUT.to_elm_parser_data()["alias_type"] == expected
 
-    def test_type_var_1_pipeline_string(self):
+    def test_generics1_pipeline_string(self):
         """Handles TypeVar1"""
-        Var = Generics1(
+        G = Generics1(
             "a",
             AliasFlag("SomeAliasVar", ObjectFlag({"hello": StringFlag()})),
         )
         a = AliasFlag(
             "SomeAlias",
-            ObjectFlag({"world": Var(lambda _: StringFlag())}),
+            ObjectFlag({"world": G(lambda _: StringFlag())}),
         )
 
         SUT = Flags(a)
