@@ -2174,7 +2174,7 @@ type alias SomeAlias__ =
         SUT = Flags(flag(cb))
         assert SUT.to_elm_parser_data()["alias_type"] == expected
 
-    def test_generics1_pipeline_string(self):
+    def test_generics1_pipeline(self):
         """Handles TypeVar1"""
         G = Generics1(
             "a",
