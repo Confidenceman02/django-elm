@@ -2194,6 +2194,71 @@ type alias SomeAlias_ =
 type alias SomeAliasVar_ a =
     { hello : String }"""
 
+    def test_generics1_pipeline_bool(self):
+        """Handles TypeVar1"""
+        G = Generics1(
+            "a",
+            AliasFlag("SomeAliasVar", ObjectFlag({"hello": StringFlag()})),
+        )
+        a = AliasFlag(
+            "SomeAlias",
+            ObjectFlag({"world": G(lambda _: BoolFlag())}),
+        )
+
+        SUT = Flags(a)
+        assert SUT.to_elm_parser_data()["alias_type"] == """SomeAlias_
+
+type alias SomeAlias_ =
+    { world : SomeAliasVar_ Bool }
+
+type alias SomeAliasVar_ a =
+    { hello : String }"""
+
+    def test_generics1_pipeline_list_string(self):
+        """Handles TypeVar1"""
+        G = Generics1(
+            "a",
+            AliasFlag("SomeAliasVar", ObjectFlag({"hello": StringFlag()})),
+        )
+        a = AliasFlag(
+            "SomeAlias",
+            ObjectFlag({"world": G(lambda _: ListFlag(StringFlag()))}),
+        )
+
+        SUT = Flags(a)
+        assert SUT.to_elm_parser_data()["alias_type"] == """SomeAlias_
+
+type alias SomeAlias_ =
+    { world : SomeAliasVar_ (List String) }
+
+type alias SomeAliasVar_ a =
+    { hello : String }"""
+
+    def test_generics1_pipeline_list_object(self):
+        """Handles TypeVar1"""
+        G = Generics1(
+            "a",
+            AliasFlag("SomeAliasVar", ObjectFlag({"hello": StringFlag()})),
+        )
+        a = AliasFlag(
+            "SomeAlias",
+            ObjectFlag(
+                {"world": G(lambda _: ListFlag(ObjectFlag({"universe": StringFlag()})))}
+            ),
+        )
+
+        SUT = Flags(a)
+        assert SUT.to_elm_parser_data()["alias_type"] == """SomeAlias_
+
+type alias SomeAlias_ =
+    { world : SomeAliasVar_ (List SomeAliasVar___) }
+
+type alias SomeAliasVar_ a =
+    { hello : String }
+
+type alias SomeAliasVar___ =
+    { universe : String }"""
+
 
 class TestModelMultipleChoiceFieldFlags:
     @pytest.mark.django_db

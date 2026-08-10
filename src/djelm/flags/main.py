@@ -431,13 +431,16 @@ class ObjectDecoder:
     generics: GenericList | None = None
     generics_in_scope: set[str] | None = None
     parent_alias: str | None = None
+    accumulated_type_declarations: (
+        list[_DeclarationMetaBasic | _DeclarationMetaStatic] | None
+    ) = None
 
     def pipeline_signature(self) -> Compiler.Signature:
         return Compiler.Signature(
             self._to_decoder_name(),
             Compiler.Typed(
                 "Decode.Decoder",
-                [self._compiler_annotation(Anno.record([])).annotation],
+                [Anno.alias(self._annotated_name(), Anno.record([]), []).annotation],
             ),
         )
 
@@ -480,29 +483,17 @@ class ObjectDecoder:
     def _generic_annotation(self) -> Compiler.Annotation | None:
         resolved_annotation: Compiler.Annotation | None = None
         if self.generics:
-            # TODO: Use generics in scope
             resolvedFlag = self.generics[1](Context(self.generics_in_scope or set()))
-            match resolvedFlag:
-                case ObjectFlag():
-                    object_decoder = ObjectDecoder(
-                        self._annotated_name(),
-                        self.depth + 1,
-                        None,
-                    )
-                    prepared = _prepare_inline_flags(
-                        resolvedFlag,
-                        object_decoder=object_decoder,
-                        depth=self.depth,
-                    )
-                    resolved_annotation = Anno.var(prepared["alias_type"])
-
-                case Flag():
-                    prepared = _prepare_inline_flags(
-                        resolvedFlag,
-                        object_decoder=None,
-                        depth=self.depth,
-                    )
-                    resolved_annotation = Anno.var(prepared["alias_type"])
+            next_object_decoder = _build_object_decoder(
+                resolvedFlag, self._annotated_name(), self.depth + 1, None, None
+            )
+            prepared = _prepare_inline_flags(
+                resolvedFlag,
+                object_decoder=next_object_decoder,
+                depth=self.depth,
+            )
+            resolved_annotation = Anno.var(prepared["alias_type"])
+            self.accumulated_type_declarations = prepared["type_declarations"]
 
         return resolved_annotation
 
@@ -529,7 +520,7 @@ class ObjectDecoder:
     def pipeline_starter_expression(self) -> Compiler.Expression:
         return Elm.apply(
             Exp.FunctionOrValue(Module.ModuleName(["Decode"]), "succeed", None, None),
-            [Elm.value(self._to_annotation())],
+            [Elm.value(self._annotated_name())],
         )
 
     def decoder_expression(self) -> Compiler.Expression:
@@ -577,27 +568,14 @@ class CustomTypeDecoder:
         resolved_annotation: Compiler.Annotation | None = None
         if self.generics:
             resolvedFlag = self.generics[1](Context(self.generics[0]))
-            match resolvedFlag:
-                case ObjectFlag():
-                    object_decoder = ObjectDecoder(
-                        self.name,
-                        self.depth,
-                        None,
-                    )
-                    prepared = _prepare_inline_flags(
-                        resolvedFlag, object_decoder, depth=self.depth
-                    )
-                    self.accumulated_type_declarations = prepared["type_declarations"]
-                    resolved_annotation = Anno.var(prepared["alias_type"])
-
-                case Flag():
-                    prepared = _prepare_inline_flags(
-                        resolvedFlag,
-                        object_decoder=None,
-                        depth=self.depth,
-                    )
-                    self.accumulated_type_declarations = prepared["type_declarations"]
-                    resolved_annotation = Anno.var(prepared["alias_type"])
+            next_object_decoder = _build_object_decoder(
+                resolvedFlag, self.name, self.depth, None, None
+            )
+            prepared = _prepare_inline_flags(
+                resolvedFlag, next_object_decoder, depth=self.depth
+            )
+            self.accumulated_type_declarations = prepared["type_declarations"]
+            resolved_annotation = Anno.var(prepared["alias_type"])
 
         return resolved_annotation
 
@@ -1048,6 +1026,10 @@ def _prepare_inline_flags(
                     *object_pipeline["type_declarations"],
                 ]
             )
+            # NOTE: Generics can produce additional type declarations
+            if object_decoder.generics and object_decoder.accumulated_type_declarations:
+                type_declarations.extend(object_decoder.accumulated_type_declarations)
+
             decoder_declarations.extend(object_pipeline["decoder_declarations"])
             decoder_expression = object_decoder.decoder_expression()
         case _:
@@ -1097,8 +1079,14 @@ def _prepare_pipeline_flags(
             valid_alias_key(key)
             match value_flag:
                 case AliasFlag(name=alias_name, obj=alias_obj, vars=alias_vars):
-                    object_decoder = ObjectDecoder(alias_name, 1, alias_vars)
-                    object_inline = _prepare_inline_flags(alias_obj, object_decoder)
+                    decoder = _build_object_decoder(
+                        value_flag, alias_name, 1, None, alias_vars
+                    )
+                    assert decoder
+                    object_inline = _prepare_inline_flags(
+                        alias_obj,
+                        object_decoder=decoder,
+                    )
                     type_declarations.append(
                         _DeclarationMetaStatic(
                             static_name=alias_name,
@@ -1124,16 +1112,19 @@ def _prepare_pipeline_flags(
                             )
                         case ObjectFlag():
                             pipeline_expressions.append(
-                                object_decoder.pipeline_expression(key)
+                                decoder.pipeline_expression(key)
                             )
                     if idx == 0:
-                        alias_values += f" {object_decoder.alias(key)}"
+                        alias_values += f" {decoder.alias(key)}"
                     else:
-                        alias_values += f"\n    {object_decoder.nested_alias(key)}"
+                        alias_values += f"\n    {decoder.nested_alias(key)}"
                 case ModelChoiceFieldFlag() as mcf:
                     mcf_flag = mcf.obj()
+                    decoder = _build_object_decoder(
+                        value_flag, key, depth, parent_key, None
+                    )
                     assert isinstance(mcf_flag, ObjectFlag)
-                    decoder = ObjectDecoder(key, depth, parent_alias=parent_key)
+                    assert decoder
                     prepared_object_recursive = _prepare_pipeline_flags(
                         # Use built in flags
                         mcf_flag,
@@ -1177,7 +1168,10 @@ def _prepare_pipeline_flags(
                         alias_values += f"\n    {decoder.nested_alias(key)}"
 
                 case ObjectFlag(obj=obj):
-                    decoder = ObjectDecoder(key, depth, parent_alias=parent_key)
+                    decoder = _build_object_decoder(
+                        value_flag, key, depth, parent_key, None
+                    )
+                    assert decoder
                     prepared_object_recursive = _prepare_pipeline_flags(
                         ObjectFlag(obj),
                         (
@@ -1227,7 +1221,10 @@ def _prepare_pipeline_flags(
                         alias_values += f"\n    {decoder.nested_alias(key)}"
 
                 case ListFlag(obj=obj):
-                    decoder = ObjectDecoder(key, depth, parent_alias=parent_key)
+                    decoder = _build_object_decoder(
+                        value_flag, key, depth, parent_key, None
+                    )
+                    assert decoder
                     object_inline = _prepare_inline_flags(obj, decoder)
                     list_decoder = ListDecoder(
                         key,
@@ -1250,7 +1247,10 @@ def _prepare_pipeline_flags(
                         alias_values += f"\n    {list_decoder.nested_alias()}"
 
                 case CustomTypeFlag(variants=_) as ctf:
-                    decoder = ObjectDecoder(key, depth, parent_alias=parent_key)
+                    decoder = _build_object_decoder(
+                        value_flag, key, depth, parent_key, None
+                    )
+                    assert decoder
                     object_inline = _prepare_inline_flags(ctf, decoder)
                     anno[key] = typing.Optional[object_inline["anno"]]  # type: ignore
                     field_annotations.append(
@@ -1272,9 +1272,11 @@ def _prepare_pipeline_flags(
                     pass
 
                 case NullableFlag(obj=obj1):
-                    object_inline = _prepare_inline_flags(
-                        obj1, ObjectDecoder(key, depth, parent_alias=parent_key)
+                    object_decoder = _build_object_decoder(
+                        value_flag, key, depth, parent_key, None
                     )
+                    assert object_decoder
+                    object_inline = _prepare_inline_flags(obj1, object_decoder)
                     nullable_decoder = NullableDecoder(
                         key,
                         object_inline["compiler_annotation"],
@@ -1403,6 +1405,29 @@ def _prepare_pipeline_flags(
             *decoder_declarations,
         ],
     }
+
+
+def _build_object_decoder(
+    flag: Flag,
+    key: str,
+    depth: int,
+    parent_key: str | None,
+    alias_vars: GenericList | None,
+) -> ObjectDecoder | None:
+    match flag:
+        case (
+            AliasFlag()
+            | ModelChoiceFieldFlag()
+            | ObjectFlag()
+            | ListFlag()
+            | CustomTypeFlag()
+            | NullableFlag()
+        ):
+            return ObjectDecoder(
+                key, depth, parent_alias=parent_key, generics=alias_vars
+            )
+        case _:
+            return None
 
 
 class Flags(BaseFlag):

@@ -168,9 +168,7 @@ class AliasFlag(Flag):
             return None
         return self._vars
 
-    def _set_vars(
-        self, new_vars: GenericList, to_generic: ToGeneric, *, key: object
-    ) -> None:
+    def _set_vars(self, new_vars: GenericList, *, key: object) -> None:
         if key is not _KEY:
             raise PermissionError("Unauthorized call to _set_vars")
         self._vars = new_vars
@@ -226,7 +224,7 @@ class Generics1:
     def __call__(
         self, with_context: Callable[[Context], Flag | GenericInContext]
     ) -> AliasFlag:
-        self.flag._set_vars((set([self.var1]), with_context), with_context, key=_KEY)
+        self.flag._set_vars((set([self.var1]), with_context), key=_KEY)
         return self.flag
 
 
