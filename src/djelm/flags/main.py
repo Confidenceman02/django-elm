@@ -680,7 +680,7 @@ class BaseFlag(metaclass=FlagMetaClass):
                 prepared_flags = _prepare_inline_flags(
                     flag,
                     ObjectDecoder("inlineToModel", 1),
-                    decoder_sig=decoder_sig,
+                    decoder_sig=decoder_sig[0],
                 )
 
         assert prepared_flags is not None
@@ -769,7 +769,7 @@ def _prepare_inline_flags(
     flag: Flag,
     object_decoder: ObjectDecoder | None = None,
     depth: int = 1,
-    decoder_sig: tuple[Compiler.Signature, Compiler.Expression] | None = None,
+    decoder_sig: Compiler.Signature | None = None,
 ) -> InlineReturn:
     adapter: TypeAdapter
     anno: PrimitiveObjectFlagType
@@ -997,7 +997,7 @@ def _prepare_inline_flags(
 
             Subsequent alias's will have their parent added to the start. i.e. type alias InlineToModel_A__
             """
-            if object_decoder._to_annotation() != "InlineToModel_":
+            if object_decoder._annotated_name() != "InlineToModel_":
                 parent_key = object_decoder._annotated_name()
             object_pipeline = _prepare_pipeline_flags(
                 flag,
@@ -1038,8 +1038,9 @@ def _prepare_inline_flags(
     decoder_body = ""
 
     if decoder_sig:
-        sig, _ = decoder_sig
-        decoder_body = Elm.declaration(sig.name, decoder_expression, sig)
+        decoder_body = Elm.declaration(
+            decoder_sig.name, decoder_expression, decoder_sig
+        )
 
     return {
         "adapter": adapter,
@@ -1179,7 +1180,7 @@ def _prepare_pipeline_flags(
                             decoder.pipeline_starter_expression(),
                         ),
                         depth + 1,
-                        parent_key=decoder._to_annotation(),
+                        parent_key=decoder._annotated_name(),
                     )
                     anno[key] = type(
                         "K",
@@ -1382,11 +1383,11 @@ def _prepare_pipeline_flags(
         except Exception as err:
             raise err
 
-    sig, top_pipe = decoder_sig
+    sig, decoder_exp = decoder_sig
 
     pipeline_decoder = Elm.declaration(
         sig.name,
-        Op.pipes(top_pipe, reversed(pipeline_expressions)),
+        Op.pipes(decoder_exp, reversed(pipeline_expressions)),
         sig,
     )
 
