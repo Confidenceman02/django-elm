@@ -440,7 +440,7 @@ class ObjectDecoder:
             self._to_decoder_name(),
             Compiler.Typed(
                 "Decode.Decoder",
-                [Anno.alias(self._annotated_name(), Anno.record([]), []).annotation],
+                [self._compiler_annotation(Anno.record([])).annotation],
             ),
         )
 
@@ -676,6 +676,24 @@ class BaseFlag(metaclass=FlagMetaClass):
                     mcf_flag, decoder_sig=decoder_sig
                 )
                 prepared_flags["adapter"] = mcf.adapter()
+            case AliasFlag(name=alias_name, obj=_, vars=alias_vars):
+                alias_object_decoder = ObjectDecoder(alias_name, 1, alias_vars)
+                sig = Compiler.Signature(
+                    "toModel",
+                    Compiler.Typed(
+                        "Decode.Decoder",
+                        [
+                            alias_object_decoder._compiler_annotation(
+                                Anno.record([])
+                            ).annotation
+                        ],
+                    ),
+                )
+                prepared_flags = _prepare_inline_flags(
+                    flag,
+                    alias_object_decoder,
+                    decoder_sig=sig,
+                )
             case _:
                 prepared_flags = _prepare_inline_flags(
                     flag,
