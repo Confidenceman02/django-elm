@@ -2259,27 +2259,34 @@ type alias SomeAliasVar_ a =
 type alias SomeAliasVar___ =
     { universe : String }"""
 
+    ## TODO: Make this work
 
-#     @pytest.mark.parametrize(
-#         "flag,cb,expected",
-#         [
-#             (
-#                 Generics1(
-#                     "a",
-#                     AliasFlag(
-#                         "SomeAlias",
-#                         CustomTypeFlag(variants=[("Custom1", StringFlag())]),
-#                     ),
-#                 ),
-#                 lambda _: StringFlag(),
-#                 """toModel : Decode.Decoder (SomeAlias_ a)
-# """,
-#             ),
-#         ],
-#     )
-#     def test_generics_decoder_body(self, flag, cb, expected):
-#         SUT = Flags(flag(cb))
-#         assert SUT.to_elm_parser_data()["decoder_body"] == expected
+    @pytest.mark.parametrize(
+        "flag,cb,expected",
+        [
+            (
+                Generics1(
+                    "a",
+                    AliasFlag(
+                        "SomeAlias",
+                        ObjectFlag({"hello": StringFlag()}),
+                    ),
+                ),
+                lambda _: StringFlag(),
+                """toModel : Decode.Decoder (SomeAlias_ String)
+toModel =
+    someAlias_Decoder Decode.string
+
+someAlias_Decoder : Decode.Decoder a -> Decode.Decoder (SomeAlias_ a)
+someAlias_Decoder decoder_a =
+    Decode.succeed SomeAlias_
+        |> required "hello" Decode.string""",
+            ),
+        ],
+    )
+    def test_generics_decoder_body(self, flag, cb, expected):
+        SUT = Flags(flag(cb))
+        assert SUT.to_elm_parser_data()["decoder_body"] == expected
 
 
 class TestModelMultipleChoiceFieldFlags:

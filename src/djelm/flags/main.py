@@ -588,6 +588,7 @@ class CustomTypeDecoder:
         )
 
     def decoder_expression(self) -> Compiler.Expression:
+        # TODO: Make the decoder expression it's own function
         return Exp.Parenthesized(
             Elm.apply(
                 Exp.FunctionOrValue(Module.ModuleName(["Decode"]), "oneOf", None, None),
@@ -954,6 +955,7 @@ def _prepare_inline_flags(
                 type_declarations.extend(
                     custom_type_decoder.accumulated_type_declarations
                 )
+            # TODO: Create standalone declaration for the custom type
             decoder_expression = custom_type_decoder.decoder_expression()
         case ModelChoiceFieldFlag(variants=_) as mcf:
             mcf_flag = mcf.obj()
